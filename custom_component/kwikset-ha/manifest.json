@@ -1,0 +1,9 @@
+{
+  "domain": "kwikset",
+  "name": "Kwikset",
+  "config_flow": true,
+  "documentation": "https://github.com/explosivo22/kwikset-ha/",
+  "codeowners": [ "@explosivo22" ],
+  "requirements": [ "aiokwikset" ],
+  "version": "0.0.1"
+}
