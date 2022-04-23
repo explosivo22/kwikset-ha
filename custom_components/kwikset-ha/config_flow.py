@@ -55,30 +55,34 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_code(self, user_input=None):
         """Get the Verification code from the user"""
         errors = {}
+        pre_auth = None
         if user_input is None:
-            return self.async_show_form(
-                step_id="verification_code",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_CODE): str
-                    }
-                ),
-                errors = errors
-            )
-        for entry in self._async_current_entries():
-            try:
-                #initialize API
-                self.api = API(entry.data[CONF_EMAIL])
-                #start authentication
-                pre_auth = await self.api.authenticate(entry.data[CONF_PASSWORD])
-                #MFA verification
-                await self.api.verify_user(pre_auth, user_input[CONF_CODE])
-            
-            except RequestError as request_error:
-                LOGGER.error("Error connecting to the kwikset API: %s", request_error)
-                raise CannotConnect from request_error
-
-            return self.async_step_select_home()
+            for entry in self._async_current_entries():
+                try:
+                    #initialize API
+                    self.api = API(entry.data[CONF_EMAIL])
+                    #start authentication
+                    pre_auth = await self.api.authenticate(entry.data[CONF_PASSWORD])
+                
+                except RequestError as request_error:
+                    LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+                    raise CannotConnect from request_error
+                return self.async_show_form(
+                    step_id="verification_code",
+                    data_schema=vol.Schema(
+                        {
+                            vol.Required(CONF_CODE): str
+                        }
+                    ),
+                    errors = errors
+                )
+        if pre_auth is None:
+            """abort"""
+            return self.async_abort(reason="No pre-authentication started")
+        
+        #MFA verification
+        await self.api.verify_user(pre_auth, user_input[CONF_CODE])
+        return self.async_step_select_home()
 
     async def async_step_select_home(self, user_input=None):
         """Ask user to select the home to setup"""
