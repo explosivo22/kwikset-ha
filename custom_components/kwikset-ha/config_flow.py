@@ -67,15 +67,15 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 except RequestError as request_error:
                     LOGGER.error("Error connecting to the kwikset API: %s", request_error)
                     raise CannotConnect from request_error
-                return self.async_show_form(
-                    step_id="verification_code",
-                    data_schema=vol.Schema(
-                        {
-                            vol.Required(CONF_CODE): str
-                        }
-                    ),
-                    errors = errors
-                )
+            return self.async_show_form(
+                step_id="verification_code",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_CODE): str
+                    }
+                ),
+                errors = errors
+            )
         if pre_auth is None:
             """abort"""
             return self.async_abort(reason="No pre-authentication started")
