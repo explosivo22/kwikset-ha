@@ -45,9 +45,10 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         vol.Required(CONF_PASSWORD): str
                     }
                 ),
+                errors = errors
             )
 
-        return await self.async_step_code(user_input)
+        return await self.async_step_code()
         
         
 
@@ -62,14 +63,20 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         vol.Required(CONF_CODE): str
                     }
                 ),
+                errors = errors
             )
         for entry in self._async_current_entries():
-            #initialize API
-            self.api = API(POOL_ID,CLIENT_ID,user_pool_region=POOL_REGION,username=entry.data['CONF_EMAIL'])
-            #start authentication
-            pre_auth = await self.api.authenticate(entry.data['CONF_PASSWORD'])
-            #MFA verification
-            await self.api.verify_user(pre_auth, user_input['CONF_CODE'])
+            try:
+                #initialize API
+                self.api = API(entry.data[CONF_EMAIL])
+                #start authentication
+                pre_auth = await self.api.authenticate(entry.data[CONF_PASSWORD])
+                #MFA verification
+                await self.api.verify_user(pre_auth, user_input[CONF_CODE])
+            
+            except RequestError as request_error:
+                LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+                raise CannotConnect from request_error
 
             return self.async_step_select_home()
 
