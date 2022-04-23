@@ -3,7 +3,7 @@ import logging
 
 LOGGER = logging.getLogger(__package__)
 
-DOMAIN = 'kwikset'
+DOMAIN = 'kwikset-ha'
 
 POOL_ID = 'us-east-1_6B3uo6uKN'
 CLIENT_ID = '5eu1cdkjp1itd1fi7b91m6g79s'
