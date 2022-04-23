@@ -98,7 +98,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         self.home_id = user_input[CONF_HOME_ID]
         await self.async_set_unique_id(f"{self.home_id}")
-        return await self.async_external_step_done(next_step_id="install")
+        return await self.async_step_install()
 
     async def async_step_install(self, data=None):
         """Create a config entry at completion of a flow and authorization"""

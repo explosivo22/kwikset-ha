@@ -1,4 +1,4 @@
-"""Constants for Kwikset Halo Monitoring"""
+"""Constants for Kwikset Monitoring"""
 import logging
 
 LOGGER = logging.getLogger(__package__)
@@ -12,3 +12,5 @@ POOL_REGION = 'us-east-1'
 CONF_API = 'conf_api'
 CONF_HOME_ID = 'conf_home_id'
 CONF_HOME_NAME = 'conf_home_name'
+
+CLIENT = 'client'
