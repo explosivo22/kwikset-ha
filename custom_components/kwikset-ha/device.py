@@ -51,7 +51,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def device_name(self) -> str:
         """Return device name."""
-        return self._device_information["devicename"]
+        homes = await self.api_client.user.get_homes()
+        for home in homes:
+            if home['deviceid'] ==  self._kwikset_device_id:
+                return = home['devicename']
 
     @property
     def manufacturer(self) -> str:
