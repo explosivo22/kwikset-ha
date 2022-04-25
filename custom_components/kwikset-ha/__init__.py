@@ -29,6 +29,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
 
+    _LOGGER.debug(entry.data[CONF_EMAIL])
+
     hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API(entry.data[CONF_EMAIL], refresh_token=entry.data[CONF_REFRESH_TOKEN])
 
     try:

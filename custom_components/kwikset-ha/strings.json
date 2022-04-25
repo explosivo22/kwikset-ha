@@ -8,7 +8,7 @@
                     "password": "[%key:common::config_flow::data::password%]"
                 }
             },
-            "verification_code": {
+            "code": {
                 "data": {
                     "code": "[%key:common::config_flow::data::code%]"
                 }
