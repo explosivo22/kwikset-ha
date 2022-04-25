@@ -90,12 +90,12 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
         )
         LOGGER.debug("Kwikset device data: %s", self._device_information)
 
-    async def lock(self, temperature: int):
+    async def lock(self):
         """Lock the device"""
         user_info = await self.api_client.user.get_info()
         await self.api_client.device.lock_device(self._device_information, user_info)
 
-    async def unlock(self, temperature: int):
+    async def unlock(self):
         """unlock the device"""
         user_info = await self.api_client.user.get_info()
         await self.api_client.device.unlock_device(self._device_information, user_info)

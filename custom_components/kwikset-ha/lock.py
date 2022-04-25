@@ -29,17 +29,17 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
     def __init__(self, device: KwiksetDeviceDataUpdateCoordinator, options) -> None:
         """Initialize the lock heater."""
-        super().__init__("Kwikset Lock",device)
+        super().__init__("lock","Kwikset Lock",device)
         self.options = options
 
     async def async_lock(self, **kwargs):
         """Lock the device."""
-        await self._device.lock(set_status=True)
+        await self._device.lock()
         self.async_write_ha_state()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
-        await self._device.unlock(set_status=True)
+        await self._device.unlock()
         self.async_write_ha_state()
 
     @property
