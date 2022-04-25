@@ -10,9 +10,6 @@ from homeassistant.core import callback
 from .const import (
     DOMAIN, 
     LOGGER,
-    POOL_ID,
-    CLIENT_ID,
-    POOL_REGION,
     CONF_API,
     CONF_HOME_ID
 )
@@ -20,7 +17,7 @@ from .const import (
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle configuration of Kwikset integrations."""
 
-    VERSION = 2
+    VERSION = 1
 
     def __init__(self):
         """Create a new instance of the flow handler"""
@@ -28,6 +25,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.id_token = None
         self.refresh_token = None
         self.api = None
+        self.pre_auth = None
         self.username = None
         self.password = None
         self.home_id = None
@@ -47,6 +45,9 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 errors = errors
             )
+            
+        self.username = user_input[CONF_EMAIL]
+        self.password = user_input[CONF_PASSWORD]
 
         return await self.async_step_code()
         
@@ -55,20 +56,20 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_code(self, user_input=None):
         """Get the Verification code from the user"""
         errors = {}
-        pre_auth = None
+
         if user_input is None:
-            for entry in self._async_current_entries():
-                try:
-                    #initialize API
-                    self.api = API(entry.data[CONF_EMAIL])
-                    #start authentication
-                    pre_auth = await self.api.authenticate(entry.data[CONF_PASSWORD])
-                
-                except RequestError as request_error:
-                    LOGGER.error("Error connecting to the kwikset API: %s", request_error)
-                    raise CannotConnect from request_error
+            try:
+                #initialize API
+                self.api = API(self.username)
+                #start authentication
+                self.pre_auth = await self.api.authenticate(self.password)
+            
+            except RequestError as request_error:
+                LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+                raise CannotConnect from request_error
+
             return self.async_show_form(
-                step_id="verification_code",
+                step_id="code",
                 data_schema=vol.Schema(
                     {
                         vol.Required(CONF_CODE): str
@@ -76,13 +77,11 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 errors = errors
             )
-        if pre_auth is None:
-            """abort"""
-            return self.async_abort(reason="No pre-authentication started")
         
         #MFA verification
-        await self.api.verify_user(pre_auth, user_input[CONF_CODE])
-        return self.async_step_select_home()
+        await self.api.verify_user(self.pre_auth, user_input[CONF_CODE])
+
+        return await self.async_step_select_home()
 
     async def async_step_select_home(self, user_input=None):
         """Ask user to select the home to setup"""
