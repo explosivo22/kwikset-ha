@@ -14,7 +14,7 @@ from .entity import KwiksetEntity
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Rinnai Water heater from config entry."""
-    devices: list[RinnaiDeviceDataUpdateCoordinator] = hass.data[RINNAI_DOMAIN][
+    devices: list[KwiksetDeviceDataUpdateCoordinator] = hass.data[KWIKSET_DOMAIN][
         config_entry.entry_id
     ]["devices"]
     entities = []
