@@ -9,7 +9,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     DOMAIN, 
     LOGGER,
-    CONF_API,
     CONF_HOME_ID,
     CONF_REFRESH_TOKEN
 )
@@ -111,7 +110,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Create a config entry at completion of a flow and authorization"""
         data = {
             CONF_EMAIL: self.username,
-            CONF_API: self.api,
             CONF_HOME_ID: self.home_id,
             CONF_REFRESH_TOKEN: self.api.refresh_token
         }
