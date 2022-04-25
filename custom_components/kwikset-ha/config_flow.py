@@ -10,7 +10,8 @@ from .const import (
     DOMAIN, 
     LOGGER,
     CONF_API,
-    CONF_HOME_ID
+    CONF_HOME_ID,
+    CONF_REFRESH_TOKEN
 )
 
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):

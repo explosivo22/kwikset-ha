@@ -1,4 +1,4 @@
-# Kwikset Smart Locks for Home Assistant
+# //Kwikset Smart Locks for Home Assistant
 
 Support for [Kwikset Smart Locks](https://www.kwikset.com/products/electronic/electronic-smart-locks) for Home Assistant.
 
