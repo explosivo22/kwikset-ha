@@ -14,6 +14,7 @@ from .const import (
     DOMAIN,
     CONF_API,
     CONF_HOME_ID,
+    CONF_REFRESH_TOKEN,
     CLIENT
 )
 from .device import KwiksetDeviceDataUpdateCoordinator
@@ -28,9 +29,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
 
-    hass.data[DOMAIN][entry.entry_id][CLIENT] = client = entry.data[CONF_API]
+    hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API(entry.data[CONF_EMAIL], refresh_token=entry.data[CONF_REFRESH_TOKEN])
 
     try:
+        await client.renew_access_token()
         user_info = await client.user.get_info()
     except RequestError as err:
         raise ConfigEntryNotReady from err

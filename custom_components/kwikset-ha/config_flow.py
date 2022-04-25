@@ -5,7 +5,6 @@ import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_CODE
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.core import callback
 
 from .const import (
     DOMAIN, 
@@ -21,9 +20,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         """Create a new instance of the flow handler"""
-        self.access_token = None
-        self.id_token = None
-        self.refresh_token = None
         self.api = None
         self.pre_auth = None
         self.username = None
@@ -114,7 +110,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Create a config entry at completion of a flow and authorization"""
         data = {
             CONF_API: self.api,
-            CONF_HOME_ID: self.home_id
+            CONF_HOME_ID: self.home_id,
+            CONF_FRESH_TOKEN: self.api.refresh_token
         }
 
         homes = await self.api.user.get_homes()
