@@ -4,6 +4,6 @@
     "\\custom_component",
     "\\custom_component\\kwikset-ha"
   ],
-  "SelectedNode": "\\custom_component\\kwikset-ha\\config.flow.py",
+  "SelectedNode": "\\custom_component\\kwikset-ha\\manifest.json",
   "PreviewInSolutionExplorer": false
 }

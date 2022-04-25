@@ -78,9 +78,24 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
         """Return the serial number for the device."""
         return self._device_information["serialnumber"]
 
+    @property
+    def status(self) -> str:
+        """Return the status of the device"""
+        return self._device_information["doorstatus"]
+
     async def _update_device(self, *_) -> None:
         """Update the device information from the API"""
         self._device_information = await self.api_client.device.get_device_info(
             self._kwikset_device_id
         )
         LOGGER.debug("Kwikset device data: %s", self._device_information)
+
+    async def lock(self, temperature: int):
+        """Lock the device"""
+        user_info = await self.api_client.user.get_info()
+        await self.api_client.device.lock_device(self._device_information, user_info)
+
+    async def unlock(self, temperature: int):
+        """unlock the device"""
+        user_info = await self.api_client.user.get_info()
+        await self.api_client.device.unlock_device(self._device_information, user_info)
