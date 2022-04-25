@@ -4,6 +4,6 @@
   "config_flow": true,
   "documentation": "https://github.com/explosivo22/kwikset-ha/",
   "codeowners": [ "@explosivo22" ],
-  "requirements": [ "aiokwikset==0.0.6" ],
+  "requirements": [ "aiokwikset==0.0.7" ],
   "version": "0.0.2"
 }
