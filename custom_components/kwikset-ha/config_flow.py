@@ -111,7 +111,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         data = {
             CONF_API: self.api,
             CONF_HOME_ID: self.home_id,
-            CONF_FRESH_TOKEN: self.api.refresh_token
+            CONF_REFRESH_TOKEN: self.api.refresh_token
         }
 
         homes = await self.api.user.get_homes()
