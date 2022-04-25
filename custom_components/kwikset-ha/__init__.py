@@ -40,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
 
     hass.data[DOMAIN][entry.entry_id]["devices"] = devices = [
-        KwiksetDeviceDataUpdateCoordinator(hass, client, device["deviceid"])
+        KwiksetDeviceDataUpdateCoordinator(hass, client, device["deviceid"], device["devicename"])
         for device in devices
     ]
 

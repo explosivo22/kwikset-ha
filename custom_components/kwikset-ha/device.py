@@ -18,12 +18,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     """Kwikset device object"""
 
     def __init__(
-        self, hass: HomeAssistant, api_client: API, device_id: str
+        self, hass: HomeAssistant, api_client: API, device_id: str, device_name: str
     ):
         """Initialize the device"""
         self.hass: HomeAssistantType = hass
         self.api_client: API = api_client
         self._kwikset_device_id: str = device_id
+        self._device_name: str = device_name
         self._manufacturer: str = "Kwikset"
         self._device_information: Optional[Dict[str, Any]] | None = None
         super().__init__(
@@ -51,10 +52,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def device_name(self) -> str:
         """Return device name."""
-        homes = await self.api_client.user.get_homes()
-        for home in homes:
-            if home['deviceid'] ==  self._kwikset_device_id:
-                return home['devicename']
+        return self._device_name
 
     @property
     def manufacturer(self) -> str:
