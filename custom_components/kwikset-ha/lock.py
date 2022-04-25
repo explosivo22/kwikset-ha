@@ -35,12 +35,12 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     async def async_lock(self, **kwargs):
         """Lock the device."""
         await self._device.lock()
-        self.async_write_ha_state()
+        self._device.async_request_refresh()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
         await self._device.unlock()
-        self.async_write_ha_state()
+        self._device.async_request_refresh()
 
     @property
     def is_locked(self):
