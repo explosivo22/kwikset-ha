@@ -1,6 +1,6 @@
 {
   "domain": "kwikset-ha",
-  "name": "Kwikset Smark Locks",
+  "name": "Kwikset Smart Locks",
   "config_flow": true,
   "documentation": "https://github.com/explosivo22/kwikset-ha/",
   "codeowners": [ "@explosivo22" ],
