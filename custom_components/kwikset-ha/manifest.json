@@ -1,9 +1,9 @@
 {
   "domain": "kwikset-ha",
-  "name": "Kwikset Smark Locks",
+  "name": "Kwikset Smart Locks",
   "config_flow": true,
   "documentation": "https://github.com/explosivo22/kwikset-ha/",
   "codeowners": [ "@explosivo22" ],
   "requirements": [ "aiokwikset==0.0.7" ],
-  "version": "0.0.2"
+  "version": "0.0.3"
 }
