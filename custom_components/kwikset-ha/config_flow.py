@@ -110,6 +110,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_install(self, data=None):
         """Create a config entry at completion of a flow and authorization"""
         data = {
+            CONF_EMAIL: self.username,
             CONF_API: self.api,
             CONF_HOME_ID: self.home_id,
             CONF_REFRESH_TOKEN: self.api.refresh_token
