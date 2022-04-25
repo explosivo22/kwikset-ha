@@ -36,8 +36,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 step_id="user",
                 data_schema=vol.Schema(
                     {
-                        vol.Required(CONF_EMAIL): str,
-                        vol.Required(CONF_PASSWORD): str
+                        vol.Required("email"): str,
+                        vol.Required("password"): str
                     }
                 ),
                 errors = errors

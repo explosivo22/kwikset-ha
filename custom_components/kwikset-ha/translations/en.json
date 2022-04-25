@@ -16,7 +16,7 @@
 
                 }
             },
-            "verification_code": {
+            "code": {
                 "data": {
                     "code": "Verification Code"
                 }
