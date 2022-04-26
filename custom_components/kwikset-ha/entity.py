@@ -32,13 +32,14 @@ class KwiksetEntity(Entity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return a device description for device registry."""
-        return{
-            "identifiers": {(KWIKSET_DOMAIN, self._device.id)},
-            "manufacturer": self._device.manufacturer,
-            "model": self._device.model,
-            "name": self._device.device_name,
-            "serial": self._device.serial_number,
-        }
+        return DeviceInfo(
+            identifiers={(KWIKSET_DOMAIN, self._device.id)},
+            manufacturer=self._device.manufacturer,
+            model=self._device.model,
+            name=self._device.device_name,
+            serial=self._device.serial_number,
+            sw_version=self._device.firmware_version,
+        )
     
     async def async_update(self):
         """Update Kwikset entity."""
