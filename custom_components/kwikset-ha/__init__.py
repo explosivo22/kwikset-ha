@@ -20,7 +20,7 @@ from .device import KwiksetDeviceDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["lock"]
+PLATFORMS = ["lock", "sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kwikset from config entry"""
