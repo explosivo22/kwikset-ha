@@ -1,16 +1,22 @@
 """Support for locks through the Kwikset API."""
 from __future__ import annotations
 
-from homeassistant.components.lock import LockEntity
-from homeassistant.core import callback
+from homeassistant.components.lock import LockEntity, STATE_LOCKED
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_platform
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN as KWIKSET_DOMAIN, LOGGER
 from .device import KwiksetDeviceDataUpdateCoordinator
 from .entity import KwiksetEntity
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up the Rinnai Water heater from config entry."""
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the Kwikset lock from config entry."""
     devices: list[KwiksetDeviceDataUpdateCoordinator] = hass.data[KWIKSET_DOMAIN][
         config_entry.entry_id
     ]["devices"]
@@ -45,7 +51,13 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         return self._device.status == "Locked"
 
     @callback
-    def _handle_coordinator_update(self) -> None:
+    def async_update_state(self) -> None:
         """Handle updated data from the coordinator."""
+        if self._device.status == "Locked":
+            self._state = STATE_LOCKED
         self._attr_is_locked = self._device.status == "Locked"
         self.async_write_ha_state()
+
+    async def async_added_to_hass(self):
+        """When entity is added to hass."""
+        self.async_on_remove(self._device.async_add_listener(self.async_update_state))
