@@ -1,8 +1,6 @@
 """Kwikset device object"""
-import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Dict, Optional
-from distutils.util import strtobool
 
 from aiokwikset.api import API
 from aiokwikset.errors import RequestError
@@ -10,7 +8,6 @@ from async_timeout import timeout
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-import homeassistant.util.dt as dt_util
 
 from .const import DOMAIN as KWIKSET_DOMAIN, LOGGER
 
@@ -36,11 +33,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Update data via library"""
+        
         try:
             async with timeout(10):
-                await asyncio.gather(
-                    *[self._update_device()]
+                self._device_information = await self.api_client.device.get_device_info(
+                    self._kwikset_device_id
                 )
+                LOGGER.debug("Kwikset device data: %s", self._device_information)
         except (RequestError) as error:
             raise UpdateFailed(error) from error
 
@@ -83,13 +82,6 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     def status(self) -> str:
         """Return the status of the device"""
         return self._device_information["doorstatus"]
-
-    async def _update_device(self, *_) -> None:
-        """Update the device information from the API"""
-        self._device_information = await self.api_client.device.get_device_info(
-            self._kwikset_device_id
-        )
-        LOGGER.debug("Kwikset device data: %s", self._device_information)
 
     async def lock(self):
         """Lock the device"""
