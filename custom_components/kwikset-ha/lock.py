@@ -1,11 +1,8 @@
 """Support for locks through the Kwikset API."""
 from __future__ import annotations
 
-import voluptuous as vol
-
 from homeassistant.components.lock import LockEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
 from homeassistant.helpers import entity_platform
 
 from .const import DOMAIN as KWIKSET_DOMAIN, LOGGER
@@ -46,3 +43,9 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     def is_locked(self):
         """Return true if lock is locked."""
         return self._device.status == "Locked"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_is_locked = self._device.status == "Locked"
+        self.async_write_ha_state()
