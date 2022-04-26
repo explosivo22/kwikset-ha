@@ -38,12 +38,12 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     async def async_lock(self, **kwargs):
         """Lock the device."""
         await self._device.lock()
-        self._device.async_request_refresh()
+        self.async_write_ha_state()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
         await self._device.unlock()
-        self._device.async_request_refresh()
+        self.async_write_ha_state()
 
     @property
     def is_locked(self):
@@ -51,13 +51,17 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         return self._device.status == "Locked"
 
     @callback
-    def async_update_state(self) -> None:
+    def _async_update_state(self) -> None:
         """Handle updated data from the coordinator."""
+        super().async_update()
+        
         if self._device.status == "Locked":
-            self._state = STATE_LOCKED
-        self._attr_is_locked = self._device.status == "Locked"
+            self._attr_is_locked = True
+        elif self._device.status == "Unlocked":
+            self._attr_is_locked = False
+        
         self.async_write_ha_state()
 
     async def async_added_to_hass(self):
         """When entity is added to hass."""
-        self.async_on_remove(self._device.async_add_listener(self.async_update_state))
+        self.async_on_remove(self._device.async_add_listener(self._async_update_state))

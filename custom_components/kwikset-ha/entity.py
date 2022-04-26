@@ -13,7 +13,7 @@ class KwiksetEntity(Entity):
     """A base class for Kwikset entities."""
 
     _attr_force_update = False
-    _attr_should_poll = False
+    _attr_should_poll = True
     
     def __init__(
         self,

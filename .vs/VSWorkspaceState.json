@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\custom_component",
-    "\\custom_component\\kwikset-ha"
+    "\\custom_components",
+    "\\custom_components\\kwikset-ha"
   ],
-  "SelectedNode": "\\custom_component\\kwikset-ha\\manifest.json",
+  "SelectedNode": "\\custom_components\\kwikset-ha\\config_flow.py",
   "PreviewInSolutionExplorer": false
 }
