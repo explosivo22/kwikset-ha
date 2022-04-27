@@ -3,7 +3,7 @@
 Support for [Kwikset Smart Locks](https://www.kwikset.com/products/electronic/electronic-smart-locks) for Home Assistant.
 
 [![License](https://img.shields.io/github/license/explosivo22/rinnaicontrolr-ha?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
 ## WARNING
 
@@ -29,7 +29,7 @@ Please make sure to use one of the official release branches when installing usi
 
 ### Step 1: Install Custom Components
 
-Make sure that [Home Assistant Community Store (HACS)](https://github.com/custom-components/hacs) is setup, then add the "Integration" repository: `explosivo22/kwikset-ha`.
+Make sure that [Home Assistant Community Store (HACS)](https://github.com/custom-components/hacs) is setup, then add the "Integration" custom repository: `explosivo22/kwikset-ha`.
 
 ### Step 2: Configuration
 
