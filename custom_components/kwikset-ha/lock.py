@@ -53,7 +53,6 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     @callback
     def _async_update_state(self) -> None:
         """Handle updated data from the coordinator."""
-        super().async_update()
         
         if self._device.status == "Locked":
             self._attr_is_locked = True
