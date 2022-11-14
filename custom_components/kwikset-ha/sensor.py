@@ -2,9 +2,15 @@
 from __future__ import annotations
 from datetime import timedelta
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+
+from homeassistant.helpers.entity import EntityCategory
+
 from homeassistant.const import (
-    DEVICE_CLASS_BATTERY,
     PERCENTAGE
 )
 
@@ -30,8 +36,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class KwiksetBatterySensor(KwiksetEntity, SensorEntity):
     """Monitors the temperature."""
 
-    _attr_device_class = DEVICE_CLASS_BATTERY
-    _attr_unit_of_measurement = PERCENTAGE
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, device):
         """Initialize the battery sensor."""
