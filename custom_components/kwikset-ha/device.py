@@ -29,7 +29,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             LOGGER,
             name=f"{KWIKSET_DOMAIN}-{device_id}",
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(seconds=30),
         )
 
     async def _async_update_data(self):
