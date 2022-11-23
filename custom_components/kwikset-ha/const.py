@@ -13,5 +13,6 @@ CONF_API = 'conf_api'
 CONF_HOME_ID = 'conf_home_id'
 CONF_HOME_NAME = 'conf_home_name'
 CONF_REFRESH_TOKEN = 'conf_refresh_token'
+CONF_CODE_TYPE = 'code_type'
 
 CLIENT = 'client'

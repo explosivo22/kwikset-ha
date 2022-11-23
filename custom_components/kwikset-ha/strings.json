@@ -8,6 +8,11 @@
                     "password": "[%key:common::config_flow::data::password%]"
                 }
             },
+            "code_type": {
+                "data":{
+                    "code_type": "[%key:common::config_flow::data::code_type%]"
+                }
+            },
             "code": {
                 "data": {
                     "code": "[%key:common::config_flow::data::code%]"

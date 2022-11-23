@@ -16,6 +16,11 @@
 
                 }
             },
+            "code_type": {
+                "data": {
+                    "code_type": "How would you like to receive your verification code?"
+                }
+            },
             "code": {
                 "data": {
                     "code": "Verification Code"
