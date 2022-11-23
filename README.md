@@ -29,10 +29,11 @@ Please make sure to use one of the official release branches when installing usi
 
 ### Step 1: Install Custom Components
 
-Make sure that [Home Assistant Community Store (HACS)](https://github.com/custom-components/hacs) is setup, then add the "Integration" custom repository: `explosivo22/kwikset-ha`.
-
-### Step 2: Configuration
-
-#### Configure via UI
-
-Go to Configuration -> Integrations and click the + symbol to configure. Search for Kwikset Smart Locks and follow the prompts.
+1) Go to integrations in HACS
+2) click the 3 dots in the top right corner and choose `custom repositories`
+3) paste the following into the repository input field `https://github.com/explosivo22/kwikset-ha`  and choose category of `Integration`
+4) click add and restart HA to let the integration load
+5) Recommended to clear the cache and reload first before adding the integration.
+6) Go to settings and choose integrations.
+7) Click `Add Integration` and search for `Kwikset Smart Locks`
+8) Configure the integration.

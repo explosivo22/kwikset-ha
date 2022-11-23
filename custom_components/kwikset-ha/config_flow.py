@@ -10,8 +10,11 @@ from .const import (
     DOMAIN, 
     LOGGER,
     CONF_HOME_ID,
-    CONF_REFRESH_TOKEN
+    CONF_REFRESH_TOKEN,
+    CONF_CODE_TYPE,
 )
+
+CODE_TYPES = ['email','phone']
 
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle configuration of Kwikset integrations."""
@@ -24,6 +27,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.pre_auth = None
         self.username = None
         self.password = None
+        self.code_type = None
         self.home_id = None
 
 
@@ -45,8 +49,23 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.username = user_input[CONF_EMAIL]
         self.password = user_input[CONF_PASSWORD]
 
-        return await self.async_step_code()
+        return await self.async_step_code_type()
+
+    async def async_step_code_type(self, user_input=None):
+        errors = {}
+
+        if user_input is None:
+            return self.async_show_form(
+                step_id="code_type",
+                data_schema=vol.Schema({
+                    vol.Required("code_type"): vol.In(CODE_TYPES),
+                })
+            )
         
+        self.code_type = user_input[CONF_CODE_TYPE]
+        LOGGER.debug(self.code_type)
+
+        return await self.async_step_code()
         
 
     async def async_step_code(self, user_input=None):
@@ -58,7 +77,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 #initialize API
                 self.api = API(self.username)
                 #start authentication
-                self.pre_auth = await self.api.authenticate(self.password)
+                self.pre_auth = await self.api.authenticate(self.password, self.code_type)
+                LOGGER.debug(self.pre_auth)
             
             except RequestError as request_error:
                 LOGGER.error("Error connecting to the kwikset API: %s", request_error)
