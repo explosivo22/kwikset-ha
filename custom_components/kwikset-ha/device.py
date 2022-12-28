@@ -108,21 +108,41 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     async def lock(self):
         """Lock the device"""
         user_info = await self.api_client.user.get_info()
-        await self.api_client.device.lock_device(self._device_information, user_info)
+        try:
+            await self.api_client.device.lock_device(self._device_information, user_info)
+            LOGGER.debug("The lock was locked successfully")
+        except Exception as err:
+            LOGGER.debug("There was a problem locking: %s", err)
 
     async def unlock(self):
         """unlock the device"""
         user_info = await self.api_client.user.get_info()
-        await self.api_client.device.unlock_device(self._device_information, user_info)
+        try:
+            await self.api_client.device.unlock_device(self._device_information, user_info)
+            LOGGER.debug("The lock was unlocked successfully")
+        except Exception as err:
+            LOGGER.debug("There was a problem unlocking: %s", err)
 
     async def set_led(self, status):
         """set the led status"""
-        await self.api_client.device.set_ledstatus(self._device_information, status)
+        try:
+            await self.api_client.device.set_ledstatus(self._device_information, status)
+            LOGGER.debug("The lock led status was set successfully")
+        except Exception as err:
+            LOGGER.debug("There was a problem setting the led: %s", err)
 
     async def set_audio(self, status):
         """set the audio status"""
-        await self.api_client.device.set_audiostatus(self._device_information, status)
+        try:
+            await self.api_client.device.set_audiostatus(self._device_information, status)
+            LOGGER.debug("The lock audio status was set successfully")
+        except Exception as err:
+            LOGGER.debug("There was a problem setting the audio: %s", err)
 
     async def set_secure_screen(self, status):
         """set the secure screen status"""
-        await self.api_client.device.set_securescreenstatus(self._device_information, status)
+        try:
+            await self.api_client.device.set_securescreenstatus(self._device_information, status)
+            LOGGER.debug("The lock secure screen was set successfully")
+        except Exception as err:
+            LOGGER.debug("There was a problem setting the secure screen: %s", err)
