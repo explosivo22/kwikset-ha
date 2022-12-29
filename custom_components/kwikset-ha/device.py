@@ -1,5 +1,6 @@
 """Kwikset device object"""
 import asyncio
+from curses import qiflush
 from datetime import timedelta
 from typing import Any, Dict, Optional
 from distutils.util import strtobool
@@ -86,17 +87,26 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def led_status(self):
         """Return the LED status"""
-        return strtobool(str(self._device_information["ledstatus"]))
+        if "ledstatus" in self._device_information:
+            return strtobool(str(self._device_information["ledstatus"]))
+        else:
+            return None
 
     @property
     def audio_status(self):
         """Return the audio status"""
-        return strtobool(str(self._device_information["audiostatus"]))
+        if "audiostatus" in self._device_information:
+            return strtobool(str(self._device_information["audiostatus"]))
+        else:
+            return None
 
     @property
     def secure_screen_status(self):
         """Return the secure screen status"""
-        return strtobool(str(self._device_information["securescreenstatus"]))
+        if "securescreenstatus" in self._device_information:
+            return strtobool(str(self._device_information["securescreenstatus"]))
+        else:
+            return None
 
     async def _update_device(self, *_) -> None:
         """Update the device information from the API"""
