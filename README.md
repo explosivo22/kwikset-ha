@@ -5,6 +5,8 @@ Support for [Kwikset Smart Locks](https://www.kwikset.com/products/electronic/el
 [![License](https://img.shields.io/github/license/explosivo22/rinnaicontrolr-ha?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
+<a href="https://www.buymeacoffee.com/Explosivo22" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ## WARNING
 
 * **THIS LIBRARY ONLY WORKS IF YOU HAVE CREATED A HOME OR HAVE BEEN INVITED TO A HOME FROM THE KWIKSET APP**
