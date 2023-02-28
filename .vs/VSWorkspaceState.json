@@ -1,6 +1,9 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\custom_components",
+    "\\custom_components\\kwikset-ha"
   ],
+  "SelectedNode": "\\custom_components\\kwikset-ha\\lock.py",
   "PreviewInSolutionExplorer": false
 }
