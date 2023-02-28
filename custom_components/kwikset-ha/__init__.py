@@ -5,6 +5,7 @@ from aiokwikset import API
 from aiokwikset.errors import RequestError
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.const import CONF_PASSWORD, CONF_EMAIL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -60,3 +61,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """Remove a config entry from a device."""
+    return True
