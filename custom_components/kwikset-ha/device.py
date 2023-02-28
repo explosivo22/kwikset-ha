@@ -67,7 +67,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def battery_percentage(self) -> int:
         """Return device battery percentage"""
-        return self._device_information["batterypercentage"]
+        if "batterypercentage" in self._device_information:
+            return self._device_information["batterypercentage"]
+        else:
+            return None
 
     @property
     def firmware_version(self) -> str:
