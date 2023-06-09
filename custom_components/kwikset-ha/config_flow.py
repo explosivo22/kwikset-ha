@@ -1,10 +1,14 @@
+from typing import Any
+from collections.abc import Mapping
+
 from aiokwikset import API
-from aiokwikset.errors import RequestError
+from aiokwikset.errors import RequestError, NotAuthorized
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_CODE
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     DOMAIN, 
@@ -19,7 +23,9 @@ CODE_TYPES = ['email','phone']
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle configuration of Kwikset integrations."""
 
-    VERSION = 1
+    VERSION = 2
+
+    entry: config_entries.ConfigEntry | None
 
     def __init__(self):
         """Create a new instance of the flow handler"""
@@ -30,10 +36,96 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.code_type = None
         self.home_id = None
 
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
+        """Handle re-authentication with kwikset"""
+
+        self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        return await self.async_step_reauth_user()
+    
+    async def async_step_reauth_user(self, user_input=None):
+        """Get the email and password from the user"""
+        errors: dict[str, str] = {}
+        if user_input is None:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required("email"): str,
+                        vol.Required("password"): str
+                    }
+                ),
+                errors = errors
+            )
+            
+        self.username = user_input[CONF_EMAIL]
+        self.password = user_input[CONF_PASSWORD]
+
+        return await self.async_step_reauth_code_type()
+    
+    async def async_step_reauth_code_type(self, user_input=None):
+        errors: dict[str, str] = {}
+
+        if user_input is None:
+            return self.async_show_form(
+                step_id="code_type",
+                data_schema=vol.Schema({
+                    vol.Required("code_type"): vol.In(CODE_TYPES),
+                })
+            )
+        
+        self.code_type = user_input[CONF_CODE_TYPE]
+        LOGGER.debug(self.code_type)
+
+        return await self.async_step_reauth_code()
+    
+    async def async_step_reauth_code(self, user_input=None):
+        """Get the Verification code from the user"""
+        errors: dict[str, str] = {}
+
+        if user_input is None:
+            try:
+                #initialize API
+                self.api = API(self.username)
+                #start authentication
+                self.pre_auth = await self.api.authenticate(self.password, self.code_type)
+                LOGGER.debug(self.pre_auth)
+            
+            except RequestError as request_error:
+                LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+                errors["base"] = "cannot_connect"
+                raise CannotConnect from request_error
+            except NotAuthorized:
+                errors["base"] = "refresh_token_revoked"
+
+            return self.async_show_form(
+                step_id="code",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_CODE): str
+                    }
+                ),
+                errors = errors
+            )
+        
+        #MFA verification
+        await self.api.verify_user(self.pre_auth, user_input[CONF_CODE])
+
+        self.hass.config_entries.async_update_entry(
+            self.entry,
+            data={
+                **self.entry.data,
+                CONF_EMAIL: self.username,
+                CONF_HOME_ID: self.home_id,
+                CONF_REFRESH_TOKEN: self.api.refresh_token
+            }
+        )
+        await self.hass.config_entries.async_reload(self.entry.entry_id)
+        return self.async_abort(reason="reauth_successful")
+
 
     async def async_step_user(self, user_input=None):
         """Get the email and password from the user"""
-        errors = {}
+        errors: dict[str, str] = {}
         if user_input is None:
             return self.async_show_form(
                 step_id="user",
@@ -52,7 +144,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return await self.async_step_code_type()
 
     async def async_step_code_type(self, user_input=None):
-        errors = {}
+        errors: dict[str, str] = {}
 
         if user_input is None:
             return self.async_show_form(
@@ -70,7 +162,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_code(self, user_input=None):
         """Get the Verification code from the user"""
-        errors = {}
+        errors: dict[str, str] = {}
 
         if user_input is None:
             try:
@@ -82,7 +174,10 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             
             except RequestError as request_error:
                 LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+                errors["base"] = "cannot_connect"
                 raise CannotConnect from request_error
+            except NotAuthorized:
+                errors["base"] = "refresh_token_revoked"
 
             return self.async_show_form(
                 step_id="code",
@@ -124,6 +219,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         self.home_id = user_input[CONF_HOME_ID]
         await self.async_set_unique_id(f"{self.home_id}")
+        self._abort_if_unique_id_configured()
         return await self.async_step_install()
 
     async def async_step_install(self, data=None):

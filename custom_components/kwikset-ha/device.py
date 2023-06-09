@@ -6,11 +6,12 @@ from typing import Any, Dict, Optional
 from distutils.util import strtobool
 
 from aiokwikset.api import API
-from aiokwikset.errors import RequestError
+from aiokwikset.errors import RequestError, NotAuthorized
 from async_timeout import timeout
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN as KWIKSET_DOMAIN, LOGGER
 
@@ -41,7 +42,9 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
                 await asyncio.gather(
                     *[self._update_device()]
                 )
-        except (RequestError) as error:
+        except NotAuthorized as error:
+            raise ConfigEntryAuthFailed("Refresh token has been revoked requiring re-authentication")
+        except RequestError as error:
             raise UpdateFailed(error) from error
 
     @property
