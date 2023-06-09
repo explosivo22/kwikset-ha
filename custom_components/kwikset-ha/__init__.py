@@ -34,7 +34,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API(entry.data[CONF_EMAIL], refresh_token=entry.data[CONF_REFRESH_TOKEN])
 
     try:
-        await client.renew_access_token()
         user_info = await client.user.get_info()
     except NotAuthorized as err:
         _LOGGER.error("Your refresh token has been revoked and you must re-authenticate the integration")
