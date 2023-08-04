@@ -2,7 +2,7 @@ import logging
 import asyncio
 
 from aiokwikset import API
-from aiokwikset.errors import RequestError
+from aiokwikset.errors import RequestError, NotAuthorized
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -36,9 +36,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await client.renew_access_token()
         user_info = await client.user.get_info()
+    except NotAuthorized as err:
+        _LOGGER.error("Your refresh token has been revoked and you must re-authenticate the integration")
+        raise NotAuthorized from err
     except RequestError as err:
         raise ConfigEntryNotReady from err
-
     _LOGGER.debug("Kwikset user information: %s", user_info)
 
     devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
@@ -66,4 +68,20 @@ async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
 ) -> bool:
     """Remove a config entry from a device."""
+    return True
+
+async def async_migrate_entry(hass, config_entry: ConfigEntry):
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version == 1:
+
+        # TODO: Do some changes which is not stored in the config entry itself
+
+        # There's no need to call async_update_entry, the config entry will automatically be
+        # saved when async_migrate_entry returns True
+        config_entry.version = 2
+
+    _LOGGER.info("Migration to version %s successful", config_entry.version)
+
     return True
