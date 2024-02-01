@@ -94,8 +94,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 LOGGER.error("Error connecting to the kwikset API: %s", request_error)
                 errors["base"] = "cannot_connect"
                 raise CannotConnect from request_error
-            except NotAuthorized:
-                errors["base"] = "refresh_token_revoked"
 
             return self.async_show_form(
                 step_id="code",
@@ -176,8 +174,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 LOGGER.error("Error connecting to the kwikset API: %s", request_error)
                 errors["base"] = "cannot_connect"
                 raise CannotConnect from request_error
-            except NotAuthorized:
-                errors["base"] = "refresh_token_revoked"
 
             return self.async_show_form(
                 step_id="code",
