@@ -2,17 +2,19 @@ import logging
 import asyncio
 
 from aiokwikset import API
+from aiokwikset.api import Unauthenticated
 from aiokwikset.errors import RequestError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.const import CONF_PASSWORD, CONF_EMAIL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     DOMAIN,
+    CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
     CONF_HOME_ID,
     CLIENT
@@ -34,9 +36,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API()
 
     try:
-        await client.async_renew_access_token(entry.data[CONF_REFRESH_TOKEN])
+        await client.async_renew_access_token(entry.data[CONF_ACCESS_TOKEN], entry.data[CONF_REFRESH_TOKEN])
         #await client.async_login(entry.data[CONF_EMAIL], entry.data[CONF_REFRESH_TOKEN])
         user_info = await client.user.get_info()
+    except Unauthenticated as err:
+        raise ConfigEntryAuthFailed(err) from err
     except RequestError as err:
         raise ConfigEntryNotReady from err
     _LOGGER.debug("Kwikset user information: %s", user_info)
