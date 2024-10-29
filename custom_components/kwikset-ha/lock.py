@@ -1,7 +1,7 @@
 """Support for locks through the Kwikset API."""
 from __future__ import annotations
 
-from homeassistant.components.lock import LockEntity, STATE_LOCKED
+from homeassistant.components.lock import LockEntity, LockState
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_platform
@@ -38,11 +38,13 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     async def async_lock(self, **kwargs):
         """Lock the device."""
         await self._device.lock()
+        self._state = LockState.LOCKED
         self.async_write_ha_state()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
         await self._device.unlock()
+        self._state = LockState.UNLOCKED
         self.async_write_ha_state()
 
     @property
