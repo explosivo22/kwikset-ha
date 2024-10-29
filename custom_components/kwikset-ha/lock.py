@@ -33,7 +33,9 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     def __init__(self, device: KwiksetDeviceDataUpdateCoordinator, options) -> None:
         """Initialize the lock heater."""
         super().__init__("lock",device.device_name,device)
-        self.options = options
+        self.schedule = options.get('schedule', [])
+        self.expiration_date = options.get('expiration_date', None)
+        self.expiration_days = options.get('expiration_days', None)
 
     async def async_lock(self, **kwargs):
         """Lock the device."""
@@ -43,6 +45,10 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
+        if not self._is_within_schedule():
+            return
+        if self._is_expired():
+            return
         await self._device.unlock()
         self._state = LockState.UNLOCKED
         self.async_write_ha_state()
@@ -62,6 +68,32 @@ class KwiksetLock(KwiksetEntity, LockEntity):
             self._attr_is_locked = False
         
         self.async_write_ha_state()
+
+    def _is_within_schedule(self):
+        """Check if current time is within the allowed schedule."""
+        if not self.schedule:
+            return True
+        now = datetime.now()
+        current_time = now.time()
+        current_day = now.strftime("%A")
+        for entry in self.schedule:
+            if current_day in entry['days']:
+                start_time = datetime.strptime(entry['start'], "%H:%M").time()
+                end_time = datetime.strptime(entry['end'], "%H:%M").time()
+                if start_time <= current_time <= end_time:
+                    return True
+        return False
+
+    def _is_expired(self):
+        """Check if the access has expired."""
+        if self.expiration_date:
+            if datetime.now() > datetime.strptime(self.expiration_date, "%Y-%m-%d"):
+                return True
+        if self.expiration_days:
+            creation_date = datetime.strptime(self.options.get('creation_date', datetime.now().strftime("%Y-%m-%d")), "%Y-%m-%d")
+            if (datetime.now() - creation_date).days > self.expiration_days:
+                return True
+        return False
 
     async def async_added_to_hass(self):
         """When entity is added to hass."""
