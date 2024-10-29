@@ -4,7 +4,7 @@
   "config_flow": true,
   "documentation": "https://github.com/explosivo22/kwikset-ha/",
   "codeowners": [ "@explosivo22" ],
-  "requirements": [ "aiokwikset==0.2.2a4" ],
-  "version": "0.2.4-alpha2",
+  "requirements": [ "aiokwikset==0.3.0a1" ],
+  "version": "0.2.4-alpha3",
   "iot_class": "cloud_polling"
 }
