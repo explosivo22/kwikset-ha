@@ -24,17 +24,15 @@ CODE_TYPES = ['email','phone']
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle configuration of Kwikset integrations."""
 
-    VERSION = 2
+    VERSION = 3
 
     entry: config_entries.ConfigEntry | None
 
     def __init__(self):
         """Create a new instance of the flow handler"""
         self.api = None
-        self.pre_auth = None
         self.username = None
         self.password = None
-        self.code_type = None
         self.home_id = None
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
@@ -120,7 +118,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 LOGGER.error("Error connecting to the kwikset API: %s", request_error)
                 errors["base"] = "cannot_connect"
                 raise CannotConnect from request_error
-            
+
             #Get available locations
             existing_homes = [
                 entry.data[CONF_HOME_ID] for entry in self._async_current_entries()
