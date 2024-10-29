@@ -13,6 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     DOMAIN,
+    CONF_REFRESH_TOKEN,
     CONF_HOME_ID,
     CLIENT
 )
@@ -33,7 +34,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API()
 
     try:
-        await client.async_login(entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD])
+        await client.async_renew_access_token(entry.data[CONF_REFRESH_TOKEN])
+        #await client.async_login(entry.data[CONF_EMAIL], entry.data[CONF_REFRESH_TOKEN])
         user_info = await client.user.get_info()
     except RequestError as err:
         raise ConfigEntryNotReady from err
