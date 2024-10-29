@@ -2,19 +2,21 @@ import logging
 import asyncio
 
 from aiokwikset import API
-from aiokwikset.errors import RequestError, NotAuthorized
+from aiokwikset.api import Unauthenticated
+from aiokwikset.errors import RequestError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.const import CONF_PASSWORD, CONF_EMAIL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     DOMAIN,
-    CONF_HOME_ID,
+    CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
+    CONF_HOME_ID,
     CLIENT
 )
 from .device import KwiksetDeviceDataUpdateCoordinator
@@ -31,14 +33,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug(entry.data[CONF_EMAIL])
 
-    hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API(entry.data[CONF_EMAIL], refresh_token=entry.data[CONF_REFRESH_TOKEN])
+    hass.data[DOMAIN][entry.entry_id][CLIENT] = client = API()
 
     try:
-        await client.renew_access_token()
+        await client.async_renew_access_token(entry.data[CONF_ACCESS_TOKEN], entry.data[CONF_REFRESH_TOKEN])
+        #await client.async_login(entry.data[CONF_EMAIL], entry.data[CONF_REFRESH_TOKEN])
         user_info = await client.user.get_info()
-    except NotAuthorized as err:
-        _LOGGER.error("Your refresh token has been revoked and you must re-authenticate the integration")
-        raise NotAuthorized from err
+    except Unauthenticated as err:
+        raise ConfigEntryAuthFailed(err) from err
     except RequestError as err:
         raise ConfigEntryNotReady from err
     _LOGGER.debug("Kwikset user information: %s", user_info)
@@ -70,7 +72,7 @@ async def async_remove_config_entry_device(
     """Remove a config entry from a device."""
     return True
 
-async def async_migrate_entry(hass, config_entry: ConfigEntry):
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Migrate old entry."""
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
@@ -81,6 +83,14 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
         # There's no need to call async_update_entry, the config entry will automatically be
         # saved when async_migrate_entry returns True
         config_entry.version = 2
+
+    if config_entry.version == 2:
+        data = {**config_entry.data}
+
+        if not data.get(CONF_ACCESS_TOKEN):
+            data[CONF_ACCESS_TOKEN] = config_entry.data[CONF_REFRESH_TOKEN]
+
+        hass.config_entries.async_update_entry(config_entry, data=data, version=3)
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)
 
