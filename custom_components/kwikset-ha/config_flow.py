@@ -61,66 +61,29 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.username = user_input[CONF_EMAIL]
         self.password = user_input[CONF_PASSWORD]
 
-        return await self.async_step_reauth_code_type()
-    
-    async def async_step_reauth_code_type(self, user_input=None):
-        errors: dict[str, str] = {}
+        try:
+            #initialize API
+            self.api = API()
+            #start authentication
+            await self.api.async_login(self.username,self.password)
 
-        if user_input is None:
-            return self.async_show_form(
-                step_id="code_type",
-                data_schema=vol.Schema({
-                    vol.Required("code_type"): vol.In(CODE_TYPES),
-                })
+            self.hass.config_entries.async_update_entry(
+                self.entry,
+                data={
+                    **self.entry.data,
+                    CONF_EMAIL: self.username,
+                    CONF_HOME_ID: self.home_id,
+                    CONF_ACCESS_TOKEN: self.api.access_token,
+                    CONF_REFRESH_TOKEN: self.api.refresh_token,
+                }
             )
+            await self.hass.config_entries.async_reload(self.entry.entry_id)
+            return self.async_abort(reason="reauth_successful")
         
-        self.code_type = user_input[CONF_CODE_TYPE]
-        LOGGER.debug(self.code_type)
-
-        return await self.async_step_reauth_code()
-    
-    async def async_step_reauth_code(self, user_input=None):
-        """Get the Verification code from the user"""
-        errors: dict[str, str] = {}
-
-        if user_input is None:
-            try:
-                #initialize API
-                self.api = API(self.username)
-                #start authentication
-                self.pre_auth = await self.api.authenticate(self.password, self.code_type)
-                LOGGER.debug(self.pre_auth)
-            
-            except RequestError as request_error:
-                LOGGER.error("Error connecting to the kwikset API: %s", request_error)
-                errors["base"] = "cannot_connect"
-                raise CannotConnect from request_error
-
-            return self.async_show_form(
-                step_id="code",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_CODE): str
-                    }
-                ),
-                errors = errors
-            )
-        
-        #MFA verification
-        await self.api.verify_user(self.pre_auth, user_input[CONF_CODE])
-
-        self.hass.config_entries.async_update_entry(
-            self.entry,
-            data={
-                **self.entry.data,
-                CONF_EMAIL: self.username,
-                CONF_HOME_ID: self.home_id,
-                CONF_REFRESH_TOKEN: self.api.refresh_token
-            }
-        )
-        await self.hass.config_entries.async_reload(self.entry.entry_id)
-        return self.async_abort(reason="reauth_successful")
-
+        except RequestError as request_error:
+            LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+            errors["base"] = "cannot_connect"
+            raise CannotConnect from request_error
 
     async def async_step_user(self, user_input=None):
         """Get the email and password from the user"""
@@ -187,7 +150,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Create a config entry at completion of a flow and authorization"""
         data = {
             CONF_EMAIL: self.username,
-            CONF_PASSWORD: self.password,
             CONF_HOME_ID: self.home_id,
             CONF_ACCESS_TOKEN: self.api.access_token,
             CONF_REFRESH_TOKEN: self.api.refresh_token,
