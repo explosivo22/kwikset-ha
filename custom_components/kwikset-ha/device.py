@@ -13,13 +13,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
-from .const import DOMAIN as KWIKSET_DOMAIN, LOGGER
+from .const import CONF_REFRESH_INTERVAL, DOMAIN as KWIKSET_DOMAIN, LOGGER
 
 class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
     """Kwikset device object"""
 
     def __init__(
-        self, hass: HomeAssistant, api_client: API, device_id: str, device_name: str
+        self, hass: HomeAssistant, api_client: API, device_id: str, device_name: str, update_interval: int
     ):
         """Initialize the device"""
         self.hass: HomeAssistantType = hass
@@ -32,7 +32,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             LOGGER,
             name=f"{KWIKSET_DOMAIN}-{device_id}",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=update_interval),
         )
 
     async def _async_update_data(self):

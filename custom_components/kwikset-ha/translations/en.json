@@ -16,20 +16,20 @@
 
                 }
             },
-            "code_type": {
-                "data": {
-                    "code_type": "How would you like to receive your verification code?"
-                }
-            },
-            "code": {
-                "data": {
-                    "code": "Verification Code"
-                }
-            },
             "select_home": {
                 "data": {
                     "home_id": "Home"
                 }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+              "data": {
+                "refresh_interval":  "How often the integration will poll the device in seconds"
+              },
+                "description": "Configure Kwikset options"
             }
         }
     }
