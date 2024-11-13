@@ -13,6 +13,8 @@ from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
+    CONF_REFRESH_INTERVAL,
+    DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
@@ -47,15 +49,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
 
+    if CONF_REFRESH_INTERVAL in entry.options:
+        update_interval = entry.options[CONF_REFRESH_INTERVAL]
+    else:
+        update_interval = DEFAULT_REFRESH_INTERVAL
+
     hass.data[DOMAIN][entry.entry_id]["devices"] = devices = [
-        KwiksetDeviceDataUpdateCoordinator(hass, client, device["deviceid"], device["devicename"])
+        KwiksetDeviceDataUpdateCoordinator(hass, client, device["deviceid"], device["devicename"], update_interval)
         for device in devices
     ]
 
     tasks = [device.async_refresh() for device in devices]
     await asyncio.gather(*tasks)
 
+    if not entry.options:
+        await _async_options_updated(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     
     return True
 
@@ -65,6 +77,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry):
+    """Update options."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry

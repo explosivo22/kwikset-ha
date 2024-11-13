@@ -9,14 +9,17 @@ from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_CODE
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.core import callback
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 
 from .const import (
+    DEFAULT_REFRESH_INTERVAL,
     DOMAIN, 
     LOGGER,
     CONF_HOME_ID,
     CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
-    CONF_CODE_TYPE,
+    CONF_REFRESH_INTERVAL
 )
 
 CODE_TYPES = ['email','phone']
@@ -158,7 +161,37 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if home['homeid'] == data[CONF_HOME_ID]:
                 home_name = home['homename']
                 return self.async_create_entry(title=home_name, data=data)
+            
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return OptionsFlow(config_entry)
+            
+class OptionsFlow(config_entries.OptionsFlow):
+    def __init__(self, config_entry: config_entries.ConfigEntry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
 
+    async def async_step_init(self, user_input=None):
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init", 
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_REFRESH_INTERVAL, default=self.config_entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            mode=NumberSelectorMode.SLIDER,
+                            min=15,
+                            max=60
+                        )
+                    )
+                }
+            )
+        )
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""

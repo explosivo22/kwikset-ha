@@ -22,5 +22,15 @@
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+              "data": {
+                "refresh_interval":  "How often the integration will poll the device in seconds"
+              },
+                "description": "Configure Kwikset options"
+            }
+        }
     }
 }
