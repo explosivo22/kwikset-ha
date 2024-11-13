@@ -27,7 +27,7 @@ CODE_TYPES = ['email','phone']
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle configuration of Kwikset integrations."""
 
-    VERSION = 3
+    VERSION = 4
 
     entry: config_entries.ConfigEntry | None
 
@@ -160,7 +160,12 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         for home in homes:
             if home['homeid'] == data[CONF_HOME_ID]:
                 home_name = home['homename']
-                return self.async_create_entry(title=home_name, data=data)
+                return self.async_create_entry(
+                    title=home_name, 
+                    data=data, 
+                    options={
+                        CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
+                    },)
             
     @staticmethod
     @callback

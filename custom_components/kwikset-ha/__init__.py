@@ -108,6 +108,14 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
         hass.config_entries.async_update_entry(config_entry, data=data, version=3)
 
+    if config_entry.version == 3:
+        data = {**config_entry.data}
+
+        if not data.get(CONF_REFRESH_INTERVAL):
+            data[CONF_REFRESH_INTERVAL] = DEFAULT_REFRESH_INTERVAL
+
+        hass.config_entries.async_update_entry(config_entry, data=data, version=4)
+
     _LOGGER.info("Migration to version %s successful", config_entry.version)
 
     return True
