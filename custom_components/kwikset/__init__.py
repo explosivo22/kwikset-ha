@@ -13,6 +13,8 @@ from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
+    CONF_REFRESH_INTERVAL,
+    DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
@@ -47,15 +49,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
 
+    if CONF_REFRESH_INTERVAL in entry.options:
+        update_interval = entry.options[CONF_REFRESH_INTERVAL]
+    else:
+        update_interval = DEFAULT_REFRESH_INTERVAL
+
     hass.data[DOMAIN][entry.entry_id]["devices"] = devices = [
-        KwiksetDeviceDataUpdateCoordinator(hass, client, device["deviceid"], device["devicename"])
+        KwiksetDeviceDataUpdateCoordinator(hass, client, device["deviceid"], device["devicename"], update_interval)
         for device in devices
     ]
 
     tasks = [device.async_refresh() for device in devices]
     await asyncio.gather(*tasks)
 
+    if not entry.options:
+        await _async_options_updated(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     
     return True
 
@@ -66,13 +78,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
 
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry):
+    """Update options."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
 ) -> bool:
     """Remove a config entry from a device."""
     return True
 
-async def async_migrate_entry(hass, config_entry: ConfigEntry):
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Migrate old entry."""
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
@@ -83,6 +99,22 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
         # There's no need to call async_update_entry, the config entry will automatically be
         # saved when async_migrate_entry returns True
         config_entry.version = 2
+
+    if config_entry.version == 2:
+        data = {**config_entry.data}
+
+        if not data.get(CONF_ACCESS_TOKEN):
+            data[CONF_ACCESS_TOKEN] = config_entry.data[CONF_REFRESH_TOKEN]
+
+        hass.config_entries.async_update_entry(config_entry, data=data, version=3)
+
+    if config_entry.version == 3:
+        data = {**config_entry.data}
+
+        if not data.get(CONF_REFRESH_INTERVAL):
+            data[CONF_REFRESH_INTERVAL] = DEFAULT_REFRESH_INTERVAL
+
+        hass.config_entries.async_update_entry(config_entry, data=data, version=4)
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)
 

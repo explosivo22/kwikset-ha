@@ -16,5 +16,7 @@ CONF_REFRESH_TOKEN = 'conf_refresh_token'
 CONF_ACCESS_TOKEN = 'conf_access_token'
 CONF_ID_TOKEN = 'conf_id_token'
 CONF_CODE_TYPE = 'code_type'
+CONF_REFRESH_INTERVAL = 'refresh_interval'
+DEFAULT_REFRESH_INTERVAL = 30
 
 CLIENT = 'client'
