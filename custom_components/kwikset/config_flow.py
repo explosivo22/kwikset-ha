@@ -56,17 +56,21 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         vol.Required("password"): str
                     }
                 ),
-                errors = errors
+                errors=errors
             )
-            
+
         self.username = user_input[CONF_EMAIL]
         self.password = user_input[CONF_PASSWORD]
+
+        # FIX: Set self.home_id from the existing entry
+        if self.entry and CONF_HOME_ID in self.entry.data:
+            self.home_id = self.entry.data[CONF_HOME_ID]
 
         try:
             #initialize API
             self.api = API()
             #start authentication
-            await self.api.async_login(self.username,self.password)
+            await self.api.async_login(self.username, self.password)
 
             self.hass.config_entries.async_update_entry(
                 self.entry,
@@ -80,7 +84,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
             await self.hass.config_entries.async_reload(self.entry.entry_id)
             return self.async_abort(reason="reauth_successful")
-        
+
         except RequestError as request_error:
             LOGGER.error("Error connecting to the kwikset API: %s", request_error)
             errors["base"] = "cannot_connect"
