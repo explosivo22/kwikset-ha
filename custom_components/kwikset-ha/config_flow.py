@@ -37,23 +37,17 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.username = None
         self.password = None
         self.home_id = None
-
-    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
-        """Handle re-authentication with kwikset"""
-
-        self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
-        return await self.async_step_reauth_user()
     
-    async def async_step_reauth_user(self, user_input=None):
+    async def async_step_reauth(self, user_input=None):
         """Get the email and password from the user"""
         errors: dict[str, str] = {}
         if user_input is None:
             return self.async_show_form(
-                step_id="user",
+                step_id="reauth",
                 data_schema=vol.Schema(
                     {
-                        vol.Required("email"): str,
-                        vol.Required("password"): str
+                        vol.Required(CONF_EMAIL, default=self.context.get(CONF_EMAIL, "")): str,
+                        vol.Required(CONF_PASSWORD): str,
                     }
                 ),
                 errors=errors
@@ -71,24 +65,56 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self.api = API()
             #start authentication
             await self.api.async_login(self.username, self.password)
+        except RequestError as request_error:
+            LOGGER.error("Error connecting to the kwikset API: %s", request_error)
+            errors["base"] = "cannot_connect"
+            return self.async_show_form(
+                step_id="reauth",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_EMAIL, default=self.username): str,
+                        vol.Required(CONF_PASSWORD): str,
+                    }
+                ),
+                errors=errors,
+            )
+        except Exception as err:
+            LOGGER.error("Reauth: Unexpected error: %s", err)
+            errors["base"] = "unknown"
+            return self.async_show_form(
+                step_id="reauth",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_EMAIL, default=self.username): str,
+                        vol.Required(CONF_PASSWORD): str,
+                    }
+                ),
+                errors=errors,
+            )
 
+        # Safely get entry_id from context
+        entry_id = self.context.get("entry_id")
+        if not entry_id:
+            LOGGER.error("Reauth: No entry_id in context; cannot update tokens.")
+            return self.async_abort(reason="reauth_failed")
+        entry = self.hass.config_entries.async_get_entry(entry_id)
+        if entry:
             self.hass.config_entries.async_update_entry(
-                self.entry,
+                entry,
                 data={
-                    **self.entry.data,
+                    **entry.data,
                     CONF_EMAIL: self.username,
                     CONF_HOME_ID: self.home_id,
                     CONF_ACCESS_TOKEN: self.api.access_token,
                     CONF_REFRESH_TOKEN: self.api.refresh_token,
-                }
+                },
             )
-            await self.hass.config_entries.async_reload(self.entry.entry_id)
-            return self.async_abort(reason="reauth_successful")
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(entry.entry_id)
+            )
+        return self.async_abort(reason="reauth_successful")
 
-        except RequestError as request_error:
-            LOGGER.error("Error connecting to the kwikset API: %s", request_error)
-            errors["base"] = "cannot_connect"
-            raise CannotConnect from request_error
+        
 
     async def async_step_user(self, user_input=None):
         """Get the email and password from the user"""
