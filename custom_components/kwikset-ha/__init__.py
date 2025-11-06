@@ -1,5 +1,7 @@
+"""Support for Kwikset integration."""
 import logging
 import asyncio
+from datetime import timedelta
 
 from aiokwikset import API
 from aiokwikset.api import Unauthenticated
@@ -39,7 +41,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         await client.async_renew_access_token(entry.data[CONF_ACCESS_TOKEN], entry.data[CONF_REFRESH_TOKEN])
-        #await client.async_login(entry.data[CONF_EMAIL], entry.data[CONF_REFRESH_TOKEN])
+        
+        # Save the refreshed tokens back to the entry
+        if client.access_token != entry.data[CONF_ACCESS_TOKEN]:
+            hass.config_entries.async_update_entry(
+                entry,
+                data={
+                    **entry.data,
+                    CONF_ACCESS_TOKEN: client.access_token,
+                    CONF_REFRESH_TOKEN: client.refresh_token,
+                },
+            )
+            _LOGGER.debug("Tokens refreshed and saved to config entry")
+        
         user_info = await client.user.get_info()
     except Unauthenticated as err:
         raise ConfigEntryAuthFailed(err) from err
@@ -59,8 +73,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for device in devices
     ]
 
-    tasks = [device.async_refresh() for device in devices]
-    await asyncio.gather(*tasks)
+    # Fetch initial data using async_config_entry_first_refresh
+    # This will call _async_setup and then _async_update_data
+    # Will raise ConfigEntryNotReady if the refresh fails
+    for device in devices:
+        await device.async_config_entry_first_refresh()
 
     if not entry.options:
         await _async_options_updated(hass, entry)
@@ -79,8 +96,35 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     return unload_ok
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry):
-    """Update options."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    """Update options.
+    
+    Update coordinator intervals dynamically if only refresh interval changed.
+    Otherwise, reload the entire integration.
+    """
+    devices: list[KwiksetDeviceDataUpdateCoordinator] = hass.data[DOMAIN][entry.entry_id].get("devices", [])
+    
+    if not devices:
+        # No devices yet, just return
+        return
+    
+    # Get the new update interval
+    new_interval = entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
+    
+    # Update each coordinator's update interval
+    for device in devices:
+        old_interval = device.update_interval
+        new_interval_td = timedelta(seconds=new_interval)
+        
+        if old_interval != new_interval_td:
+            device.update_interval = new_interval_td
+            _LOGGER.debug(
+                "Updated refresh interval for %s from %s to %s seconds",
+                device.device_name,
+                old_interval.total_seconds(),
+                new_interval,
+            )
+            # Optionally trigger an immediate refresh with the new interval
+            await device.async_request_refresh()
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry

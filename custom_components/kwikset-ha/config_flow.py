@@ -29,8 +29,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 4
 
-    entry: config_entries.ConfigEntry | None
-
     def __init__(self):
         """Create a new instance of the flow handler"""
         self.api = None
@@ -38,81 +36,57 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.password = None
         self.home_id = None
     
-    async def async_step_reauth(self, user_input=None):
-        """Get the email and password from the user"""
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> FlowResult:
+        """Perform reauth upon an API authentication error."""
+        # Store entry data for use in reauth_confirm
+        self.username = entry_data.get(CONF_EMAIL)
+        self.home_id = entry_data.get(CONF_HOME_ID)
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm reauthentication dialog."""
         errors: dict[str, str] = {}
-        if user_input is None:
-            return self.async_show_form(
-                step_id="reauth",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_EMAIL, default=self.context.get(CONF_EMAIL, "")): str,
-                        vol.Required(CONF_PASSWORD): str,
-                    }
-                ),
-                errors=errors
-            )
+        
+        if user_input is not None:
+            self.username = user_input[CONF_EMAIL]
+            self.password = user_input[CONF_PASSWORD]
 
-        self.username = user_input[CONF_EMAIL]
-        self.password = user_input[CONF_PASSWORD]
+            try:
+                # Initialize API and authenticate
+                self.api = API()
+                await self.api.async_login(self.username, self.password)
+            except RequestError as request_error:
+                LOGGER.error("Error connecting to the Kwikset API: %s", request_error)
+                errors["base"] = "cannot_connect"
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("Unexpected error during reauthentication")
+                errors["base"] = "unknown"
+            else:
+                # Successfully authenticated, update the entry
+                return self.async_update_reload_and_abort(
+                    self._get_reauth_entry(),
+                    data_updates={
+                        CONF_EMAIL: self.username,
+                        CONF_ACCESS_TOKEN: self.api.access_token,
+                        CONF_REFRESH_TOKEN: self.api.refresh_token,
+                    },
+                )
 
-        # FIX: Set self.home_id from the existing entry
-        if self.entry and CONF_HOME_ID in self.entry.data:
-            self.home_id = self.entry.data[CONF_HOME_ID]
-
-        try:
-            #initialize API
-            self.api = API()
-            #start authentication
-            await self.api.async_login(self.username, self.password)
-        except RequestError as request_error:
-            LOGGER.error("Error connecting to the kwikset API: %s", request_error)
-            errors["base"] = "cannot_connect"
-            return self.async_show_form(
-                step_id="reauth",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_EMAIL, default=self.username): str,
-                        vol.Required(CONF_PASSWORD): str,
-                    }
-                ),
-                errors=errors,
-            )
-        except Exception as err:
-            LOGGER.error("Reauth: Unexpected error: %s", err)
-            errors["base"] = "unknown"
-            return self.async_show_form(
-                step_id="reauth",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_EMAIL, default=self.username): str,
-                        vol.Required(CONF_PASSWORD): str,
-                    }
-                ),
-                errors=errors,
-            )
-
-        # Safely get entry_id from context
-        entry_id = self.context.get("entry_id")
-        if not entry_id:
-            LOGGER.error("Reauth: No entry_id in context; cannot update tokens.")
-            return self.async_abort(reason="reauth_failed")
-        entry = self.hass.config_entries.async_get_entry(entry_id)
-        if entry:
-            self.hass.config_entries.async_update_entry(
-                entry,
-                data={
-                    **entry.data,
-                    CONF_EMAIL: self.username,
-                    CONF_HOME_ID: self.home_id,
-                    CONF_ACCESS_TOKEN: self.api.access_token,
-                    CONF_REFRESH_TOKEN: self.api.refresh_token,
-                },
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_reload(entry.entry_id)
-            )
-        return self.async_abort(reason="reauth_successful")
+        # Show the reauth form
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_EMAIL, default=self.username or ""): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
 
         
 

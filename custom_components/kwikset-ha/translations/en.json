@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Re-authentication was successful"
         },
         "error": {
             "cannot_connect": "Failed to connect",
@@ -19,6 +20,14 @@
             "select_home": {
                 "data": {
                     "home_id": "Home"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Reauthentication Required",
+                "description": "The Kwikset integration needs to re-authenticate your account. Please enter your credentials.",
+                "data": {
+                    "email": "Email",
+                    "password": "Password"
                 }
             }
         }
