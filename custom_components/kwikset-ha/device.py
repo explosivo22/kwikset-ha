@@ -210,8 +210,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     async def set_led(self, status: bool) -> None:
         """Set the LED status."""
         try:
-            await self.api_client.device.set_ledstatus(self._device_info, status)
-            LOGGER.debug("The lock LED status was set successfully")
+            # Convert boolean to string "true" or "false" for API
+            status_str = "true" if status else "false"
+            await self.api_client.device.set_ledstatus(self._device_info, status_str)
+            LOGGER.debug("The lock LED status was set to %s successfully", status_str)
             await self.async_request_refresh()
         except Unauthenticated as err:
             raise ConfigEntryAuthFailed(
@@ -221,8 +223,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     async def set_audio(self, status: bool) -> None:
         """Set the audio status."""
         try:
-            await self.api_client.device.set_audiostatus(self._device_info, status)
-            LOGGER.debug("The lock audio status was set successfully")
+            # Convert boolean to string "true" or "false" for API
+            status_str = "true" if status else "false"
+            await self.api_client.device.set_audiostatus(self._device_info, status_str)
+            LOGGER.debug("The lock audio status was set to %s successfully", status_str)
             await self.async_request_refresh()
         except Unauthenticated as err:
             raise ConfigEntryAuthFailed(
@@ -232,8 +236,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     async def set_secure_screen(self, status: bool) -> None:
         """Set the secure screen status."""
         try:
-            await self.api_client.device.set_securescreenstatus(self._device_info, status)
-            LOGGER.debug("The lock secure screen was set successfully")
+            # Convert boolean to string "true" or "false" for API
+            status_str = "true" if status else "false"
+            await self.api_client.device.set_securescreenstatus(self._device_info, status_str)
+            LOGGER.debug("The lock secure screen was set to %s successfully", status_str)
             await self.async_request_refresh()
         except Unauthenticated as err:
             raise ConfigEntryAuthFailed(

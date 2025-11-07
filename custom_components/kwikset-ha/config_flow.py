@@ -87,6 +87,48 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+    
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration of the integration to discover new devices."""
+        errors: dict[str, str] = {}
+        
+        if user_input is not None:
+            # Get the current config entry
+            entry = self._get_reconfigure_entry()
+            
+            try:
+                # Re-authenticate with stored credentials
+                self.api = API()
+                await self.api.async_renew_access_token(
+                    entry.data[CONF_ACCESS_TOKEN],
+                    entry.data[CONF_REFRESH_TOKEN]
+                )
+                
+                # Successfully authenticated, reload to discover new devices
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data_updates={
+                        CONF_ACCESS_TOKEN: self.api.access_token,
+                        CONF_REFRESH_TOKEN: self.api.refresh_token,
+                    },
+                )
+            except RequestError as request_error:
+                LOGGER.error("Error connecting to the Kwikset API: %s", request_error)
+                errors["base"] = "cannot_connect"
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("Unexpected error during reconfiguration")
+                errors["base"] = "unknown"
+        
+        # Show the reconfigure form
+        return self.async_show_form(
+            step_id="reconfigure",
+            description_placeholders={
+                "info": "This will reload the integration and discover any new devices."
+            },
+            errors=errors,
+        )
 
         
 
@@ -173,15 +215,19 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return OptionsFlow(config_entry)
+        return OptionsFlow()
             
 class OptionsFlow(config_entries.OptionsFlow):
-    def __init__(self, config_entry: config_entries.ConfigEntry):
-        """Initialize options flow."""
+    """Handle options flow for Kwikset integration."""
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -189,14 +235,19 @@ class OptionsFlow(config_entries.OptionsFlow):
             step_id="init", 
             data_schema=vol.Schema(
                 {
-                    vol.Optional(CONF_REFRESH_INTERVAL, default=self.config_entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
+                    vol.Optional(
+                        CONF_REFRESH_INTERVAL, 
+                        default=self.config_entry.options.get(
+                            CONF_REFRESH_INTERVAL, 
+                            DEFAULT_REFRESH_INTERVAL
+                        )
                     ): NumberSelector(
                         NumberSelectorConfig(
                             mode=NumberSelectorMode.SLIDER,
                             min=15,
                             max=60
                         )
-                    )
+                    ),
                 }
             )
         )

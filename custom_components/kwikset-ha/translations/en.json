@@ -2,7 +2,8 @@
     "config": {
         "abort": {
             "already_configured": "Device is already configured",
-            "reauth_successful": "Re-authentication was successful"
+            "reauth_successful": "Re-authentication was successful",
+            "no_available_homes": "No available homes to configure"
         },
         "error": {
             "cannot_connect": "Failed to connect",
@@ -11,6 +12,8 @@
         },
         "step": {
             "user": {
+                "title": "Sign in to Kwikset",
+                "description": "Enter your Kwikset account credentials.",
                 "data": {
                     "email": "Email",
                     "password": "Password"
@@ -18,8 +21,10 @@
                 }
             },
             "select_home": {
+                "title": "Select Home",
+                "description": "Choose which Kwikset home to configure.",
                 "data": {
-                    "home_id": "Home"
+                    "conf_home_id": "Home"
                 }
             },
             "reauth_confirm": {
@@ -29,6 +34,10 @@
                     "email": "Email",
                     "password": "Password"
                 }
+            },
+            "reconfigure": {
+                "title": "Reconfigure Kwikset",
+                "description": "This will reload the integration and discover any new devices that have been added to your Kwikset home."
             }
         }
     },
@@ -36,7 +45,8 @@
         "step": {
             "init": {
               "data": {
-                "refresh_interval":  "How often the integration will poll the device in seconds"
+                "refresh_interval":  "How often the integration will poll the device in seconds",
+                "refresh_devices": "Reload integration to discover new devices"
               },
                 "description": "Configure Kwikset options"
             }

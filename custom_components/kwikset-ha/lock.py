@@ -17,13 +17,39 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Kwikset lock from config entry."""
-    devices: list[KwiksetDeviceDataUpdateCoordinator] = hass.data[KWIKSET_DOMAIN][
+    devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = hass.data[KWIKSET_DOMAIN][
         config_entry.entry_id
     ]["devices"]
-    entities = []
-    for device in devices:
-        entities.append(KwiksetLock(device, config_entry.options))
-    async_add_entities(entities)
+    
+    known_device_ids: set[str] = set()
+    
+    @callback
+    def _add_new_devices() -> None:
+        """Add new lock entities for newly discovered devices."""
+        entities = []
+        current_device_ids = set(devices.keys())
+        new_device_ids = current_device_ids - known_device_ids
+        
+        for device_id in new_device_ids:
+            device = devices[device_id]
+            entities.append(KwiksetLock(device, config_entry.options))
+            known_device_ids.add(device_id)
+            LOGGER.debug("Added new lock entity for device: %s", device_id)
+        
+        if entities:
+            async_add_entities(entities)
+    
+    # Add existing devices
+    _add_new_devices()
+    
+    # Listen for new devices - this callback will be triggered during reload
+    # when new devices are discovered
+    config_entry.async_on_unload(
+        hass.bus.async_listen(
+            f"{KWIKSET_DOMAIN}_new_device",
+            lambda event: _add_new_devices()
+        )
+    )
 
     platform = entity_platform.async_get_current_platform()
 
@@ -39,9 +65,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
     async def async_lock(self, **kwargs):
         """Lock the device."""
-        await self._device.lock()
-        self._state = LockState.LOCKED
-        self.async_write_ha_state()
+        await self.coordinator.lock()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
@@ -49,25 +73,12 @@ class KwiksetLock(KwiksetEntity, LockEntity):
             return
         if self._is_expired():
             return
-        await self._device.unlock()
-        self._state = LockState.UNLOCKED
-        self.async_write_ha_state()
+        await self.coordinator.unlock()
 
     @property
     def is_locked(self):
         """Return true if lock is locked."""
-        return self._device.status == "Locked"
-
-    @callback
-    def _async_update_state(self) -> None:
-        """Handle updated data from the coordinator."""
-        
-        if self._device.status == "Locked":
-            self._attr_is_locked = True
-        elif self._device.status == "Unlocked":
-            self._attr_is_locked = False
-        
-        self.async_write_ha_state()
+        return self.coordinator.status == "Locked"
 
     def _is_within_schedule(self):
         """Check if current time is within the allowed schedule."""
@@ -94,7 +105,3 @@ class KwiksetLock(KwiksetEntity, LockEntity):
             if (datetime.now() - creation_date).days > self.expiration_days:
                 return True
         return False
-
-    async def async_added_to_hass(self):
-        """When entity is added to hass."""
-        self.async_on_remove(self._device.async_add_listener(self._async_update_state))

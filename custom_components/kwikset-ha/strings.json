@@ -3,14 +3,18 @@
     "config": {
         "step": {
             "user": {
+                "title": "Sign in to Kwikset",
+                "description": "Enter your Kwikset account credentials.",
                 "data": {
                     "email": "[%key:common::config_flow::data::email%]",
                     "password": "[%key:common::config_flow::data::password%]"
                 }
             },
             "select_home": {
+                "title": "Select Home",
+                "description": "Choose which Kwikset home to configure.",
                 "data": {
-                    "home_id": "[%key:common::config_flow::data::home%]"
+                    "conf_home_id": "Home"
                 }
             },
             "reauth_confirm": {
@@ -20,6 +24,10 @@
                     "email": "[%key:common::config_flow::data::email%]",
                     "password": "[%key:common::config_flow::data::password%]"
                 }
+            },
+            "reconfigure": {
+                "title": "Reconfigure Kwikset",
+                "description": "This will reload the integration and discover any new devices that have been added to your Kwikset home."
             }
         },
         "error": {
@@ -29,14 +37,16 @@
         },
         "abort": {
             "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-            "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+            "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+            "no_available_homes": "No available homes to configure"
         }
     },
     "options": {
         "step": {
             "init": {
               "data": {
-                "refresh_interval":  "How often the integration will poll the device in seconds"
+                "refresh_interval":  "How often the integration will poll the device in seconds",
+                "refresh_devices": "Reload integration to discover new devices"
               },
                 "description": "Configure Kwikset options"
             }
