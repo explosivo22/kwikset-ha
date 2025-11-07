@@ -8,6 +8,7 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
+            "invalid_mfa": "Invalid verification code. Please try again.",
             "unknown": "Unexpected error"
         },
         "step": {
@@ -38,6 +39,20 @@
             "reconfigure": {
                 "title": "Reconfigure Kwikset",
                 "description": "This will reload the integration and discover any new devices that have been added to your Kwikset home."
+            },
+            "mfa": {
+                "title": "Multi-Factor Authentication",
+                "description": "Enter the verification code from your {mfa_type}.",
+                "data": {
+                    "mfa_code": "Verification Code"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Multi-Factor Authentication",
+                "description": "Enter the verification code from your {mfa_type} to complete reauthentication.",
+                "data": {
+                    "mfa_code": "Verification Code"
+                }
             }
         }
     },
