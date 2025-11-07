@@ -18,6 +18,12 @@ jobs:
       - name: Checkout the repository
         uses: "actions/checkout@v4"
 
+      - name: Align integration directory
+        run: |
+          if [ -d "custom_components/kwikset-ha" ]; then
+            mv custom_components/kwikset-ha custom_components/kwikset
+          fi
+
       - name: Hassfest validation
         uses: "home-assistant/actions/hassfest@master"
 
@@ -27,6 +33,12 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: "actions/checkout@v4"
+
+      - name: Align integration directory
+        run: |
+          if [ -d "custom_components/kwikset-ha" ]; then
+            mv custom_components/kwikset-ha custom_components/kwikset
+          fi
 
       - name: HACS validation
         uses: "hacs/action@main"
