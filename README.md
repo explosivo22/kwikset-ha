@@ -4,6 +4,7 @@ Support for [Kwikset Smart Locks](https://www.kwikset.com/products/electronic/el
 
 [![License](https://img.shields.io/github/license/explosivo22/rinnaicontrolr-ha?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![Validate](https://github.com/explosivo22/kwikset-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/explosivo22/kwikset-ha/actions/workflows/validate.yml)
 [![HA integration usage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.kwikset.total&style=for-the-badge&logo=home-assistant&label=integration%20usage&color=41BDF5)](https://analytics.home-assistant.io/custom_integrations.json)
 
 <a href="https://www.buymeacoffee.com/Explosivo22" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
