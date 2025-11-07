@@ -3,31 +3,65 @@
     "config": {
         "step": {
             "user": {
+                "title": "Sign in to Kwikset",
+                "description": "Enter your Kwikset account credentials.",
                 "data": {
                     "email": "[%key:common::config_flow::data::email%]",
                     "password": "[%key:common::config_flow::data::password%]"
                 }
             },
             "select_home": {
+                "title": "Select Home",
+                "description": "Choose which Kwikset home to configure.",
                 "data": {
-                    "home_id": "[%key:common::config_flow::data::home%]"
+                    "conf_home_id": "[%key:common::config_flow::data::home%]"
+                }
+            },
+            "reauth_confirm": {
+                "title": "[%key:common::config_flow::title::reauth%]",
+                "description": "The Kwikset integration needs to re-authenticate your account. Please enter your credentials.",
+                "data": {
+                    "email": "[%key:common::config_flow::data::email%]",
+                    "password": "[%key:common::config_flow::data::password%]"
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigure Kwikset",
+                "description": "This will reload the integration and discover any new devices that have been added to your Kwikset home."
+            },
+            "mfa": {
+                "title": "Multi-Factor Authentication",
+                "description": "Enter the verification code from your {mfa_type}.",
+                "data": {
+                    "mfa_code": "Verification Code"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Multi-Factor Authentication",
+                "description": "Enter the verification code from your {mfa_type} to complete reauthentication.",
+                "data": {
+                    "mfa_code": "Verification Code"
                 }
             }
         },
         "error": {
             "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
             "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "invalid_mfa": "Invalid verification code. Please try again.",
             "unknown": "[%key:common::config_flow::error::unknown%]"
         },
         "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+            "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+            "no_available_homes": "No available homes to configure"
         }
     },
     "options": {
         "step": {
             "init": {
               "data": {
-                "refresh_interval":  "How often the integration will poll the device in seconds"
+                "refresh_interval":  "How often the integration will poll the device in seconds",
+                "refresh_devices": "Reload integration to discover new devices"
               },
                 "description": "Configure Kwikset options"
             }

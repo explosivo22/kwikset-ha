@@ -4,46 +4,44 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.entity import DeviceInfo, Entity
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN as KWIKSET_DOMAIN
 from .device import KwiksetDeviceDataUpdateCoordinator
 
-class KwiksetEntity(Entity):
+
+class KwiksetEntity(CoordinatorEntity[KwiksetDeviceDataUpdateCoordinator]):
     """A base class for Kwikset entities."""
 
-    _attr_force_update = False
-    _attr_should_poll = True
-    
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         entity_type: str,
         name: str,
-        device: KwiksetDeviceUpdateCoordinator,
+        coordinator: KwiksetDeviceDataUpdateCoordinator,
         **kwargs,
     ) -> None:
         """Init Kwikset entity."""
+        super().__init__(coordinator)
+        
         self._attr_name = name
-        self._attr_unique_id = f"{device.id}_{entity_type}"
-
-        self._device: KwiksetDeviceDataUpdateCoordinator = device
-        self._state: Any = None
+        self._attr_unique_id = f"{coordinator.device_id}_{entity_type}"
+        self._device = coordinator
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return a device description for device registry."""
         return DeviceInfo(
-            identifiers={(KWIKSET_DOMAIN, self._device.id)},
+            identifiers={(KWIKSET_DOMAIN, self._device.device_id)},
             manufacturer=self._device.manufacturer,
             model=self._device.model,
             name=self._device.device_name,
             sw_version=self._device.firmware_version,
         )
-    
-    async def async_update(self):
-        """Update Kwikset entity."""
-        await self._device.async_request_refresh()
 
-    async def async_added_to_hass(self):
-        """When entity is added to hass"""
-        self.async_on_remove(self._device.async_add_listener(self.async_write_ha_state))
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
