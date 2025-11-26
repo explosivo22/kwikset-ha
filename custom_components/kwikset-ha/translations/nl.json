@@ -1,0 +1,123 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Inloggen bij Kwikset",
+                "description": "Voer uw Kwikset-accountgegevens in.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Wachtwoord"
+                },
+                "data_description": {
+                    "email": "Het e-mailadres dat wordt gebruikt voor uw Kwikset-account",
+                    "password": "Uw Kwikset-accountwachtwoord"
+                }
+            },
+            "select_home": {
+                "title": "Selecteer huis",
+                "description": "Kies welk Kwikset-huis u wilt configureren.",
+                "data": {
+                    "conf_home_id": "Huis"
+                },
+                "data_description": {
+                    "conf_home_id": "Selecteer het Kwikset-huis met uw slimme sloten"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Herauthenticatie vereist",
+                "description": "De Kwikset-integratie moet uw account opnieuw verifiëren. Voer uw inloggegevens in.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Wachtwoord"
+                }
+            },
+            "reconfigure": {
+                "title": "Kwikset opnieuw configureren",
+                "description": "Dit zal de integratie opnieuw laden en eventuele nieuwe apparaten ontdekken die aan uw Kwikset-huis zijn toegevoegd."
+            },
+            "mfa": {
+                "title": "Multi-factor authenticatie",
+                "description": "Voer de verificatiecode van uw {mfa_type} in.",
+                "data": {
+                    "mfa_code": "Verificatiecode"
+                },
+                "data_description": {
+                    "mfa_code": "De 6-cijferige code die naar uw apparaat is verzonden"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Multi-factor authenticatie",
+                "description": "Voer de verificatiecode van uw {mfa_type} in om de herauthenticatie te voltooien.",
+                "data": {
+                    "mfa_code": "Verificatiecode"
+                },
+                "data_description": {
+                    "mfa_code": "De 6-cijferige code die naar uw apparaat is verzonden"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Verbinding mislukt",
+            "invalid_auth": "Ongeldige authenticatie",
+            "invalid_mfa": "Ongeldige verificatiecode. Probeer het opnieuw.",
+            "unknown": "Onverwachte fout",
+            "token_expired": "Authenticatietoken is verlopen. Log opnieuw in."
+        },
+        "abort": {
+            "already_configured": "Apparaat is al geconfigureerd",
+            "reauth_successful": "Herauthenticatie was succesvol",
+            "no_available_homes": "Geen beschikbare huizen om te configureren"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kwikset-opties",
+                "description": "Configureer Kwikset-integratieopties.",
+                "data": {
+                    "refresh_interval": "Poll-interval (seconden)",
+                    "refresh_devices": "Opnieuw laden om nieuwe apparaten te ontdekken"
+                },
+                "data_description": {
+                    "refresh_interval": "Hoe vaak de Kwikset-cloud wordt gepolld voor apparaatstatus (15-60 seconden)",
+                    "refresh_devices": "Schakel deze optie in om de integratie opnieuw te laden en nieuw toegevoegde apparaten te ontdekken"
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Slot"
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Batterij"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Audio"
+            },
+            "secure_screen_switch": {
+                "name": "Beveiligd scherm"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Authenticatie mislukt. Controleer uw inloggegevens en probeer het opnieuw."
+        },
+        "connection_error": {
+            "message": "Kan geen verbinding maken met de Kwikset-cloudservice. Probeer het later opnieuw."
+        },
+        "token_refresh_failed": {
+            "message": "Authenticatietoken vernieuwen mislukt. Verifieer opnieuw."
+        }
+    }
+}

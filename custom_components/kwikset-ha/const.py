@@ -1,22 +1,39 @@
-"""Constants for Kwikset Monitoring"""
-import logging
+"""Constants for Kwikset Smart Locks integration.
 
+This module defines all constants used throughout the Kwikset integration.
+Following Home Assistant conventions:
+- Use Final type hints for immutable constants
+- Group related constants with comments
+- Prefer HA's built-in constants (CONF_EMAIL, CONF_PASSWORD) over custom ones
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Final
+
+# Integration logger - uses package name for proper log filtering
 LOGGER = logging.getLogger(__package__)
 
-DOMAIN = 'kwikset'
+# Domain identifier - must match manifest.json domain
+DOMAIN: Final = "kwikset"
 
-POOL_ID = 'us-east-1_6B3uo6uKN'
-CLIENT_ID = '5eu1cdkjp1itd1fi7b91m6g79s'
-POOL_REGION = 'us-east-1'
+# Configuration keys stored in config_entry.data
+# Note: We use HA's CONF_EMAIL, CONF_PASSWORD from homeassistant.const
+CONF_HOME_ID: Final = "conf_home_id"
+CONF_REFRESH_TOKEN: Final = "conf_refresh_token"
+CONF_ACCESS_TOKEN: Final = "conf_access_token"
 
-CONF_API = 'conf_api'
-CONF_HOME_ID = 'conf_home_id'
-CONF_HOME_NAME = 'conf_home_name'
-CONF_REFRESH_TOKEN = 'conf_refresh_token'
-CONF_ACCESS_TOKEN = 'conf_access_token'
-CONF_ID_TOKEN = 'conf_id_token'
-CONF_CODE_TYPE = 'code_type'
-CONF_REFRESH_INTERVAL = 'refresh_interval'
-DEFAULT_REFRESH_INTERVAL = 30
+# Configuration keys stored in config_entry.options
+CONF_REFRESH_INTERVAL: Final = "refresh_interval"
 
-CLIENT = 'client'
+# Default polling interval in seconds (configurable 15-60s via options flow)
+DEFAULT_REFRESH_INTERVAL: Final = 30
+
+# Token refresh settings for proactive JWT token management
+# Refresh 5 minutes before expiry to prevent auth failures during API calls
+TOKEN_REFRESH_BUFFER_SECONDS: Final = 300
+
+# Retry settings for transient API failures (network issues, rate limits)
+MAX_RETRY_ATTEMPTS: Final = 3
+RETRY_DELAY_SECONDS: Final = 2

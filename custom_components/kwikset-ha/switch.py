@@ -1,117 +1,134 @@
-"""Support for Kwikset Smart lock sensors."""
+"""Support for Kwikset smart lock switches.
+
+This module provides switch entities for Kwikset smart lock settings.
+Currently supports:
+    - LED indicator switch (on/off)
+    - Audio feedback switch (on/off)
+    - Secure screen switch (on/off)
+
+Architecture:
+    - Uses translation_key for entity naming (Platinum tier compliance)
+    - All switches are EntityCategory.CONFIG as they control device settings
+    - All actions delegate to the coordinator (never call API directly)
+    - Dynamic device discovery via bus events (Gold tier compliance)
+    - PARALLEL_UPDATES = 1 prevents overwhelming the Kwikset cloud
+"""
+
 from __future__ import annotations
 
-from homeassistant.components.switch import (
-    SwitchEntity,
-)
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import callback
+from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from homeassistant.const import (
-    PERCENTAGE
-)
-
-from .const import DOMAIN as KWIKSET_DOMAIN, LOGGER
-from .device import KwiksetDeviceDataUpdateCoordinator
+from .const import DOMAIN, LOGGER
 from .entity import KwiksetEntity
 
+if TYPE_CHECKING:
+    from . import KwiksetConfigEntry
+    from .device import KwiksetDeviceDataUpdateCoordinator
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up the Kwikset sensors from config entry."""
-    devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = hass.data[KWIKSET_DOMAIN][
-        config_entry.entry_id
-    ]["devices"]
-    
-    known_device_ids: set[str] = set()
-    
+# Limit concurrent API calls to prevent rate limiting
+PARALLEL_UPDATES = 1
+
+
+@dataclass(frozen=True, kw_only=True)
+class KwiksetSwitchEntityDescription(SwitchEntityDescription):
+    """Describes a Kwikset switch entity."""
+
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]
+    set_fn: Callable[[KwiksetDeviceDataUpdateCoordinator, bool], Awaitable[None]]
+
+
+SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
+    KwiksetSwitchEntityDescription(
+        key="led_switch",
+        translation_key="led_switch",
+        entity_category=EntityCategory.CONFIG,
+        value_fn=lambda c: c.led_status,
+        set_fn=lambda c, v: c.set_led(v),
+    ),
+    KwiksetSwitchEntityDescription(
+        key="audio_switch",
+        translation_key="audio_switch",
+        entity_category=EntityCategory.CONFIG,
+        value_fn=lambda c: c.audio_status,
+        set_fn=lambda c, v: c.set_audio(v),
+    ),
+    KwiksetSwitchEntityDescription(
+        key="secure_screen_switch",
+        translation_key="secure_screen_switch",
+        entity_category=EntityCategory.CONFIG,
+        value_fn=lambda c: c.secure_screen_status,
+        set_fn=lambda c, v: c.set_secure_screen(v),
+    ),
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: KwiksetConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Kwikset switch entities from a config entry."""
+    devices = entry.runtime_data.devices
+    known_ids: set[str] = set()
+
     @callback
-    def _add_new_devices() -> None:
-        """Add new switch entities for newly discovered devices."""
-        entities = []
-        current_device_ids = set(devices.keys())
-        new_device_ids = current_device_ids - known_device_ids
-        
-        for device_id in new_device_ids:
-            device = devices[device_id]
-            entities.extend([
-                KwiksetLEDSwitch(device),
-                KwiksetAudioSwitch(device),
-                KwiksetSecureScreenSwitch(device),
-            ])
-            known_device_ids.add(device_id)
-            LOGGER.debug("Added new switch entities for device: %s", device_id)
-        
-        if entities:
-            async_add_entities(entities)
-    
-    # Add existing devices
-    _add_new_devices()
-    
-    # Listen for new devices - this callback will be triggered during reload
-    # when new devices are discovered
-    config_entry.async_on_unload(
-        hass.bus.async_listen(
-            f"{KWIKSET_DOMAIN}_new_device",
-            lambda event: _add_new_devices()
+    def _async_add_new_devices() -> None:
+        """Add switch entities for newly discovered devices."""
+        new_ids = set(devices.keys()) - known_ids
+        if not new_ids:
+            return
+
+        async_add_entities(
+            KwiksetSwitch(devices[device_id], description)
+            for device_id in new_ids
+            for description in SWITCH_DESCRIPTIONS
         )
+        known_ids.update(new_ids)
+        LOGGER.debug("Added switch entities for devices: %s", new_ids)
+
+    # Add existing devices
+    _async_add_new_devices()
+
+    # Listen for new device discovery events
+    entry.async_on_unload(
+        hass.bus.async_listen(f"{DOMAIN}_new_device", lambda _: _async_add_new_devices())
     )
 
-class KwiksetLEDSwitch(KwiksetEntity, SwitchEntity):
-    """Control the LED status of the lock."""
 
-    def __init__(self, device):
-        """Initialize the LED switch."""
-        super().__init__("led_switch", f"{device.device_name} LED", device)
+class KwiksetSwitch(KwiksetEntity, SwitchEntity):
+    """Kwikset switch entity for device settings.
 
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if LED is on."""
-        return self.coordinator.led_status
+    Uses entity descriptions for a data-driven approach.
+    All switches use EntityCategory.CONFIG as they control device settings.
+    """
 
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn the LED on."""
-        await self.coordinator.set_led(True)
+    entity_description: KwiksetSwitchEntityDescription
 
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn the LED off."""
-        await self.coordinator.set_led(False)
-
-class KwiksetAudioSwitch(KwiksetEntity, SwitchEntity):
-    """Control the audio status of the lock."""
-
-    def __init__(self, device):
-        """Initialize the audio switch."""
-        super().__init__("audio_switch", f"{device.device_name} Audio", device)
+    def __init__(
+        self,
+        coordinator: KwiksetDeviceDataUpdateCoordinator,
+        description: KwiksetSwitchEntityDescription,
+    ) -> None:
+        """Initialize the switch entity."""
+        super().__init__(description.key, coordinator)
+        self.entity_description = description
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if audio is on."""
-        return self.coordinator.audio_status
-    
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn the audio on."""
-        await self.coordinator.set_audio(True)
+        """Return true if switch is on."""
+        return self.entity_description.value_fn(self.coordinator)
 
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn the audio off."""
-        await self.coordinator.set_audio(False)
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the switch on."""
+        await self.entity_description.set_fn(self.coordinator, True)
 
-class KwiksetSecureScreenSwitch(KwiksetEntity, SwitchEntity):
-    """Control the secure screen status of the lock."""
-
-    def __init__(self, device):
-        """Initialize the secure screen switch."""
-        super().__init__("secure_screen_switch", f"{device.device_name} Secure Screen", device)
-
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if secure screen is on."""
-        return self.coordinator.secure_screen_status
-
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn the secure screen on."""
-        await self.coordinator.set_secure_screen(True)
-
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn the secure screen off."""
-        await self.coordinator.set_secure_screen(False)
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the switch off."""
+        await self.entity_description.set_fn(self.coordinator, False)

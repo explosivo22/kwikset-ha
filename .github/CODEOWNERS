@@ -1,0 +1,10 @@
+# Kwikset Smart Locks - Home Assistant Custom Component
+# https://github.com/explosivo22/kwikset-ha
+
+* @explosivo22
+
+# Integration code
+/custom_components/ @explosivo22
+
+# Tests
+/tests/ @explosivo22

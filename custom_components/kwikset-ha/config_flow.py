@@ -1,92 +1,170 @@
-from typing import Any
+"""Config flow for Kwikset Smart Locks integration.
+
+This module implements the configuration flow for setting up Kwikset smart locks
+in Home Assistant. It follows the Home Assistant config flow patterns:
+
+Flow Steps:
+    - user: Collect credentials (email/password)
+    - select_home: Choose which Kwikset home to configure
+    - mfa: Handle multi-factor authentication challenges
+    - reauth_confirm: Allow re-entering credentials when tokens expire
+    - reconfigure: Trigger device discovery without full re-setup
+    - options: Configure polling interval
+
+Architecture:
+    - Uses aiokwikset library for all API communication
+    - Tokens are stored in config_entry.data for persistence
+    - Refresh interval is stored in config_entry.options for user customization
+    - Each home is a separate config entry (unique_id = home_id)
+"""
+
+from __future__ import annotations
+
 from collections.abc import Mapping
+from typing import Any
 
 from aiokwikset import API
-from aiokwikset.errors import RequestError, MFAChallengeRequired
+from aiokwikset.errors import MFAChallengeRequired, RequestError
 import voluptuous as vol
 
-from homeassistant import config_entries, core, exceptions
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_CODE
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant import config_entries, exceptions
+from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
-from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
-
-from .const import (
-    DEFAULT_REFRESH_INTERVAL,
-    DOMAIN, 
-    LOGGER,
-    CONF_HOME_ID,
-    CONF_ACCESS_TOKEN,
-    CONF_REFRESH_TOKEN,
-    CONF_REFRESH_INTERVAL
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
 )
 
-CODE_TYPES = ['email','phone']
+from .const import (
+    CONF_ACCESS_TOKEN,
+    CONF_HOME_ID,
+    CONF_REFRESH_INTERVAL,
+    CONF_REFRESH_TOKEN,
+    DEFAULT_REFRESH_INTERVAL,
+    DOMAIN,
+    LOGGER,
+)
+
+# Schema definitions
+CREDENTIALS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_EMAIL): str,
+        vol.Required(CONF_PASSWORD): str,
+    }
+)
+
+MFA_SCHEMA = vol.Schema({vol.Required("mfa_code"): str})
+
 
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle configuration of Kwikset integrations."""
+    """Handle configuration of Kwikset integrations.
+
+    Manages the complete setup process:
+        1. Credential collection (email/password)
+        2. API authentication (with MFA support)
+        3. Home selection (one entry per Kwikset home)
+        4. Token storage for persistent authentication
+
+    Also handles reauthentication when tokens expire.
+    """
 
     VERSION = 4
 
-    def __init__(self):
-        """Create a new instance of the flow handler"""
-        self.api = None
-        self.username = None
-        self.password = None
-        self.home_id = None
-        self.mfa_type = None
-        self.mfa_tokens = None
-    
+    def __init__(self) -> None:
+        """Initialize the flow handler."""
+        self.api: API | None = None
+        self.username: str | None = None
+        self.password: str | None = None
+        self.home_id: str | None = None
+        self.mfa_type: str | None = None
+        self.mfa_tokens: dict[str, Any] | None = None
+
+    # -------------------------------------------------------------------------
+    # Helper methods
+    # -------------------------------------------------------------------------
+
+    def _get_mfa_type_display(self) -> str:
+        """Get human-readable MFA type for display."""
+        return "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" else "SMS"
+
+    async def _async_authenticate(self) -> ConfigFlowResult | None:
+        """Authenticate with the API. Returns None on success, error result on failure."""
+        try:
+            self.api = API()
+            await self.api.async_login(self.username, self.password)
+            return None  # Success
+        except MFAChallengeRequired as mfa_error:
+            LOGGER.debug("MFA challenge required: %s", mfa_error.mfa_type)
+            self.mfa_type = mfa_error.mfa_type
+            self.mfa_tokens = mfa_error.mfa_tokens
+            return None  # MFA needed, but not an error
+        except RequestError as err:
+            LOGGER.error("API connection error: %s", err)
+            return "cannot_connect"
+        except Exception:
+            LOGGER.exception("Unexpected authentication error")
+            return "unknown"
+
+    async def _async_complete_mfa(self, mfa_code: str) -> str | None:
+        """Complete MFA verification. Returns error key or None on success."""
+        try:
+            await self.api.async_respond_to_mfa_challenge(
+                mfa_code=mfa_code,
+                mfa_type=self.mfa_type,
+                mfa_tokens=self.mfa_tokens,
+            )
+            LOGGER.debug("MFA authentication successful")
+            return None  # Success
+        except RequestError:
+            LOGGER.error("MFA verification failed")
+            return "invalid_mfa"
+        except Exception:
+            LOGGER.exception("Unexpected MFA error")
+            return "unknown"
+
+    def _create_token_data(self) -> dict[str, Any]:
+        """Create token data dict for config entry."""
+        return {
+            CONF_EMAIL: self.username,
+            CONF_ACCESS_TOKEN: self.api.access_token,
+            CONF_REFRESH_TOKEN: self.api.refresh_token,
+        }
+
+    # -------------------------------------------------------------------------
+    # Reauth flow
+    # -------------------------------------------------------------------------
+
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
-    ) -> FlowResult:
-        """Perform reauth upon an API authentication error."""
-        # Store entry data for use in reauth_confirm
+    ) -> ConfigFlowResult:
+        """Handle reauthentication trigger."""
         self.username = entry_data.get(CONF_EMAIL)
         self.home_id = entry_data.get(CONF_HOME_ID)
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Confirm reauthentication dialog."""
+    ) -> ConfigFlowResult:
+        """Handle reauthentication credentials."""
         errors: dict[str, str] = {}
-        
+
         if user_input is not None:
             self.username = user_input[CONF_EMAIL]
             self.password = user_input[CONF_PASSWORD]
 
-            try:
-                # Initialize API and authenticate
-                self.api = API()
-                await self.api.async_login(self.username, self.password)
-                
-                # Successfully authenticated, update the entry
+            error = await self._async_authenticate()
+            if error:
+                errors["base"] = error
+            elif self.mfa_type:
+                return await self.async_step_mfa_reauth()
+            else:
                 return self.async_update_reload_and_abort(
                     self._get_reauth_entry(),
-                    data_updates={
-                        CONF_EMAIL: self.username,
-                        CONF_ACCESS_TOKEN: self.api.access_token,
-                        CONF_REFRESH_TOKEN: self.api.refresh_token,
-                    },
+                    data_updates=self._create_token_data(),
                 )
-            
-            except MFAChallengeRequired as mfa_error:
-                # MFA is required during reauth - store challenge info and show MFA step
-                LOGGER.debug("MFA challenge required during reauth: %s", mfa_error.mfa_type)
-                self.mfa_type = mfa_error.mfa_type
-                self.mfa_tokens = mfa_error.mfa_tokens
-                return await self.async_step_mfa_reauth()
-            
-            except RequestError as request_error:
-                LOGGER.error("Error connecting to the Kwikset API: %s", request_error)
-                errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
-                LOGGER.exception("Unexpected error during reauthentication")
-                errors["base"] = "unknown"
 
-        # Show the reauth form
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema(
@@ -97,92 +175,48 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
-    
+
     async def async_step_mfa_reauth(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle MFA verification during reauthentication."""
+    ) -> ConfigFlowResult:
+        """Handle MFA during reauthentication."""
         errors: dict[str, str] = {}
-        
-        if user_input is None:
-            # Determine MFA type for display
-            mfa_type_display = (
-                "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" 
-                else "SMS"
-            )
-            
-            return self.async_show_form(
-                step_id="mfa_reauth",
-                data_schema=vol.Schema({
-                    vol.Required("mfa_code"): str,
-                }),
-                description_placeholders={
-                    "mfa_type": mfa_type_display
-                },
-                errors=errors
-            )
-        
-        try:
-            # Complete MFA authentication
-            await self.api.async_respond_to_mfa_challenge(
-                mfa_code=user_input["mfa_code"],
-                mfa_type=self.mfa_type,
-                mfa_tokens=self.mfa_tokens
-            )
-            LOGGER.debug("MFA authentication successful during reauth")
-            
-            # Successfully authenticated, update the entry
-            return self.async_update_reload_and_abort(
-                self._get_reauth_entry(),
-                data_updates={
-                    CONF_EMAIL: self.username,
-                    CONF_ACCESS_TOKEN: self.api.access_token,
-                    CONF_REFRESH_TOKEN: self.api.refresh_token,
-                },
-            )
-            
-        except RequestError as err:
-            LOGGER.error("MFA verification failed during reauth: %s", err)
-            errors["base"] = "invalid_mfa"
-        except Exception as err:  # noqa: BLE001
-            LOGGER.exception("Unexpected error during MFA verification in reauth")
-            errors["base"] = "unknown"
-        
-        # Show form again with error
-        mfa_type_display = (
-            "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" 
-            else "SMS"
-        )
+
+        if user_input is not None:
+            error = await self._async_complete_mfa(user_input["mfa_code"])
+            if error:
+                errors["base"] = error
+            else:
+                return self.async_update_reload_and_abort(
+                    self._get_reauth_entry(),
+                    data_updates=self._create_token_data(),
+                )
+
         return self.async_show_form(
             step_id="mfa_reauth",
-            data_schema=vol.Schema({
-                vol.Required("mfa_code"): str,
-            }),
-            description_placeholders={
-                "mfa_type": mfa_type_display
-            },
-            errors=errors
+            data_schema=MFA_SCHEMA,
+            description_placeholders={"mfa_type": self._get_mfa_type_display()},
+            errors=errors,
         )
-    
+
+    # -------------------------------------------------------------------------
+    # Reconfigure flow
+    # -------------------------------------------------------------------------
+
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle reconfiguration of the integration to discover new devices."""
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration to discover new devices."""
         errors: dict[str, str] = {}
-        
+
         if user_input is not None:
-            # Get the current config entry
             entry = self._get_reconfigure_entry()
-            
             try:
-                # Re-authenticate with stored credentials
                 self.api = API()
                 await self.api.async_renew_access_token(
                     entry.data[CONF_ACCESS_TOKEN],
-                    entry.data[CONF_REFRESH_TOKEN]
+                    entry.data[CONF_REFRESH_TOKEN],
                 )
-                
-                # Successfully authenticated, reload to discover new devices
                 return self.async_update_reload_and_abort(
                     entry,
                     data_updates={
@@ -190,14 +224,13 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_REFRESH_TOKEN: self.api.refresh_token,
                     },
                 )
-            except RequestError as request_error:
-                LOGGER.error("Error connecting to the Kwikset API: %s", request_error)
+            except RequestError as err:
+                LOGGER.error("Reconfigure connection error: %s", err)
                 errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
-                LOGGER.exception("Unexpected error during reconfiguration")
+            except Exception:
+                LOGGER.exception("Unexpected reconfigure error")
                 errors["base"] = "unknown"
-        
-        # Show the reconfigure form
+
         return self.async_show_form(
             step_id="reconfigure",
             description_placeholders={
@@ -206,65 +239,49 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-        
+    # -------------------------------------------------------------------------
+    # Initial setup flow
+    # -------------------------------------------------------------------------
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Get the email and password from the user"""
-        errors: dict[str, str] = {}
+    ) -> ConfigFlowResult:
+        """Handle initial user credentials."""
         if user_input is None:
             return self.async_show_form(
                 step_id="user",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_EMAIL): str,
-                        vol.Required(CONF_PASSWORD): str
-                    }
-                ),
-                errors=errors
+                data_schema=CREDENTIALS_SCHEMA,
             )
-            
+
         self.username = user_input[CONF_EMAIL]
         self.password = user_input[CONF_PASSWORD]
-
         return await self.async_step_select_home()
 
     async def async_step_select_home(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Ask user to select the home to setup"""
+    ) -> ConfigFlowResult:
+        """Handle home selection."""
         errors: dict[str, str] = {}
 
         if user_input is None or CONF_HOME_ID not in user_input:
-            try:
-                # Initialize API
-                self.api = API()
-                # Start authentication
-                await self.api.async_login(self.username, self.password)
-            
-            except MFAChallengeRequired as mfa_error:
-                # MFA is required - store challenge info and show MFA step
-                LOGGER.debug("MFA challenge required: %s", mfa_error.mfa_type)
-                self.mfa_type = mfa_error.mfa_type
-                self.mfa_tokens = mfa_error.mfa_tokens
+            error = await self._async_authenticate()
+            if error:
+                errors["base"] = error
+                raise CannotConnect
+            if self.mfa_type:
                 return await self.async_step_mfa()
-            
-            except RequestError as request_error:
-                LOGGER.error("Error connecting to the kwikset API: %s", request_error)
-                errors["base"] = "cannot_connect"
-                raise CannotConnect from request_error
 
-            #Get available locations
+            # Get available homes (excluding already configured ones)
             existing_homes = [
                 entry.data[CONF_HOME_ID] for entry in self._async_current_entries()
             ]
             homes = await self.api.user.get_homes()
             homes_options = {
-                home['homeid']: home['homename']
+                home["homeid"]: home["homename"]
                 for home in homes
-                if home['homeid'] not in existing_homes
+                if home["homeid"] not in existing_homes
             }
+
             if not homes_options:
                 return self.async_abort(reason="no_available_homes")
 
@@ -276,72 +293,35 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         self.home_id = user_input[CONF_HOME_ID]
-        await self.async_set_unique_id(f"{self.home_id}")
+        await self.async_set_unique_id(str(self.home_id))
         self._abort_if_unique_id_configured()
         return await self.async_step_install()
 
     async def async_step_mfa(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle MFA verification."""
+    ) -> ConfigFlowResult:
+        """Handle MFA verification during initial setup."""
         errors: dict[str, str] = {}
-        
-        if user_input is None:
-            # Determine MFA type for display
-            mfa_type_display = (
-                "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" 
-                else "SMS"
-            )
-            
-            return self.async_show_form(
-                step_id="mfa",
-                data_schema=vol.Schema({
-                    vol.Required("mfa_code"): str,
-                }),
-                description_placeholders={
-                    "mfa_type": mfa_type_display
-                },
-                errors=errors
-            )
-        
-        try:
-            # Complete MFA authentication
-            await self.api.async_respond_to_mfa_challenge(
-                mfa_code=user_input["mfa_code"],
-                mfa_type=self.mfa_type,
-                mfa_tokens=self.mfa_tokens
-            )
-            LOGGER.debug("MFA authentication successful")
-            
-            # Continue with home selection
-            return await self.async_step_select_home()
-            
-        except RequestError as err:
-            LOGGER.error("MFA verification failed: %s", err)
-            errors["base"] = "invalid_mfa"
-        except Exception as err:  # noqa: BLE001
-            LOGGER.exception("Unexpected error during MFA verification")
-            errors["base"] = "unknown"
-        
-        # Show form again with error
-        mfa_type_display = (
-            "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" 
-            else "SMS"
-        )
+
+        if user_input is not None:
+            error = await self._async_complete_mfa(user_input["mfa_code"])
+            if error:
+                errors["base"] = error
+            else:
+                return await self.async_step_select_home()
+
         return self.async_show_form(
             step_id="mfa",
-            data_schema=vol.Schema({
-                vol.Required("mfa_code"): str,
-            }),
-            description_placeholders={
-                "mfa_type": mfa_type_display
-            },
-            errors=errors
+            data_schema=MFA_SCHEMA,
+            description_placeholders={"mfa_type": self._get_mfa_type_display()},
+            errors=errors,
         )
 
-    async def async_step_install(self, data=None):
-        """Create a config entry at completion of a flow and authorization"""
-        data = {
+    async def async_step_install(
+        self, data: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Create config entry at completion of flow."""
+        entry_data = {
             CONF_EMAIL: self.username,
             CONF_HOME_ID: self.home_id,
             CONF_ACCESS_TOKEN: self.api.access_token,
@@ -349,54 +329,64 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         }
 
         homes = await self.api.user.get_homes()
-        for home in homes:
-            if home['homeid'] == data[CONF_HOME_ID]:
-                home_name = home['homename']
-                return self.async_create_entry(
-                    title=home_name, 
-                    data=data, 
-                    options={
-                        CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
-                    },)
-            
+        home_name = next(
+            (home["homename"] for home in homes if home["homeid"] == self.home_id),
+            f"Kwikset Home {self.home_id}",
+        )
+
+        return self.async_create_entry(
+            title=home_name,
+            data=entry_data,
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+        )
+
+    # -------------------------------------------------------------------------
+    # Options flow
+    # -------------------------------------------------------------------------
+
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Get the options flow for this handler."""
-        return OptionsFlow()
-            
-class OptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for Kwikset integration."""
+        """Get the options flow handler."""
+        return KwiksetOptionsFlow()
+
+
+class KwiksetOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow for Kwikset integration.
+
+    Allows configuration of:
+        - Refresh interval: How often to poll the Kwikset cloud (15-60 seconds)
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
-            step_id="init", 
+            step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
-                        CONF_REFRESH_INTERVAL, 
+                        CONF_REFRESH_INTERVAL,
                         default=self.config_entry.options.get(
-                            CONF_REFRESH_INTERVAL, 
-                            DEFAULT_REFRESH_INTERVAL
-                        )
+                            CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
+                        ),
                     ): NumberSelector(
                         NumberSelectorConfig(
                             mode=NumberSelectorMode.SLIDER,
                             min=15,
-                            max=60
+                            max=60,
                         )
                     ),
                 }
-            )
+            ),
         )
+
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""

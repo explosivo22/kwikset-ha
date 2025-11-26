@@ -1,0 +1,123 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Bei Kwikset anmelden",
+                "description": "Geben Sie Ihre Kwikset-Kontodaten ein.",
+                "data": {
+                    "email": "E-Mail",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
+                    "password": "Ihr Kwikset-Kontopasswort"
+                }
+            },
+            "select_home": {
+                "title": "Zuhause auswählen",
+                "description": "Wählen Sie aus, welches Kwikset-Zuhause konfiguriert werden soll.",
+                "data": {
+                    "conf_home_id": "Zuhause"
+                },
+                "data_description": {
+                    "conf_home_id": "Wählen Sie das Kwikset-Zuhause mit Ihren Smart Locks aus"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Erneute Authentifizierung erforderlich",
+                "description": "Die Kwikset-Integration muss Ihr Konto erneut authentifizieren. Bitte geben Sie Ihre Anmeldedaten ein.",
+                "data": {
+                    "email": "E-Mail",
+                    "password": "Passwort"
+                }
+            },
+            "reconfigure": {
+                "title": "Kwikset neu konfigurieren",
+                "description": "Dadurch wird die Integration neu geladen und alle neuen Geräte entdeckt, die zu Ihrem Kwikset-Zuhause hinzugefügt wurden."
+            },
+            "mfa": {
+                "title": "Multi-Faktor-Authentifizierung",
+                "description": "Geben Sie den Bestätigungscode von Ihrer {mfa_type} ein.",
+                "data": {
+                    "mfa_code": "Bestätigungscode"
+                },
+                "data_description": {
+                    "mfa_code": "Der 6-stellige Code, der an Ihr Gerät gesendet wurde"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Multi-Faktor-Authentifizierung",
+                "description": "Geben Sie den Bestätigungscode von Ihrer {mfa_type} ein, um die erneute Authentifizierung abzuschließen.",
+                "data": {
+                    "mfa_code": "Bestätigungscode"
+                },
+                "data_description": {
+                    "mfa_code": "Der 6-stellige Code, der an Ihr Gerät gesendet wurde"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Verbindung fehlgeschlagen",
+            "invalid_auth": "Ungültige Authentifizierung",
+            "invalid_mfa": "Ungültiger Bestätigungscode. Bitte versuchen Sie es erneut.",
+            "unknown": "Unerwarteter Fehler",
+            "token_expired": "Authentifizierungstoken ist abgelaufen. Bitte melden Sie sich erneut an."
+        },
+        "abort": {
+            "already_configured": "Gerät ist bereits konfiguriert",
+            "reauth_successful": "Erneute Authentifizierung war erfolgreich",
+            "no_available_homes": "Keine verfügbaren Zuhause zum Konfigurieren"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kwikset-Optionen",
+                "description": "Kwikset-Integrationsoptionen konfigurieren.",
+                "data": {
+                    "refresh_interval": "Abfrageintervall (Sekunden)",
+                    "refresh_devices": "Neu laden, um neue Geräte zu entdecken"
+                },
+                "data_description": {
+                    "refresh_interval": "Wie oft der Gerätestatus von der Kwikset-Cloud abgefragt wird (15-60 Sekunden)",
+                    "refresh_devices": "Aktivieren Sie diese Option, um die Integration neu zu laden und neu hinzugefügte Geräte zu entdecken"
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Schloss"
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Batterie"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Audio"
+            },
+            "secure_screen_switch": {
+                "name": "Sicherer Bildschirm"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten und versuchen Sie es erneut."
+        },
+        "connection_error": {
+            "message": "Verbindung zum Kwikset-Cloud-Dienst nicht möglich. Bitte versuchen Sie es später erneut."
+        },
+        "token_refresh_failed": {
+            "message": "Fehler beim Aktualisieren des Authentifizierungstokens. Bitte authentifizieren Sie sich erneut."
+        }
+    }
+}

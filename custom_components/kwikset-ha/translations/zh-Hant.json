@@ -1,0 +1,123 @@
+{
+    "title": "Kwikset 智慧鎖",
+    "config": {
+        "step": {
+            "user": {
+                "title": "登入 Kwikset",
+                "description": "輸入您的 Kwikset 帳戶憑證。",
+                "data": {
+                    "email": "電子郵件",
+                    "password": "密碼"
+                },
+                "data_description": {
+                    "email": "用於您 Kwikset 帳戶的電子郵件地址",
+                    "password": "您的 Kwikset 帳戶密碼"
+                }
+            },
+            "select_home": {
+                "title": "選擇家庭",
+                "description": "選擇要設定的 Kwikset 家庭。",
+                "data": {
+                    "conf_home_id": "家庭"
+                },
+                "data_description": {
+                    "conf_home_id": "選擇包含您智慧鎖的 Kwikset 家庭"
+                }
+            },
+            "reauth_confirm": {
+                "title": "需要重新驗證",
+                "description": "Kwikset 整合需要重新驗證您的帳戶。請輸入您的憑證。",
+                "data": {
+                    "email": "電子郵件",
+                    "password": "密碼"
+                }
+            },
+            "reconfigure": {
+                "title": "重新設定 Kwikset",
+                "description": "這將重新載入整合並發現已新增到您 Kwikset 家庭的任何新裝置。"
+            },
+            "mfa": {
+                "title": "多因素驗證",
+                "description": "輸入來自您 {mfa_type} 的驗證碼。",
+                "data": {
+                    "mfa_code": "驗證碼"
+                },
+                "data_description": {
+                    "mfa_code": "傳送到您裝置的6位數驗證碼"
+                }
+            },
+            "mfa_reauth": {
+                "title": "多因素驗證",
+                "description": "輸入來自您 {mfa_type} 的驗證碼以完成重新驗證。",
+                "data": {
+                    "mfa_code": "驗證碼"
+                },
+                "data_description": {
+                    "mfa_code": "傳送到您裝置的6位數驗證碼"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "連線失敗",
+            "invalid_auth": "驗證無效",
+            "invalid_mfa": "驗證碼無效。請重試。",
+            "unknown": "意外錯誤",
+            "token_expired": "驗證權杖已過期。請重新登入。"
+        },
+        "abort": {
+            "already_configured": "裝置已設定",
+            "reauth_successful": "重新驗證成功",
+            "no_available_homes": "沒有可設定的家庭"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kwikset 選項",
+                "description": "設定 Kwikset 整合選項。",
+                "data": {
+                    "refresh_interval": "輪詢間隔（秒）",
+                    "refresh_devices": "重新載入以發現新裝置"
+                },
+                "data_description": {
+                    "refresh_interval": "向 Kwikset 雲端查詢裝置狀態的頻率（15-60秒）",
+                    "refresh_devices": "啟用此選項可重新載入整合並發現新增的裝置"
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "鎖"
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "電池"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED指示燈"
+            },
+            "audio_switch": {
+                "name": "音訊"
+            },
+            "secure_screen_switch": {
+                "name": "安全螢幕"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "驗證失敗。請檢查您的憑證並重試。"
+        },
+        "connection_error": {
+            "message": "無法連線到 Kwikset 雲端服務。請稍後重試。"
+        },
+        "token_refresh_failed": {
+            "message": "重新整理驗證權杖失敗。請重新驗證。"
+        }
+    }
+}

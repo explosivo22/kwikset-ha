@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Project-specific exclusions
+.github/instructions/
+.github/prompts/

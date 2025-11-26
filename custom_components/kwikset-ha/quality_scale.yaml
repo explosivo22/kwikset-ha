@@ -1,0 +1,138 @@
+# Quality Scale tracking for Kwikset integration
+# https://developers.home-assistant.io/docs/core/integration-quality-scale
+# 
+# This integration targets Platinum tier compliance.
+# Last updated: 2025-01-15
+
+rules:
+  # ============================================================================
+  # Bronze tier requirements (9/9 complete)
+  # ============================================================================
+  config_flow:
+    status: done
+    comment: Full UI-based setup with MFA support, home selection, reauth, and reconfigure flows
+  test_before_setup:
+    status: done
+    comment: async_setup_entry validates tokens and fetches user info before platform setup
+  unique_config_entry:
+    status: done
+    comment: Uses async_set_unique_id() with home_id to prevent duplicate entries
+  has_entity_name:
+    status: done
+    comment: _attr_has_entity_name=True on KwiksetEntity base class, simple names (Lock, Battery, LED)
+  entity_unique_id:
+    status: done
+    comment: Format {device_id}_{entity_type} defined in KwiksetEntity.__init__
+  docs_high_level_description:
+    status: done
+    comment: README.md explains integration purpose and features
+  docs_installation_instructions:
+    status: done
+    comment: README.md includes HACS and manual installation steps
+  appropriate_polling:
+    status: done
+    comment: Configurable 15-60 second interval via options flow, default 30s
+  brands:
+    status: exempt
+    comment: Custom component, not in HA core brands
+
+  # ============================================================================
+  # Silver tier requirements (8/8 complete)
+  # ============================================================================
+  config_entry_unloading:
+    status: done
+    comment: async_unload_entry properly unloads platforms via async_unload_platforms
+  reauthentication_flow:
+    status: done
+    comment: async_step_reauth and async_step_reauth_confirm with MFA support
+  log_when_unavailable:
+    status: done
+    comment: Coordinator logs errors via UpdateFailed, entity availability tracked via last_update_success
+  parallel_updates:
+    status: done
+    comment: PARALLEL_UPDATES=1 set on all platforms to limit concurrent API calls
+  stale_devices:
+    status: done
+    comment: _async_update_devices removes devices no longer returned by API from device registry
+  entity_unavailable:
+    status: done
+    comment: KwiksetEntity.available property checks coordinator.last_update_success
+  action_exceptions:
+    status: done
+    comment: Coordinator methods raise ConfigEntryAuthFailed for auth errors with retry logic
+  common_modules:
+    status: exempt
+    comment: No shared modules with other integrations
+
+  # ============================================================================
+  # Gold tier requirements (9/9 complete)
+  # ============================================================================
+  discovery:
+    status: exempt
+    comment: Cloud-based integration, devices cannot be discovered locally
+  reconfiguration_flow:
+    status: done
+    comment: async_step_reconfigure implemented to trigger device discovery
+  dynamic_devices:
+    status: done
+    comment: 5-minute periodic discovery adds/removes devices via bus events
+  integration_owner:
+    status: done
+    comment: CODEOWNERS file and manifest.json list @explosivo22
+  docs_use_cases:
+    status: done
+    comment: README.md describes lock/unlock and smart home integration use cases
+  docs_supported_devices:
+    status: done
+    comment: README.md references Kwikset Smart Locks product page
+  docs_troubleshooting:
+    status: done
+    comment: README.md includes MFA and home configuration warnings
+  diagnostics:
+    status: done
+    comment: diagnostics.py with async_redact_data for sensitive info (tokens, IDs, email)
+  test_coverage:
+    status: done
+    comment: Comprehensive pytest suite covering config_flow, init, device, entity, platforms, diagnostics
+
+  # ============================================================================
+  # Platinum tier requirements (3/4 complete)
+  # ============================================================================
+  async_dependency:
+    status: done
+    comment: aiokwikset library is fully async (all API calls use await)
+  inject_websession:
+    status: todo
+    comment: |
+      BLOCKER: aiokwikset library creates its own aiohttp.ClientSession internally.
+      Requires upstream library modification to accept session parameter.
+      Track: https://github.com/explosivo22/aiokwikset/issues
+  strict_typing:
+    status: done
+    comment: |
+      - py.typed marker present
+      - Full type annotations on all public APIs
+      - TypedDict for coordinator data (KwiksetDeviceData)
+      - Final types in const.py
+      - ConfigFlowResult return types
+  runtime_data:
+    status: done
+    comment: |
+      Uses KwiksetRuntimeData dataclass via entry.runtime_data pattern
+      Type alias: type KwiksetConfigEntry = ConfigEntry[KwiksetRuntimeData]
+
+  # ============================================================================
+  # Additional quality improvements (beyond standard tiers)
+  # ============================================================================
+  proactive_token_refresh:
+    status: done
+    comment: JWT token expiry parsed and refreshed 5 minutes before expiry via TOKEN_REFRESH_BUFFER_SECONDS
+  retry_logic:
+    status: done
+    comment: MAX_RETRY_ATTEMPTS=3 with RETRY_DELAY_SECONDS=2 for transient errors
+  token_persistence:
+    status: done
+    comment: Tokens saved to config entry data for survival across HA restarts
+  comprehensive_documentation:
+    status: done
+    comment: Architectural code comments in all core files explaining design decisions
