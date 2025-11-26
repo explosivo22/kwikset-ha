@@ -25,15 +25,14 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
     from .device import KwiksetDeviceDataUpdateCoordinator
 
-# Limit concurrent API calls to prevent rate limiting
-PARALLEL_UPDATES = 1
+# PARALLEL_UPDATES imported from const.py - limits concurrent API calls
 
 
 async def async_setup_entry(

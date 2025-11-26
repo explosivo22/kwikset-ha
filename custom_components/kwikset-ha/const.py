@@ -37,3 +37,7 @@ TOKEN_REFRESH_BUFFER_SECONDS: Final = 300
 # Retry settings for transient API failures (network issues, rate limits)
 MAX_RETRY_ATTEMPTS: Final = 3
 RETRY_DELAY_SECONDS: Final = 2
+
+# Limit concurrent API calls per platform to prevent rate limiting
+# Each platform file uses this value to serialize entity operations
+PARALLEL_UPDATES: Final = 1

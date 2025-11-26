@@ -22,18 +22,18 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
     from .device import KwiksetDeviceDataUpdateCoordinator
 
-# Limit concurrent API calls to prevent rate limiting
-PARALLEL_UPDATES = 1
+# PARALLEL_UPDATES imported from const.py - limits concurrent API calls
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -126,9 +126,29 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
         return self.entity_description.value_fn(self.coordinator)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the switch on."""
-        await self.entity_description.set_fn(self.coordinator, True)
+        """Turn the switch on.
+
+        Raises:
+            HomeAssistantError: If the operation fails.
+        """
+        try:
+            await self.entity_description.set_fn(self.coordinator, True)
+        except Exception as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="switch_on_failed",
+            ) from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the switch off."""
-        await self.entity_description.set_fn(self.coordinator, False)
+        """Turn the switch off.
+
+        Raises:
+            HomeAssistantError: If the operation fails.
+        """
+        try:
+            await self.entity_description.set_fn(self.coordinator, False)
+        except Exception as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="switch_off_failed",
+            ) from err

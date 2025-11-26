@@ -89,8 +89,13 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Get human-readable MFA type for display."""
         return "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" else "SMS"
 
-    async def _async_authenticate(self) -> ConfigFlowResult | None:
-        """Authenticate with the API. Returns None on success, error result on failure."""
+    async def _async_authenticate(self) -> str | None:
+        """Authenticate with the API.
+
+        Returns:
+            str: Error key if authentication failed
+            None: On success (including when MFA is required)
+        """
         try:
             self.api = API()
             await self.api.async_login(self.username, self.password)

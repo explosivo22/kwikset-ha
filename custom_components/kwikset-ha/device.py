@@ -55,8 +55,8 @@ from .const import (
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
 
-# Limit concurrent API calls per platform
-PARALLEL_UPDATES = 1
+# Note: PARALLEL_UPDATES is defined in const.py and imported by platform modules
+# This coordinator is used by all platforms; rate limiting is enforced at platform level
 
 
 class KwiksetDeviceData(TypedDict, total=False):

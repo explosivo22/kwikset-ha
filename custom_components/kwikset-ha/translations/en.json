@@ -118,6 +118,18 @@
         },
         "token_refresh_failed": {
             "message": "Failed to refresh authentication token. Please re-authenticate."
+        },
+        "lock_failed": {
+            "message": "Failed to lock the device. Please try again."
+        },
+        "unlock_failed": {
+            "message": "Failed to unlock the device. Please try again."
+        },
+        "switch_on_failed": {
+            "message": "Failed to turn on the setting. Please try again."
+        },
+        "switch_off_failed": {
+            "message": "Failed to turn off the setting. Please try again."
         }
     }
 }

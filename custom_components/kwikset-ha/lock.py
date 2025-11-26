@@ -18,17 +18,17 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
     from .device import KwiksetDeviceDataUpdateCoordinator
 
-# Limit concurrent API calls to prevent rate limiting
-PARALLEL_UPDATES = 1
+# PARALLEL_UPDATES imported from const.py - limits concurrent API calls
 
 
 async def async_setup_entry(
@@ -84,9 +84,29 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         return status == "Locked"
 
     async def async_lock(self, **kwargs: Any) -> None:
-        """Lock the device via coordinator."""
-        await self.coordinator.lock()
+        """Lock the device via coordinator.
+
+        Raises:
+            HomeAssistantError: If the lock operation fails.
+        """
+        try:
+            await self.coordinator.lock()
+        except Exception as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="lock_failed",
+            ) from err
 
     async def async_unlock(self, **kwargs: Any) -> None:
-        """Unlock the device via coordinator."""
-        await self.coordinator.unlock()
+        """Unlock the device via coordinator.
+
+        Raises:
+            HomeAssistantError: If the unlock operation fails.
+        """
+        try:
+            await self.coordinator.unlock()
+        except Exception as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="unlock_failed",
+            ) from err
