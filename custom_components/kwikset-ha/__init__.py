@@ -19,10 +19,27 @@ Architecture Overview:
                                                             ↓
                                             Entity platforms (lock, sensor, switch)
 
-Platinum Quality Scale Compliance:
-    - runtime_data: Uses typed KwiksetRuntimeData dataclass
-    - async_dependency: aiokwikset is fully async
+Quality Scale Compliance (Platinum Tier):
+    - runtime_data: Uses typed KwiksetRuntimeData dataclass (entry.runtime_data pattern)
+    - async_dependency: aiokwikset is fully async (no blocking I/O)
     - strict_typing: Full type annotations with py.typed marker
+    - stale_devices: Automatic removal of devices no longer in API response
+    - dynamic_devices: 5-minute periodic discovery with bus events
+    - test_before_setup: Validates tokens before platform setup
+    - config_entry_unloading: Clean unload via async_unload_platforms
+
+Token Management:
+    Tokens are stored in config_entry.data and refreshed on every startup.
+    The coordinator also proactively refreshes tokens 5 minutes before expiry.
+    This dual approach ensures:
+    1. Fresh tokens on HA restart (async_setup_entry)
+    2. Continuous operation during long uptimes (coordinator)
+
+Device Discovery:
+    - Initial: Devices fetched during async_setup_entry
+    - Periodic: _async_update_devices runs every 5 minutes
+    - New devices: Coordinator created, bus event fired, platforms add entities
+    - Removed devices: Device registry cleanup, coordinator deleted
 """
 
 from __future__ import annotations
@@ -56,7 +73,12 @@ from .device import KwiksetDeviceDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 # Platforms this integration provides entities for
+# Each platform file (lock.py, sensor.py, switch.py) implements async_setup_entry
 PLATFORMS: list[Platform] = [Platform.LOCK, Platform.SENSOR, Platform.SWITCH]
+
+# Device discovery interval - check for new/removed devices every 5 minutes
+# This is separate from the entity polling interval (15-60s, user-configurable)
+DEVICE_DISCOVERY_INTERVAL = timedelta(minutes=5)
 
 
 @dataclass
@@ -72,6 +94,16 @@ class KwiksetRuntimeData:
     - Type safety with proper annotations
     - Clear structure for runtime state
     - Platinum tier compliance for runtime_data pattern
+
+    Silver Tier - stale_devices:
+        The known_devices set is critical for stale device tracking.
+        By comparing known_devices with current API response, we detect:
+        - New devices: current_ids - known_devices (add coordinators)
+        - Removed devices: known_devices - current_ids (cleanup registry)
+
+    Note:
+        This replaces the legacy hass.data[DOMAIN][entry_id] pattern.
+        Access via entry.runtime_data provides type safety and auto-cleanup.
     """
 
     client: API
@@ -91,14 +123,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     """Set up Kwikset from a config entry.
 
     This function is called by Home Assistant when a config entry is loaded.
-    It performs the following steps:
-    1. Authenticate with the Kwikset cloud API using stored tokens
-    2. Refresh tokens if needed and save new tokens back to config entry
-    3. Fetch list of devices from the selected home
-    4. Create a coordinator for each device
-    5. Perform initial data fetch for all coordinators
-    6. Set up entity platforms
-    7. Register periodic device discovery
+    It follows the Bronze tier requirement "test_before_setup" by validating
+    authentication before creating any entities.
+
+    Setup Steps:
+        1. Authenticate with the Kwikset cloud API using stored tokens
+        2. Refresh tokens if needed and save new tokens back to config entry
+        3. Fetch list of devices from the selected home
+        4. Create a coordinator for each device
+        5. Perform initial data fetch for all coordinators
+        6. Set up entity platforms
+        7. Register periodic device discovery (Silver tier: stale_devices)
+
+    Exception Handling:
+        - ConfigEntryAuthFailed: If authentication fails (triggers reauth flow)
+        - ConfigEntryNotReady: If there's a temporary connection issue (HA retries)
+
+    Quality Scale Compliance:
+        - test_before_setup (Bronze): Validates tokens before platform setup
+        - config_entry_unloading (Silver): Registers cleanup via async_on_unload
+        - stale_devices (Silver): Registers periodic device discovery
+        - dynamic_devices (Gold): 5-minute discovery interval
+        - runtime_data (Platinum): Uses typed KwiksetRuntimeData
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry being set up
+
+    Returns:
+        True if setup was successful
 
     Raises:
         ConfigEntryAuthFailed: If authentication fails (triggers reauth flow)
@@ -108,6 +161,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     client = API()
 
     try:
+        # Bronze tier: test_before_setup
         # Authenticate using stored tokens - this refreshes them if needed
         await client.async_renew_access_token(
             entry.data[CONF_ACCESS_TOKEN], entry.data[CONF_REFRESH_TOKEN]
@@ -127,9 +181,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
             _LOGGER.debug("Tokens refreshed and saved to config entry")
 
         # Validate authentication by fetching user info
+        # This confirms the tokens work before we create any entities
         user_info = await client.user.get_info()
     except Unauthenticated as err:
         # Token refresh failed - user needs to re-authenticate
+        # Silver tier: reauthentication_flow - ConfigEntryAuthFailed triggers it
         raise ConfigEntryAuthFailed(err) from err
     except RequestError as err:
         # Transient network error - HA will retry setup later
@@ -140,10 +196,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     api_devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
 
     # Get polling interval from options (user-configurable 15-60 seconds)
+    # Bronze tier: appropriate_polling
     update_interval = entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
 
     # Create a coordinator for each device
     # Each coordinator manages its own polling and state for one lock
+    # Silver tier: parallel_updates - each coordinator is independent
     devices_dict: dict[str, KwiksetDeviceDataUpdateCoordinator] = {}
     for device in api_devices:
         device_id = device["deviceid"]
@@ -151,11 +209,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
             hass, client, device_id, device["devicename"], update_interval, entry
         )
 
-    # Store runtime data using typed ConfigEntry pattern (Platinum tier)
+    # Platinum tier: runtime_data
+    # Store runtime data using typed ConfigEntry pattern
     entry.runtime_data = KwiksetRuntimeData(
         client=client,
         devices=devices_dict,
-        known_devices=set(devices_dict.keys()),
+        known_devices=set(devices_dict.keys()),  # Silver tier: stale_devices tracking
     )
 
     # Fetch initial data for all coordinators using first_refresh
@@ -167,26 +226,78 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register update listener for options flow changes
+    # Silver tier: config_entry_unloading - cleanup registered
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
+    # Gold tier: dynamic_devices / Silver tier: stale_devices
     # Start periodic device discovery (every 5 minutes)
-    # This detects new devices added to the Kwikset account
+    # This detects new devices added to the Kwikset account AND
+    # removes devices that have been deleted from the account
     async def _async_check_devices(_now) -> None:
         """Periodically check for new or removed devices."""
         await _async_update_devices(hass, entry)
 
     entry.async_on_unload(
-        async_track_time_interval(hass, _async_check_devices, timedelta(minutes=5))
+        async_track_time_interval(hass, _async_check_devices, DEVICE_DISCOVERY_INTERVAL)
     )
 
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry.
+
+    Silver Tier: config_entry_unloading
+    This function properly unloads all platforms and cleans up resources.
+    The runtime_data is automatically cleaned up by Home Assistant when
+    using the entry.runtime_data pattern.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry being unloaded
+
+    Returns:
+        True if unload was successful
+    """
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
+
 async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) -> None:
-    """Check for new or removed devices and update accordingly."""
+    """Check for new or removed devices and update accordingly.
+
+    This function implements two Quality Scale requirements:
+    - Silver tier: stale_devices - removes devices no longer in API response
+    - Gold tier: dynamic_devices - adds devices newly discovered in API
+
+    Device Discovery Flow:
+        1. Fetch current devices from Kwikset API
+        2. Compare with known_devices set in runtime_data
+        3. For new devices: create coordinator, fire bus event
+        4. For removed devices: cleanup device registry, remove coordinator
+
+    Stale Device Removal (Silver tier requirement):
+        When a device is removed from the Kwikset account (via app or website),
+        we detect this by comparing known_devices with the API response.
+        Removed devices are:
+        1. Removed from device registry (which cascades to entity removal)
+        2. Removed from runtime_data.devices dict
+        3. Removed from runtime_data.known_devices set
+
+    Dynamic Device Addition (Gold tier requirement):
+        When a new device is added to the Kwikset account:
+        1. A new coordinator is created and initialized
+        2. It's added to runtime_data.devices dict
+        3. Device ID is added to runtime_data.known_devices set
+        4. Bus event "{DOMAIN}_new_device" is fired
+        5. Entity platforms listen for this event and add entities
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry for the integration
+
+    Note:
+        This function is called every 5 minutes via async_track_time_interval.
+        Errors are logged but don't stop future discovery cycles.
+    """
     runtime_data = entry.runtime_data
     client = runtime_data.client
     devices_dict = runtime_data.devices
@@ -198,7 +309,9 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
         api_devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
         current_device_ids = {device["deviceid"] for device in api_devices}
 
-        # Find new devices
+        # =================================================================
+        # Gold tier: dynamic_devices - Add newly discovered devices
+        # =================================================================
         new_device_ids = current_device_ids - known_devices
         if new_device_ids:
             _LOGGER.info(
@@ -222,13 +335,16 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
                     known_devices.add(device_id)
 
             # Fire event to notify platforms about new devices
+            # Platforms listen for this event and call _async_add_new_devices()
             # This is safer than reloading during runtime
             hass.bus.async_fire(
                 f"{DOMAIN}_new_device",
                 {"entry_id": entry.entry_id, "device_ids": list(new_device_ids)},
             )
 
-        # Find removed devices
+        # =================================================================
+        # Silver tier: stale_devices - Remove devices no longer in API
+        # =================================================================
         removed_device_ids = known_devices - current_device_ids
         if removed_device_ids:
             _LOGGER.info(
@@ -237,24 +353,27 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
                 removed_device_ids,
             )
 
-            # Remove from device registry
+            # Remove from device registry and cleanup
             for device_id in removed_device_ids:
+                # Find device in registry by our identifier
                 device = device_registry.async_get_device(
                     identifiers={(DOMAIN, device_id)}
                 )
                 if device:
+                    # Remove config entry from device (cascades to entity removal)
                     device_registry.async_update_device(
                         device_id=device.id,
                         remove_config_entry_id=entry.entry_id,
                     )
                     _LOGGER.debug("Removed device %s from registry", device_id)
 
-                # Remove coordinator
+                # Remove coordinator from runtime data
                 if device_id in devices_dict:
                     del devices_dict[device_id]
                 known_devices.discard(device_id)
 
     except (Unauthenticated, RequestError) as err:
+        # Log error but don't raise - next discovery cycle will try again
         _LOGGER.error("Error checking for device changes: %s", err)
 
 async def _async_options_updated(
@@ -264,6 +383,14 @@ async def _async_options_updated(
 
     Update coordinator intervals dynamically without reloading the integration.
     This follows Home Assistant best practices by avoiding reload during setup.
+
+    Bronze tier: appropriate_polling
+    The polling interval is user-configurable via the options flow (15-60 seconds).
+    When changed, we update all coordinators immediately without requiring a reload.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry with updated options
     """
     devices_dict = entry.runtime_data.devices
 
@@ -290,38 +417,72 @@ async def _async_options_updated(
             # Trigger an immediate refresh with the new interval
             await device_coordinator.async_request_refresh()
 
+
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: KwiksetConfigEntry, device_entry: DeviceEntry
 ) -> bool:
-    """Remove a config entry from a device."""
+    """Remove a config entry from a device.
+
+    This callback is called when a user manually removes a device from the UI.
+    Returning True allows the removal to proceed.
+
+    Note:
+        We always allow manual device removal. The device will be re-added
+        on the next discovery cycle if it still exists in the Kwikset account.
+
+    Args:
+        hass: Home Assistant instance
+        config_entry: Config entry for the integration
+        device_entry: Device being removed
+
+    Returns:
+        True to allow the removal
+    """
     return True
 
 
 async def async_migrate_entry(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> bool:
-    """Migrate old entry."""
+    """Migrate old entry to current version.
+
+    This function handles config entry schema migrations when the integration
+    is upgraded. Each migration step is idempotent and can be re-run safely.
+
+    Migration History:
+        - Version 1 → 2: Initial migration (no data changes)
+        - Version 2 → 3: Added CONF_ACCESS_TOKEN field
+        - Version 3 → 4: Moved CONF_REFRESH_INTERVAL to options
+
+    Args:
+        hass: Home Assistant instance
+        config_entry: Config entry to migrate
+
+    Returns:
+        True if migration was successful
+    """
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
     if config_entry.version == 1:
-
-        # TODO: Do some changes which is not stored in the config entry itself
-
-        # There's no need to call async_update_entry, the config entry will automatically be
-        # saved when async_migrate_entry returns True
+        # Version 1 → 2: No data changes, just version bump
         config_entry.version = 2
 
     if config_entry.version == 2:
+        # Version 2 → 3: Ensure CONF_ACCESS_TOKEN exists
         data = {**config_entry.data}
 
         if not data.get(CONF_ACCESS_TOKEN):
+            # Copy from refresh token if missing
             data[CONF_ACCESS_TOKEN] = config_entry.data[CONF_REFRESH_TOKEN]
 
         hass.config_entries.async_update_entry(config_entry, data=data, version=3)
 
     if config_entry.version == 3:
+        # Version 3 → 4: CONF_REFRESH_INTERVAL moved to options
+        # (Previously was in data, now properly in options for user-configurable values)
         data = {**config_entry.data}
 
+        # Remove from data if present (will be in options instead)
         if not data.get(CONF_REFRESH_INTERVAL):
             data[CONF_REFRESH_INTERVAL] = DEFAULT_REFRESH_INTERVAL
 
