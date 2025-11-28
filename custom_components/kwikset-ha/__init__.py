@@ -44,6 +44,7 @@ Device Discovery:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 import logging
@@ -89,6 +90,7 @@ class KwiksetRuntimeData:
     - client: The authenticated API client for making API calls
     - devices: Dictionary mapping device_id to its coordinator
     - known_devices: Set of device IDs for tracking new/removed devices
+    - cancel_device_discovery: Callback to cancel the device discovery timer
 
     Using a dataclass provides:
     - Type safety with proper annotations
@@ -109,6 +111,7 @@ class KwiksetRuntimeData:
     client: API
     devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = field(default_factory=dict)
     known_devices: set[str] = field(default_factory=set)
+    cancel_device_discovery: Callable[[], None] | None = None
 
 
 # Type alias for config entries with typed runtime_data
@@ -253,8 +256,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         """Periodically check for new or removed devices."""
         await _async_update_devices(hass, entry)
 
-    entry.async_on_unload(
-        async_track_time_interval(hass, _async_check_devices, DEVICE_DISCOVERY_INTERVAL)
+    # Store cancel callback in runtime_data for explicit cleanup in async_unload_entry
+    # This ensures the timer is cancelled before test cleanup verification runs,
+    # avoiding lingering timer errors in tests
+    entry.runtime_data.cancel_device_discovery = async_track_time_interval(
+        hass, _async_check_devices, DEVICE_DISCOVERY_INTERVAL
     )
 
     return True
@@ -267,6 +273,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> 
     The runtime_data is automatically cleaned up by Home Assistant when
     using the entry.runtime_data pattern.
 
+    Note:
+        The device discovery timer is explicitly cancelled here rather than
+        relying on entry.async_on_unload. This ensures proper cleanup in tests
+        where entry.async_on_unload callbacks may run after test verification.
+
     Args:
         hass: Home Assistant instance
         entry: Config entry being unloaded
@@ -274,6 +285,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> 
     Returns:
         True if unload was successful
     """
+    # Cancel device discovery timer before platform unload
+    # This prevents lingering timer errors in tests by ensuring
+    # cleanup happens before test verification
+    if entry.runtime_data.cancel_device_discovery:
+        entry.runtime_data.cancel_device_discovery()
+        entry.runtime_data.cancel_device_discovery = None
+
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

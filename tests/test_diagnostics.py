@@ -41,7 +41,11 @@ def mock_coordinator() -> MagicMock:
 
 @pytest.fixture
 def mock_config_entry_with_runtime(mock_coordinator: MagicMock) -> MagicMock:
-    """Create a mock config entry with runtime data."""
+    """Create a mock config entry with runtime data.
+    
+    Includes cancel_device_discovery callback to match real runtime_data structure
+    and prevent timer-related test issues.
+    """
     entry = MagicMock()
     entry.entry_id = "test_entry_id"
     entry.title = "My House"
@@ -52,6 +56,7 @@ def mock_config_entry_with_runtime(mock_coordinator: MagicMock) -> MagicMock:
         client=MagicMock(),
         devices={MOCK_DEVICE_ID: mock_coordinator},
         known_devices={MOCK_DEVICE_ID},
+        cancel_device_discovery=None,  # No timer in tests
     )
     return entry
 
