@@ -56,7 +56,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import async_track_time_interval
 
@@ -186,6 +186,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     except Unauthenticated as err:
         # Token refresh failed - user needs to re-authenticate
         # Silver tier: reauthentication_flow - ConfigEntryAuthFailed triggers it
+        # Create a repair issue to notify user of auth expiry
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"auth_expired_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="auth_expired",
+            translation_placeholders={"entry_title": entry.title},
+        )
         raise ConfigEntryAuthFailed(err) from err
     except RequestError as err:
         # Transient network error - HA will retry setup later

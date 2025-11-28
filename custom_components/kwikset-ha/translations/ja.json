@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "認証トークンの更新に失敗しました。再認証してください。"
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "デバイスオフライン: {device_name}",
+            "description": "ロック **{device_name}** がオフラインのようです。原因として考えられるもの：\n\n- バッテリー残量低下\n- WiFi接続の問題\n- デバイスが範囲外\n\nデバイスを確認し、電源とWiFi接続があることを確認してください。"
+        },
+        "auth_failed": {
+            "title": "認証が必要です",
+            "description": "Kwikset統合の再認証が必要です。**設定 → デバイスとサービス → Kwikset** に移動し、**再設定** をクリックして認証情報を更新してください。"
+        },
+        "auth_expired": {
+            "title": "認証期限切れ: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Kwiksetを再認証",
+                        "description": "**{entry_title}** の認証が期限切れになりました。**送信** をクリックして再認証フローを開始してください。"
+                    }
+                }
+            },
+            "description": "Kwikset統合（**{entry_title}**）の認証トークンが期限切れになり、更新が必要です。\n\nこれは通常、以下の場合に発生します：\n- トークンが長期間後に自然に期限切れになった\n- Kwiksetアプリでパスワードが変更された\n- 別のデバイスからアカウントがログアウトされた\n\n以下の **修正** ボタンをクリックして、Kwikset認証情報を再入力してください。"
+        }
     }
 }

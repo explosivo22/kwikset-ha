@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "刷新认证令牌失败。请重新认证。"
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "设备离线: {device_name}",
+            "description": "锁 **{device_name}** 似乎处于离线状态。这可能是由于：\n\n- 电池电量低\n- WiFi 连接问题\n- 设备超出范围\n\n请检查设备，确保其有电源和 WiFi 连接。"
+        },
+        "auth_failed": {
+            "title": "需要认证",
+            "description": "Kwikset 集成需要重新认证。请前往 **设置 → 设备和服务 → Kwikset** 并点击 **重新配置** 来更新您的凭据。"
+        },
+        "auth_expired": {
+            "title": "认证已过期: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "重新认证 Kwikset",
+                        "description": "**{entry_title}** 的认证已过期。点击 **提交** 开始重新认证流程。"
+                    }
+                }
+            },
+            "description": "Kwikset 集成（**{entry_title}**）的认证令牌已过期，需要刷新。\n\n这通常发生在：\n- 令牌在长时间后自然过期\n- 在 Kwikset 应用中更改了密码\n- 从另一台设备注销了账户\n\n点击下方的 **修复** 按钮重新输入您的 Kwikset 凭据。"
+        }
     }
 }

@@ -153,6 +153,18 @@
         "auth_failed": {
             "title": "Authentication Required",
             "description": "The Kwikset integration needs to re-authenticate. Please go to **Settings → Devices & Services → Kwikset** and click **Reconfigure** to update your credentials."
+        },
+        "auth_expired": {
+            "title": "Authentication Expired: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Reauthenticate Kwikset",
+                        "description": "The authentication for **{entry_title}** has expired. Click **Submit** to start the reauthentication flow."
+                    }
+                }
+            },
+            "description": "The authentication tokens for the Kwikset integration (**{entry_title}**) have expired and need to be refreshed.\n\nThis usually happens when:\n- The tokens have naturally expired after a long period\n- The password was changed in the Kwikset app\n- The account was logged out from another device\n\nClick the **Fix** button below to re-enter your Kwikset credentials."
         }
     }
 }

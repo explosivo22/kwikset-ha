@@ -31,6 +31,7 @@ from homeassistant import config_entries, exceptions
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -165,8 +166,13 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             elif self.mfa_type:
                 return await self.async_step_mfa_reauth()
             else:
+                # Clear any auth expired issue since reauth was successful
+                reauth_entry = self._get_reauth_entry()
+                ir.async_delete_issue(
+                    self.hass, DOMAIN, f"auth_expired_{reauth_entry.entry_id}"
+                )
                 return self.async_update_reload_and_abort(
-                    self._get_reauth_entry(),
+                    reauth_entry,
                     data_updates=self._create_token_data(),
                 )
 
@@ -192,8 +198,13 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if error:
                 errors["base"] = error
             else:
+                # Clear any auth expired issue since reauth was successful
+                reauth_entry = self._get_reauth_entry()
+                ir.async_delete_issue(
+                    self.hass, DOMAIN, f"auth_expired_{reauth_entry.entry_id}"
+                )
                 return self.async_update_reload_and_abort(
-                    self._get_reauth_entry(),
+                    reauth_entry,
                     data_updates=self._create_token_data(),
                 )
 

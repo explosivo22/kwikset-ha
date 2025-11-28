@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "Échec du rafraîchissement du jeton d'authentification. Veuillez vous réauthentifier."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Appareil hors ligne : {device_name}",
+            "description": "La serrure **{device_name}** semble être hors ligne. Cela pourrait être dû à :\n\n- Batterie faible\n- Problèmes de connectivité WiFi\n- Appareil hors de portée\n\nVeuillez vérifier l'appareil et vous assurer qu'il a de l'alimentation et une connectivité WiFi."
+        },
+        "auth_failed": {
+            "title": "Authentification requise",
+            "description": "L'intégration Kwikset doit se réauthentifier. Allez dans **Paramètres → Appareils et services → Kwikset** et cliquez sur **Reconfigurer** pour mettre à jour vos identifiants."
+        },
+        "auth_expired": {
+            "title": "Authentification expirée : {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Réauthentifier Kwikset",
+                        "description": "L'authentification pour **{entry_title}** a expiré. Cliquez sur **Soumettre** pour démarrer le flux de réauthentification."
+                    }
+                }
+            },
+            "description": "Les jetons d'authentification pour l'intégration Kwikset (**{entry_title}**) ont expiré et doivent être rafraîchis.\n\nCela se produit généralement lorsque :\n- Les jetons ont naturellement expiré après une longue période\n- Le mot de passe a été changé dans l'application Kwikset\n- Le compte a été déconnecté depuis un autre appareil\n\nCliquez sur le bouton **Réparer** ci-dessous pour saisir à nouveau vos identifiants Kwikset."
+        }
     }
 }

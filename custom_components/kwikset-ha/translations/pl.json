@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "Nie udało się odświeżyć tokenu uwierzytelniającego. Uwierzytelnij się ponownie."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Urządzenie offline: {device_name}",
+            "description": "Zamek **{device_name}** wydaje się być offline. Może to być spowodowane:\n\n- Niskim poziomem baterii\n- Problemami z połączeniem WiFi\n- Urządzeniem poza zasięgiem\n\nSprawdź urządzenie i upewnij się, że ma zasilanie i połączenie WiFi."
+        },
+        "auth_failed": {
+            "title": "Wymagane uwierzytelnienie",
+            "description": "Integracja Kwikset musi się ponownie uwierzytelnić. Przejdź do **Ustawienia → Urządzenia i usługi → Kwikset** i kliknij **Przekonfiguruj**, aby zaktualizować dane logowania."
+        },
+        "auth_expired": {
+            "title": "Uwierzytelnienie wygasło: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Ponowne uwierzytelnienie Kwikset",
+                        "description": "Uwierzytelnienie dla **{entry_title}** wygasło. Kliknij **Wyślij**, aby rozpocząć proces ponownego uwierzytelniania."
+                    }
+                }
+            },
+            "description": "Tokeny uwierzytelniające dla integracji Kwikset (**{entry_title}**) wygasły i wymagają odświeżenia.\n\nZwykle dzieje się tak, gdy:\n- Tokeny naturalnie wygasły po długim okresie\n- Hasło zostało zmienione w aplikacji Kwikset\n- Konto zostało wylogowane z innego urządzenia\n\nKliknij przycisk **Napraw** poniżej, aby ponownie wprowadzić dane logowania Kwikset."
+        }
     }
 }

@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "Kunde inte uppdatera autentiseringstoken. Vänligen autentisera igen."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Enhet offline: {device_name}",
+            "description": "Låset **{device_name}** verkar vara offline. Detta kan bero på:\n\n- Låg batterinivå\n- WiFi-anslutningsproblem\n- Enheten är utom räckhåll\n\nKontrollera enheten och se till att den har ström och WiFi-anslutning."
+        },
+        "auth_failed": {
+            "title": "Autentisering krävs",
+            "description": "Kwikset-integrationen behöver autentiseras på nytt. Gå till **Inställningar → Enheter och tjänster → Kwikset** och klicka på **Konfigurera om** för att uppdatera dina uppgifter."
+        },
+        "auth_expired": {
+            "title": "Autentisering utgången: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Omautentisera Kwikset",
+                        "description": "Autentiseringen för **{entry_title}** har gått ut. Klicka på **Skicka** för att starta omautentiseringsflödet."
+                    }
+                }
+            },
+            "description": "Autentiseringstokens för Kwikset-integrationen (**{entry_title}**) har gått ut och behöver uppdateras.\n\nDetta händer vanligtvis när:\n- Tokens har naturligt gått ut efter en lång period\n- Lösenordet ändrades i Kwikset-appen\n- Kontot loggades ut från en annan enhet\n\nKlicka på knappen **Reparera** nedan för att ange dina Kwikset-uppgifter på nytt."
+        }
     }
 }

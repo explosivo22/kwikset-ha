@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "Fehler beim Aktualisieren des Authentifizierungstokens. Bitte authentifizieren Sie sich erneut."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Gerät offline: {device_name}",
+            "description": "Das Schloss **{device_name}** scheint offline zu sein. Dies könnte folgende Ursachen haben:\n\n- Niedriger Batteriestand\n- WLAN-Verbindungsprobleme\n- Gerät außer Reichweite\n\nBitte überprüfen Sie das Gerät und stellen Sie sicher, dass es Strom und WLAN-Verbindung hat."
+        },
+        "auth_failed": {
+            "title": "Authentifizierung erforderlich",
+            "description": "Die Kwikset-Integration muss sich erneut authentifizieren. Gehen Sie zu **Einstellungen → Geräte & Dienste → Kwikset** und klicken Sie auf **Neu konfigurieren**, um Ihre Anmeldedaten zu aktualisieren."
+        },
+        "auth_expired": {
+            "title": "Authentifizierung abgelaufen: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Kwikset erneut authentifizieren",
+                        "description": "Die Authentifizierung für **{entry_title}** ist abgelaufen. Klicken Sie auf **Absenden**, um den Neuauthentifizierungsvorgang zu starten."
+                    }
+                }
+            },
+            "description": "Die Authentifizierungstoken für die Kwikset-Integration (**{entry_title}**) sind abgelaufen und müssen aktualisiert werden.\n\nDies geschieht normalerweise, wenn:\n- Die Token nach einer langen Zeit natürlich abgelaufen sind\n- Das Passwort in der Kwikset-App geändert wurde\n- Das Konto von einem anderen Gerät abgemeldet wurde\n\nKlicken Sie unten auf die Schaltfläche **Beheben**, um Ihre Kwikset-Anmeldedaten erneut einzugeben."
+        }
     }
 }

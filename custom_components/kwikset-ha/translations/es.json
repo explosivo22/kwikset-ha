@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "Error al actualizar el token de autenticación. Por favor vuelva a autenticarse."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Dispositivo fuera de línea: {device_name}",
+            "description": "La cerradura **{device_name}** parece estar fuera de línea. Esto podría deberse a:\n\n- Batería baja\n- Problemas de conectividad WiFi\n- Dispositivo fuera de alcance\n\nPor favor verifique el dispositivo y asegúrese de que tenga energía y conectividad WiFi."
+        },
+        "auth_failed": {
+            "title": "Autenticación requerida",
+            "description": "La integración de Kwikset necesita volver a autenticarse. Vaya a **Configuración → Dispositivos y servicios → Kwikset** y haga clic en **Reconfigurar** para actualizar sus credenciales."
+        },
+        "auth_expired": {
+            "title": "Autenticación expirada: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Reautenticar Kwikset",
+                        "description": "La autenticación para **{entry_title}** ha expirado. Haga clic en **Enviar** para iniciar el flujo de reautenticación."
+                    }
+                }
+            },
+            "description": "Los tokens de autenticación para la integración de Kwikset (**{entry_title}**) han expirado y necesitan ser actualizados.\n\nEsto generalmente sucede cuando:\n- Los tokens han expirado naturalmente después de un largo período\n- La contraseña fue cambiada en la aplicación Kwikset\n- La cuenta fue desconectada desde otro dispositivo\n\nHaga clic en el botón **Reparar** a continuación para volver a ingresar sus credenciales de Kwikset."
+        }
     }
 }

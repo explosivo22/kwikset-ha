@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "인증 토큰 새로 고침에 실패했습니다. 다시 인증하세요."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "장치 오프라인: {device_name}",
+            "description": "잠금장치 **{device_name}**이(가) 오프라인 상태인 것 같습니다. 원인:\n\n- 배터리 부족\n- WiFi 연결 문제\n- 장치가 범위 밖에 있음\n\n장치를 확인하고 전원과 WiFi 연결이 있는지 확인하세요."
+        },
+        "auth_failed": {
+            "title": "인증 필요",
+            "description": "Kwikset 통합을 다시 인증해야 합니다. **설정 → 장치 및 서비스 → Kwikset**으로 이동하여 **재구성**을 클릭하여 자격 증명을 업데이트하세요."
+        },
+        "auth_expired": {
+            "title": "인증 만료: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Kwikset 재인증",
+                        "description": "**{entry_title}**의 인증이 만료되었습니다. **제출**을 클릭하여 재인증 흐름을 시작하세요."
+                    }
+                }
+            },
+            "description": "Kwikset 통합(**{entry_title}**)의 인증 토큰이 만료되어 새로 고침이 필요합니다.\n\n이는 일반적으로 다음 경우에 발생합니다:\n- 토큰이 오랜 기간 후에 자연적으로 만료됨\n- Kwikset 앱에서 비밀번호가 변경됨\n- 다른 장치에서 계정이 로그아웃됨\n\n아래의 **수정** 버튼을 클릭하여 Kwikset 자격 증명을 다시 입력하세요."
+        }
     }
 }

@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "重新整理驗證權杖失敗。請重新驗證。"
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "裝置離線: {device_name}",
+            "description": "鎖 **{device_name}** 似乎處於離線狀態。這可能是由於：\n\n- 電池電量低\n- WiFi 連線問題\n- 裝置超出範圍\n\n請檢查裝置，確保其有電源和 WiFi 連線。"
+        },
+        "auth_failed": {
+            "title": "需要驗證",
+            "description": "Kwikset 整合需要重新驗證。請前往 **設定 → 裝置與服務 → Kwikset** 並點擊 **重新設定** 來更新您的憑證。"
+        },
+        "auth_expired": {
+            "title": "驗證已過期: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "重新驗證 Kwikset",
+                        "description": "**{entry_title}** 的驗證已過期。點擊 **提交** 開始重新驗證流程。"
+                    }
+                }
+            },
+            "description": "Kwikset 整合（**{entry_title}**）的驗證權杖已過期，需要重新整理。\n\n這通常發生在：\n- 權杖在長時間後自然過期\n- 在 Kwikset 應用程式中更改了密碼\n- 從另一台裝置登出了帳戶\n\n點擊下方的 **修復** 按鈕重新輸入您的 Kwikset 憑證。"
+        }
     }
 }

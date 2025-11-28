@@ -119,5 +119,27 @@
         "token_refresh_failed": {
             "message": "Aggiornamento del token di autenticazione fallito. Per favore riautenticati."
         }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Dispositivo offline: {device_name}",
+            "description": "La serratura **{device_name}** sembra essere offline. Questo potrebbe essere dovuto a:\n\n- Batteria scarica\n- Problemi di connettività WiFi\n- Dispositivo fuori portata\n\nPer favore controlla il dispositivo e assicurati che abbia alimentazione e connettività WiFi."
+        },
+        "auth_failed": {
+            "title": "Autenticazione richiesta",
+            "description": "L'integrazione Kwikset deve riautenticarsi. Vai su **Impostazioni → Dispositivi e servizi → Kwikset** e clicca su **Riconfigura** per aggiornare le tue credenziali."
+        },
+        "auth_expired": {
+            "title": "Autenticazione scaduta: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Riautentica Kwikset",
+                        "description": "L'autenticazione per **{entry_title}** è scaduta. Clicca su **Invia** per avviare il flusso di riautenticazione."
+                    }
+                }
+            },
+            "description": "I token di autenticazione per l'integrazione Kwikset (**{entry_title}**) sono scaduti e devono essere aggiornati.\n\nQuesto di solito accade quando:\n- I token sono scaduti naturalmente dopo un lungo periodo\n- La password è stata cambiata nell'app Kwikset\n- L'account è stato disconnesso da un altro dispositivo\n\nClicca sul pulsante **Ripara** qui sotto per reinserire le tue credenziali Kwikset."
+        }
     }
 }

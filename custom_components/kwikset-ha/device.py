@@ -40,6 +40,7 @@ from aiokwikset.errors import RequestError
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -161,6 +162,17 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             self._parse_token_expiry()
             LOGGER.debug("Token refreshed successfully")
         except Unauthenticated as err:
+            # Create repair issue to notify user of authentication expiry
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                f"auth_expired_{self.config_entry.entry_id}",
+                is_fixable=True,
+                is_persistent=True,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="auth_expired",
+                translation_placeholders={"entry_title": self.config_entry.title},
+            )
             raise ConfigEntryAuthFailed("Token refresh failed") from err
         except RequestError as err:
             LOGGER.warning("Token refresh network error: %s", err)
