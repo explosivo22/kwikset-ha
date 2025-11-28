@@ -10,37 +10,131 @@ on:
 permissions:
   contents: read
 
+env:
+  # Use Python 3.12 across all jobs for consistency
+  PYTHON_VERSION: "3.12"
+
 jobs:
-  hassfest:
-    runs-on: "ubuntu-latest"
-    name: Validate with Hassfest
+  # ============================================================================
+  # Lint Job - Must pass before any other jobs run
+  # Uses ruff for linting/formatting, mypy for type checking
+  # ============================================================================
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint & Type Check
     steps:
       - name: Checkout the repository
-        uses: "actions/checkout@v4"
+        uses: actions/checkout@v4
 
       - name: Align integration directory
         run: |
+          # Rename kwikset-ha to kwikset for valid Python package name
+          if [ -d "custom_components/kwikset-ha" ]; then
+            cp -r custom_components/kwikset-ha custom_components/kwikset
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system ruff mypy homeassistant-stubs
+          uv pip install --system -r requirements_test.txt
+
+      - name: Run ruff check
+        run: ruff check custom_components/kwikset tests/
+
+      - name: Run ruff format check
+        run: ruff format --check custom_components/kwikset tests/
+
+      - name: Run mypy
+        run: mypy custom_components/kwikset --ignore-missing-imports
+
+  # ============================================================================
+  # Test Job - Runs pytest suite
+  # Depends on lint passing first
+  # ============================================================================
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    needs: lint
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Align integration directory
+        run: |
+          # Rename kwikset-ha to kwikset for valid Python package name
+          if [ -d "custom_components/kwikset-ha" ]; then
+            cp -r custom_components/kwikset-ha custom_components/kwikset
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -r requirements_test.txt
+
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short
+
+  # ============================================================================
+  # Hassfest Job - Validates manifest.json and integration structure
+  # Depends on lint passing first
+  # ============================================================================
+  hassfest:
+    runs-on: ubuntu-latest
+    name: Validate with Hassfest
+    needs: lint
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Align integration directory
+        run: |
+          # Rename kwikset-ha to kwikset for valid Python package name
           if [ -d "custom_components/kwikset-ha" ]; then
             mv custom_components/kwikset-ha custom_components/kwikset
           fi
 
       - name: Hassfest validation
-        uses: "home-assistant/actions/hassfest@master"
+        uses: home-assistant/actions/hassfest@master
 
+  # ============================================================================
+  # HACS Job - Validates HACS repository structure
+  # Depends on lint passing first
+  # ============================================================================
   hacs:
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     name: Validate with HACS
+    needs: lint
     steps:
       - name: Checkout the repository
-        uses: "actions/checkout@v4"
+        uses: actions/checkout@v4
 
       - name: Align integration directory
         run: |
+          # Rename kwikset-ha to kwikset for valid Python package name
           if [ -d "custom_components/kwikset-ha" ]; then
             mv custom_components/kwikset-ha custom_components/kwikset
           fi
 
       - name: HACS validation
-        uses: "hacs/action@main"
+        uses: hacs/action@main
         with:
-          category: "integration"
+          category: integration
