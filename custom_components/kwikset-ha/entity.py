@@ -21,6 +21,7 @@ Quality Scale Compliance:
 
     Platinum tier:
         - strict_typing: Full type annotations with TYPE_CHECKING imports
+        - Uses _attr_ pattern for cached properties (HA best practice)
 
 Entity Naming:
     All entities use `_attr_translation_key` instead of `_attr_name`. This maps to
@@ -79,7 +80,7 @@ class KwiksetEntity(CoordinatorEntity["KwiksetDeviceDataUpdateCoordinator"]):
             Ensures entities are uniquely identifiable across restarts.
         
         Silver - entity_unavailable:
-            available property returns coordinator.last_update_success.
+            Uses _attr_available pattern for cached_property compatibility.
             Entities show unavailable when coordinator fails to update.
 
     Subclasses must:
@@ -91,13 +92,10 @@ class KwiksetEntity(CoordinatorEntity["KwiksetDeviceDataUpdateCoordinator"]):
     Example:
         class KwiksetLock(KwiksetEntity, LockEntity):
             _attr_translation_key = "lock"
+            _attr_name = None  # Use device name for primary entity
 
             def __init__(self, coordinator):
                 super().__init__("lock", coordinator)
-            
-            @property
-            def is_locked(self) -> bool | None:
-                return self.coordinator.status == "Locked"
     """
 
     # Bronze tier: has_entity_name
@@ -123,41 +121,11 @@ class KwiksetEntity(CoordinatorEntity["KwiksetDeviceDataUpdateCoordinator"]):
         super().__init__(coordinator)
         # Bronze tier: entity_unique_id - format: {device_id}_{entity_type}
         self._attr_unique_id = f"{coordinator.device_id}_{entity_type}"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information for device registry.
-
-        All entities from the same device share this device_info,
-        which groups them together in the HA device registry.
-
-        The identifiers tuple (DOMAIN, device_id) links this entity
-        to the device. Model, manufacturer, and firmware come from
-        the coordinator which fetches them from the API.
-
-        Returns:
-            DeviceInfo dict for the device registry
-        """
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.coordinator.device_id)},
-            manufacturer=self.coordinator.manufacturer,
-            model=self.coordinator.model,
-            name=self.coordinator.device_name,
-            sw_version=self.coordinator.firmware_version,
+        # Set device_info via _attr_ pattern for cached_property compatibility
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.device_id)},
+            manufacturer=coordinator.manufacturer,
+            model=coordinator.model,
+            name=coordinator.device_name,
+            sw_version=coordinator.firmware_version,
         )
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available.
-
-        Silver tier: entity_unavailable
-        Availability is determined by the coordinator's last update status.
-        If the coordinator fails to fetch data, all entities become unavailable.
-
-        This is the recommended pattern for coordinator-based integrations.
-        The coordinator handles logging (Silver tier: log_when_unavailable).
-
-        Returns:
-            True if coordinator's last update was successful
-        """
-        return self.coordinator.last_update_success

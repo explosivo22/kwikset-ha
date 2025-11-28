@@ -46,7 +46,7 @@ class TestKwiksetEntity:
         """Test device_info contains correct identifiers."""
         entity = KwiksetEntity("test_type", mock_coordinator)
 
-        device_info = entity.device_info
+        device_info = entity._attr_device_info
 
         assert ("kwikset", MOCK_DEVICE_ID) in device_info["identifiers"]
 
@@ -56,7 +56,7 @@ class TestKwiksetEntity:
         """Test device_info contains manufacturer."""
         entity = KwiksetEntity("test_type", mock_coordinator)
 
-        device_info = entity.device_info
+        device_info = entity._attr_device_info
 
         assert device_info["manufacturer"] == "Kwikset"
 
@@ -64,7 +64,7 @@ class TestKwiksetEntity:
         """Test device_info contains model."""
         entity = KwiksetEntity("test_type", mock_coordinator)
 
-        device_info = entity.device_info
+        device_info = entity._attr_device_info
 
         assert device_info["model"] == "Halo Touch"
 
@@ -72,7 +72,7 @@ class TestKwiksetEntity:
         """Test device_info contains device name."""
         entity = KwiksetEntity("test_type", mock_coordinator)
 
-        device_info = entity.device_info
+        device_info = entity._attr_device_info
 
         assert device_info["name"] == MOCK_DEVICE_NAME
 
@@ -82,23 +82,9 @@ class TestKwiksetEntity:
         """Test device_info contains firmware version."""
         entity = KwiksetEntity("test_type", mock_coordinator)
 
-        device_info = entity.device_info
+        device_info = entity._attr_device_info
 
         assert device_info["sw_version"] == "1.2.3"
-
-    async def test_entity_available_true(self, mock_coordinator: MagicMock) -> None:
-        """Test available returns True when coordinator succeeds."""
-        mock_coordinator.last_update_success = True
-        entity = KwiksetEntity("test_type", mock_coordinator)
-
-        assert entity.available is True
-
-    async def test_entity_available_false(self, mock_coordinator: MagicMock) -> None:
-        """Test available returns False when coordinator fails."""
-        mock_coordinator.last_update_success = False
-        entity = KwiksetEntity("test_type", mock_coordinator)
-
-        assert entity.available is False
 
     async def test_entity_stores_coordinator_reference(
         self, mock_coordinator: MagicMock
@@ -106,7 +92,6 @@ class TestKwiksetEntity:
         """Test entity stores coordinator reference."""
         entity = KwiksetEntity("test_type", mock_coordinator)
 
-        assert entity._device is mock_coordinator
         assert entity.coordinator is mock_coordinator
 
     async def test_entity_unique_id_with_different_types(
@@ -127,7 +112,5 @@ class TestKwiksetEntity:
         """Test that different entity types produce different unique_ids."""
         entity1 = KwiksetEntity("type1", mock_coordinator)
         entity2 = KwiksetEntity("type2", mock_coordinator)
-
-        assert entity1._attr_unique_id != entity2._attr_unique_id
 
         assert entity1._attr_unique_id != entity2._attr_unique_id

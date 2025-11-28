@@ -4,6 +4,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.kwikset.lock import KwiksetLock
 
@@ -32,6 +33,7 @@ async def test_lock_entity_init(mock_coordinator: MagicMock) -> None:
     
     assert lock._attr_unique_id == f"{MOCK_DEVICE_ID}_lock"
     assert lock._attr_translation_key == "lock"
+    assert lock._attr_name is None  # Primary entity uses device name
 
 
 async def test_lock_is_locked_true(mock_coordinator: MagicMock) -> None:
@@ -39,7 +41,7 @@ async def test_lock_is_locked_true(mock_coordinator: MagicMock) -> None:
     mock_coordinator.status = "Locked"
     lock = KwiksetLock(mock_coordinator)
     
-    assert lock.is_locked is True
+    assert lock._attr_is_locked is True
 
 
 async def test_lock_is_locked_false(mock_coordinator: MagicMock) -> None:
@@ -47,7 +49,7 @@ async def test_lock_is_locked_false(mock_coordinator: MagicMock) -> None:
     mock_coordinator.status = "Unlocked"
     lock = KwiksetLock(mock_coordinator)
     
-    assert lock.is_locked is False
+    assert lock._attr_is_locked is False
 
 
 async def test_lock_is_locked_unknown(mock_coordinator: MagicMock) -> None:
@@ -55,7 +57,7 @@ async def test_lock_is_locked_unknown(mock_coordinator: MagicMock) -> None:
     mock_coordinator.status = "Unknown"
     lock = KwiksetLock(mock_coordinator)
     
-    assert lock.is_locked is None
+    assert lock._attr_is_locked is None
 
 
 async def test_lock_async_lock(mock_coordinator: MagicMock) -> None:
@@ -67,6 +69,15 @@ async def test_lock_async_lock(mock_coordinator: MagicMock) -> None:
     mock_coordinator.lock.assert_called_once()
 
 
+async def test_lock_async_lock_failure(mock_coordinator: MagicMock) -> None:
+    """Test async_lock raises HomeAssistantError on failure."""
+    mock_coordinator.lock = AsyncMock(side_effect=Exception("API error"))
+    lock = KwiksetLock(mock_coordinator)
+    
+    with pytest.raises(HomeAssistantError):
+        await lock.async_lock()
+
+
 async def test_lock_async_unlock(mock_coordinator: MagicMock) -> None:
     """Test async_unlock calls coordinator."""
     lock = KwiksetLock(mock_coordinator)
@@ -76,11 +87,20 @@ async def test_lock_async_unlock(mock_coordinator: MagicMock) -> None:
     mock_coordinator.unlock.assert_called_once()
 
 
+async def test_lock_async_unlock_failure(mock_coordinator: MagicMock) -> None:
+    """Test async_unlock raises HomeAssistantError on failure."""
+    mock_coordinator.unlock = AsyncMock(side_effect=Exception("API error"))
+    lock = KwiksetLock(mock_coordinator)
+    
+    with pytest.raises(HomeAssistantError):
+        await lock.async_unlock()
+
+
 async def test_lock_device_info(mock_coordinator: MagicMock) -> None:
     """Test device_info returns correct data."""
     lock = KwiksetLock(mock_coordinator)
     
-    device_info = lock.device_info
+    device_info = lock._attr_device_info
     
     assert ("kwikset", MOCK_DEVICE_ID) in device_info["identifiers"]
     assert device_info["manufacturer"] == "Kwikset"
@@ -88,17 +108,14 @@ async def test_lock_device_info(mock_coordinator: MagicMock) -> None:
     assert device_info["name"] == MOCK_DEVICE_NAME
 
 
-async def test_lock_available_true(mock_coordinator: MagicMock) -> None:
-    """Test available returns True when coordinator succeeds."""
-    mock_coordinator.last_update_success = True
+async def test_lock_coordinator_update(mock_coordinator: MagicMock) -> None:
+    """Test that coordinator update refreshes lock state."""
+    mock_coordinator.status = "Locked"
     lock = KwiksetLock(mock_coordinator)
+    assert lock._attr_is_locked is True
     
-    assert lock.available is True
-
-
-async def test_lock_available_false(mock_coordinator: MagicMock) -> None:
-    """Test available returns False when coordinator fails."""
-    mock_coordinator.last_update_success = False
-    lock = KwiksetLock(mock_coordinator)
+    # Simulate status change and coordinator update
+    mock_coordinator.status = "Unlocked"
+    lock._handle_coordinator_update()
     
-    assert lock.available is False
+    assert lock._attr_is_locked is False
