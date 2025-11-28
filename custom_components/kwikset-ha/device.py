@@ -1,29 +1,14 @@
 """Kwikset device coordinator module.
 
-This module provides the DataUpdateCoordinator for Kwikset smart locks.
-Each physical lock device has its own coordinator instance that handles:
+DataUpdateCoordinator for Kwikset smart locks. Each device has its own
+coordinator handling polling, token refresh, retry logic, and device actions.
 
-    - Periodic polling for device state (configurable 15-60 second interval)
-    - Proactive JWT token refresh (5 minutes before expiry)
-    - Retry logic for transient API failures
-    - Device actions (lock, unlock, set LED/audio/secure screen)
+Entities use coordinator methods/properties, never the API directly.
 
-Architecture:
-    The coordinator is the single point of contact with the Kwikset API for
-    a device. Entities should NEVER call the API directly - they should use
-    coordinator methods (lock(), unlock(), set_led(), etc.) and properties.
-
-    This pattern ensures:
-        - Consistent retry logic for all operations
-        - Proper token refresh before any API call
-        - Centralized error handling
-        - Rate limiting via PARALLEL_UPDATES
-
-Token Management:
-    JWT tokens are parsed to extract expiration time. The coordinator
-    proactively refreshes tokens 5 minutes before expiry to prevent
-    authentication failures during normal operations. Refreshed tokens
-    are saved back to the config entry for persistence across restarts.
+Quality Scale:
+    Silver: parallel_updates (via platform modules), action_exceptions
+    Gold: diagnostics support via data properties
+    Platinum: strict_typing, async_dependency (aiokwikset)
 """
 
 from __future__ import annotations
@@ -32,8 +17,9 @@ import asyncio
 import base64
 import json
 import time
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
 from aiokwikset.api import API, Unauthenticated
 from aiokwikset.errors import RequestError
@@ -56,8 +42,18 @@ from .const import (
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
 
-# Note: PARALLEL_UPDATES is defined in const.py and imported by platform modules
-# This coordinator is used by all platforms; rate limiting is enforced at platform level
+# Type variable for generic API call return type
+_T = TypeVar("_T")
+
+# API response keys (avoid magic strings throughout the code)
+_KEY_DOOR_STATUS = "doorstatus"
+_KEY_BATTERY = "batterypercentage"
+_KEY_MODEL = "modelnumber"
+_KEY_SERIAL = "serialnumber"
+_KEY_FIRMWARE = "firmwarebundleversion"
+_KEY_LED = "ledstatus"
+_KEY_AUDIO = "audiostatus"
+_KEY_SECURE_SCREEN = "securescreenstatus"
 
 
 class KwiksetDeviceData(TypedDict, total=False):
@@ -77,8 +73,8 @@ class KwiksetDeviceData(TypedDict, total=False):
 class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData]):
     """Coordinator for a single Kwikset device.
 
-    Handles all API communication, token refresh, and retry logic.
-    Entities should use coordinator methods and properties, never the API directly.
+    Centralizes API communication, token refresh, and retry logic.
+    Entities use coordinator methods/properties, never the API directly.
     """
 
     config_entry: KwiksetConfigEntry
@@ -103,33 +99,28 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self.api_client = api_client
         self.device_id = device_id
         self._device_name = device_name
-        self._manufacturer = "Kwikset"
         self._device_info: dict[str, Any] = {}
         self._token_expiry: float | None = None
         self._parse_token_expiry()
 
     # -------------------------------------------------------------------------
-    # Token management
+    # Token Management
     # -------------------------------------------------------------------------
 
     def _parse_token_expiry(self) -> None:
         """Parse JWT token to extract expiration time."""
+        access_token = self.config_entry.data.get(CONF_ACCESS_TOKEN, "")
+        parts = access_token.split(".")
+        if len(parts) != 3:
+            self._token_expiry = None
+            return
+
         try:
-            access_token = self.config_entry.data.get(CONF_ACCESS_TOKEN, "")
-            parts = access_token.split(".")
-            if len(parts) != 3:
-                return
-
-            # Decode JWT payload with padding
-            payload = parts[1]
-            padding = 4 - len(payload) % 4
-            if padding != 4:
-                payload += "=" * padding
-
+            # Decode JWT payload (add base64 padding)
+            payload = parts[1] + "=" * (-len(parts[1]) % 4)
             token_data = json.loads(base64.urlsafe_b64decode(payload))
-            if exp := token_data.get("exp"):
-                self._token_expiry = float(exp)
-                LOGGER.debug("Token expiry: %s", self._token_expiry)
+            self._token_expiry = float(token_data["exp"])
+            LOGGER.debug("Token expiry parsed: %s", self._token_expiry)
         except (ValueError, KeyError, json.JSONDecodeError) as err:
             LOGGER.debug("Could not parse token expiry: %s", err)
             self._token_expiry = None
@@ -178,16 +169,21 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             LOGGER.warning("Token refresh network error: %s", err)
 
     # -------------------------------------------------------------------------
-    # API call wrapper with retry
+    # API Call Wrapper
     # -------------------------------------------------------------------------
 
-    async def _api_call_with_retry(self, api_call, *args, **kwargs) -> Any:
-        """Execute API call with retry logic."""
+    async def _api_call_with_retry(
+        self,
+        api_call: Callable[..., Awaitable[_T]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> _T:
+        """Execute API call with retry logic and token refresh."""
         last_error: Exception | None = None
 
         for attempt in range(MAX_RETRY_ATTEMPTS):
+            await self._ensure_valid_token()
             try:
-                await self._ensure_valid_token()
                 return await api_call(*args, **kwargs)
             except Unauthenticated as err:
                 raise ConfigEntryAuthFailed("Authentication failed") from err
@@ -195,17 +191,19 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 last_error = err
                 if attempt < MAX_RETRY_ATTEMPTS - 1:
                     LOGGER.debug(
-                        "API call failed (attempt %d/%d), retrying: %s",
+                        "API call failed (attempt %d/%d): %s",
                         attempt + 1,
                         MAX_RETRY_ATTEMPTS,
                         err,
                     )
                     await asyncio.sleep(RETRY_DELAY_SECONDS)
 
-        raise UpdateFailed(f"API error after {MAX_RETRY_ATTEMPTS} attempts") from last_error
+        raise UpdateFailed(
+            f"API error after {MAX_RETRY_ATTEMPTS} attempts"
+        ) from last_error
 
     # -------------------------------------------------------------------------
-    # Coordinator lifecycle
+    # Coordinator Lifecycle
     # -------------------------------------------------------------------------
 
     async def _async_setup(self) -> None:
@@ -214,31 +212,31 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             self.api_client.device.get_device_info,
             self.device_id,
         )
-        LOGGER.debug("Initial device data loaded: %s", self._device_info)
+        LOGGER.debug("Initial device data loaded for %s", self.device_id)
 
     async def _async_update_data(self) -> KwiksetDeviceData:
         """Fetch current device state."""
-        device_info = await self._api_call_with_retry(
+        info = await self._api_call_with_retry(
             self.api_client.device.get_device_info,
             self.device_id,
         )
-        self._device_info = device_info
+        self._device_info = info
 
         return KwiksetDeviceData(
-            device_info=device_info,
-            door_status=device_info.get("doorstatus", "Unknown"),
-            battery_percentage=device_info.get("batterypercentage"),
-            model_number=device_info.get("modelnumber", "Unknown"),
-            serial_number=device_info.get("serialnumber", "Unknown"),
-            firmware_version=device_info.get("firmwarebundleversion", "Unknown"),
-            led_status=self._parse_bool(device_info.get("ledstatus")),
-            audio_status=self._parse_bool(device_info.get("audiostatus")),
-            secure_screen_status=self._parse_bool(device_info.get("securescreenstatus")),
+            device_info=info,
+            door_status=info.get(_KEY_DOOR_STATUS, "Unknown"),
+            battery_percentage=info.get(_KEY_BATTERY),
+            model_number=info.get(_KEY_MODEL, "Unknown"),
+            serial_number=info.get(_KEY_SERIAL, "Unknown"),
+            firmware_version=info.get(_KEY_FIRMWARE, "Unknown"),
+            led_status=self._parse_bool(info.get(_KEY_LED)),
+            audio_status=self._parse_bool(info.get(_KEY_AUDIO)),
+            secure_screen_status=self._parse_bool(info.get(_KEY_SECURE_SCREEN)),
         )
 
     @staticmethod
     def _parse_bool(value: Any) -> bool | None:
-        """Parse boolean from API response."""
+        """Parse boolean from API response (handles string 'true'/'false')."""
         if value is None:
             return None
         if isinstance(value, bool):
@@ -246,8 +244,14 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         return str(value).lower() in ("true", "1", "yes", "on")
 
     # -------------------------------------------------------------------------
-    # Device properties
+    # Device Properties (for entity.py device_info)
     # -------------------------------------------------------------------------
+
+    def _get_value(self, data_key: str, raw_key: str, default: str = "Unknown") -> Any:
+        """Get value from coordinator data or fallback to raw device info."""
+        if self.data:
+            return self.data.get(data_key, default)
+        return self._device_info.get(raw_key, default)
 
     @property
     def device_name(self) -> str:
@@ -256,122 +260,113 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     @property
     def manufacturer(self) -> str:
-        """Return manufacturer."""
-        return self._manufacturer
+        """Return manufacturer (always Kwikset)."""
+        return "Kwikset"
 
     @property
     def model(self) -> str:
         """Return device model."""
-        return (self.data or {}).get("model_number") or self._device_info.get(
-            "modelnumber", "Unknown"
-        )
+        return self._get_value("model_number", _KEY_MODEL)
 
     @property
     def battery_percentage(self) -> int | None:
         """Return battery percentage."""
-        return (self.data or {}).get("battery_percentage") or self._device_info.get(
-            "batterypercentage"
-        )
+        if self.data:
+            return self.data.get("battery_percentage")
+        return self._device_info.get(_KEY_BATTERY)
 
     @property
     def firmware_version(self) -> str:
         """Return firmware version."""
-        return (self.data or {}).get("firmware_version") or self._device_info.get(
-            "firmwarebundleversion", "Unknown"
-        )
+        return self._get_value("firmware_version", _KEY_FIRMWARE)
 
     @property
     def serial_number(self) -> str:
         """Return serial number."""
-        return (self.data or {}).get("serial_number") or self._device_info.get(
-            "serialnumber", "Unknown"
-        )
+        return self._get_value("serial_number", _KEY_SERIAL)
 
     @property
     def status(self) -> str:
-        """Return lock status."""
-        return (self.data or {}).get("door_status") or self._device_info.get(
-            "doorstatus", "Unknown"
-        )
+        """Return lock status (Locked/Unlocked/Unknown)."""
+        return self._get_value("door_status", _KEY_DOOR_STATUS)
 
     @property
     def led_status(self) -> bool | None:
         """Return LED status."""
         if self.data:
             return self.data.get("led_status")
-        return self._parse_bool(self._device_info.get("ledstatus"))
+        return self._parse_bool(self._device_info.get(_KEY_LED))
 
     @property
     def audio_status(self) -> bool | None:
         """Return audio status."""
         if self.data:
             return self.data.get("audio_status")
-        return self._parse_bool(self._device_info.get("audiostatus"))
+        return self._parse_bool(self._device_info.get(_KEY_AUDIO))
 
     @property
     def secure_screen_status(self) -> bool | None:
         """Return secure screen status."""
         if self.data:
             return self.data.get("secure_screen_status")
-        return self._parse_bool(self._device_info.get("securescreenstatus"))
+        return self._parse_bool(self._device_info.get(_KEY_SECURE_SCREEN))
 
     # -------------------------------------------------------------------------
-    # Device actions
+    # Device Actions (called by entity platforms)
     # -------------------------------------------------------------------------
+
+    async def _get_user_info(self) -> dict[str, Any]:
+        """Get user info required for lock/unlock commands."""
+        return await self._api_call_with_retry(self.api_client.user.get_info)
 
     async def lock(self) -> None:
         """Lock the device."""
-        await self._ensure_valid_token()
-        user_info = await self._api_call_with_retry(self.api_client.user.get_info)
+        user_info = await self._get_user_info()
         await self._api_call_with_retry(
             self.api_client.device.lock_device,
             self._device_info,
             user_info,
         )
-        LOGGER.debug("Lock command successful")
+        LOGGER.debug("Lock command sent for %s", self.device_id)
         await self.async_request_refresh()
 
     async def unlock(self) -> None:
         """Unlock the device."""
-        await self._ensure_valid_token()
-        user_info = await self._api_call_with_retry(self.api_client.user.get_info)
+        user_info = await self._get_user_info()
         await self._api_call_with_retry(
             self.api_client.device.unlock_device,
             self._device_info,
             user_info,
         )
-        LOGGER.debug("Unlock command successful")
+        LOGGER.debug("Unlock command sent for %s", self.device_id)
         await self.async_request_refresh()
 
-    async def set_led(self, status: bool) -> None:
+    async def set_led(self, enabled: bool) -> None:
         """Set LED status."""
-        await self._ensure_valid_token()
         await self._api_call_with_retry(
             self.api_client.device.set_ledstatus,
             self._device_info,
-            "true" if status else "false",
+            "true" if enabled else "false",
         )
-        LOGGER.debug("LED set to %s", status)
+        LOGGER.debug("LED set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()
 
-    async def set_audio(self, status: bool) -> None:
+    async def set_audio(self, enabled: bool) -> None:
         """Set audio status."""
-        await self._ensure_valid_token()
         await self._api_call_with_retry(
             self.api_client.device.set_audiostatus,
             self._device_info,
-            "true" if status else "false",
+            "true" if enabled else "false",
         )
-        LOGGER.debug("Audio set to %s", status)
+        LOGGER.debug("Audio set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()
 
-    async def set_secure_screen(self, status: bool) -> None:
+    async def set_secure_screen(self, enabled: bool) -> None:
         """Set secure screen status."""
-        await self._ensure_valid_token()
         await self._api_call_with_retry(
             self.api_client.device.set_securescreenstatus,
             self._device_info,
-            "true" if status else "false",
+            "true" if enabled else "false",
         )
-        LOGGER.debug("Secure screen set to %s", status)
+        LOGGER.debug("Secure screen set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()
