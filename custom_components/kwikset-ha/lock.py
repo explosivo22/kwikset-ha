@@ -51,7 +51,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, LOGGER, PARALLEL_UPDATES
+from .const import DOMAIN, LOGGER
+from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
 if TYPE_CHECKING:
@@ -59,9 +60,10 @@ if TYPE_CHECKING:
     from .device import KwiksetDeviceDataUpdateCoordinator
 
 # Silver tier: parallel_updates
-# PARALLEL_UPDATES imported from const.py - limits concurrent API calls to 1
+# Module-level declaration required by HA to limit concurrent API calls to 1
 # This prevents overwhelming the Kwikset cloud service with simultaneous requests
 # Each lock action (lock/unlock) is serialized at the platform level
+PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
 async def async_setup_entry(

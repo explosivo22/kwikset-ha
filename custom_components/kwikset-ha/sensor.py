@@ -63,6 +63,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .const import LOGGER
+from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
 if TYPE_CHECKING:
@@ -70,8 +71,9 @@ if TYPE_CHECKING:
     from .device import KwiksetDeviceDataUpdateCoordinator
 
 # Silver tier: parallel_updates
-# PARALLEL_UPDATES imported from const.py - limits concurrent API calls to 1
+# Module-level declaration required by HA to limit concurrent API calls to 1
 # While sensors are read-only, this ensures consistent behavior across platforms
+PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
 @dataclass(frozen=True, kw_only=True)

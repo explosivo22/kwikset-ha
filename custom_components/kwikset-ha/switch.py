@@ -1,50 +1,10 @@
 """Support for Kwikset smart lock switches.
 
-This module provides switch entities for Kwikset smart lock settings.
-Currently supports:
-    - LED indicator switch (on/off)
-    - Audio feedback switch (on/off)
-    - Secure screen switch (on/off)
+Provides switch entities for Kwikset lock settings (LED, audio, secure screen).
+All switches use EntityCategory.CONFIG as they control device settings.
 
-Architecture:
-    - Uses translation_key for entity naming (Bronze: has_entity_name)
-    - Uses entity descriptions for data-driven entity creation
-    - All switches are EntityCategory.CONFIG as they control device settings
-    - All actions delegate to the coordinator (never call API directly)
-    - Dynamic device discovery via bus events (Gold: dynamic_devices)
-    - PARALLEL_UPDATES = 1 prevents overwhelming the Kwikset cloud
-
-Quality Scale Compliance:
-    Bronze tier:
-        - has_entity_name: Uses translation_key via entity descriptions
-        - entity_unique_id: Inherited from KwiksetEntity base class
-
-    Silver tier:
-        - parallel_updates: PARALLEL_UPDATES = 1 limits concurrent API calls
-        - action_exceptions: Raises HomeAssistantError with translation_key
-        - entity_unavailable: Inherited from KwiksetEntity.available
-
-    Gold tier:
-        - dynamic_devices: Listens for "{DOMAIN}_new_device" bus events
-
-Entity Descriptions Pattern:
-    This module uses entity descriptions (KwiksetSwitchEntityDescription) for a
-    data-driven approach to entity creation. Each description contains:
-    - key: Unique identifier for the switch type
-    - translation_key: Reference to strings.json for localized name
-    - entity_category: CONFIG because these are device settings
-    - value_fn: Lambda to read state from coordinator
-    - set_fn: Lambda to write state via coordinator
-
-    This pattern reduces code duplication when multiple entities share the
-    same behavior with different data sources.
-
-Entity Categories:
-    All switches use EntityCategory.CONFIG because:
-    - They control device settings (LED, audio, secure screen)
-    - They're not primary measurements or controls
-    - Users typically configure these once, not frequently
-    - HA automatically groups config entities together
+Quality Scale: Bronze (has_entity_name, entity_unique_id),
+Silver (parallel_updates, action_exceptions), Gold (dynamic_devices).
 """
 
 from __future__ import annotations
@@ -54,69 +14,56 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN, LOGGER, PARALLEL_UPDATES
+from .const import DOMAIN, LOGGER
+from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
     from .device import KwiksetDeviceDataUpdateCoordinator
 
-# Silver tier: parallel_updates
-# PARALLEL_UPDATES imported from const.py - limits concurrent API calls to 1
-# Switch operations (turn on/off) are serialized to prevent API rate limiting
+# Silver tier: parallel_updates - serialize API calls to prevent rate limiting
+PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
 @dataclass(frozen=True, kw_only=True)
 class KwiksetSwitchEntityDescription(SwitchEntityDescription):
-    """Describes a Kwikset switch entity.
-
-    Extends SwitchEntityDescription with Kwikset-specific fields:
-    - value_fn: Lambda to read current state from coordinator
-    - set_fn: Lambda to write new state via coordinator
-
-    This data-driven approach allows defining multiple switches
-    with similar behavior in a declarative manner.
-
-    Attributes:
-        key: Unique identifier for the switch (used in unique_id)
-        translation_key: Reference to strings.json for entity name
-        entity_category: EntityCategory.CONFIG for all settings
-        value_fn: Callable that returns current state (bool | None)
-        set_fn: Async callable that sets new state
-    """
+    """Describes a Kwikset switch entity with value and control functions."""
 
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]
-    set_fn: Callable[[KwiksetDeviceDataUpdateCoordinator, bool], Awaitable[None]]
+    turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
+    turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
 
 
-# Switch entity descriptions - defines all available switches
-# Each tuple entry creates one switch entity per device
 SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="led_switch",
-        translation_key="led_switch",  # Maps to entity.switch.led_switch.name → "LED"
-        entity_category=EntityCategory.CONFIG,  # Device setting, not primary control
+        translation_key="led_switch",
+        entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.led_status,
-        set_fn=lambda c, v: c.set_led(v),
+        turn_on_fn=lambda c: c.set_led(True),
+        turn_off_fn=lambda c: c.set_led(False),
     ),
     KwiksetSwitchEntityDescription(
         key="audio_switch",
-        translation_key="audio_switch",  # Maps to entity.switch.audio_switch.name → "Audio"
+        translation_key="audio_switch",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.audio_status,
-        set_fn=lambda c, v: c.set_audio(v),
+        turn_on_fn=lambda c: c.set_audio(True),
+        turn_off_fn=lambda c: c.set_audio(False),
     ),
     KwiksetSwitchEntityDescription(
         key="secure_screen_switch",
-        translation_key="secure_screen_switch",  # Maps to entity.switch.secure_screen_switch.name
+        translation_key="secure_screen_switch",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.secure_screen_status,
-        set_fn=lambda c, v: c.set_secure_screen(v),
+        turn_on_fn=lambda c: c.set_secure_screen(True),
+        turn_off_fn=lambda c: c.set_secure_screen(False),
     ),
 )
 
@@ -124,39 +71,23 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: KwiksetConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Kwikset switch entities from a config entry.
 
-    Gold tier: dynamic_devices
-    Creates switch entities for each device using entity descriptions.
-    Supports runtime discovery of new devices via bus events.
-
-    Entity Creation:
-        For each device, creates one switch entity per SWITCH_DESCRIPTIONS entry.
-        This means each lock gets: LED switch, Audio switch, Secure Screen switch.
-
-    Args:
-        hass: Home Assistant instance
-        entry: Config entry being set up
-        async_add_entities: Callback to add entities to HA
+    Gold tier: dynamic_devices - supports runtime discovery via bus events.
+    Creates LED, audio, and secure screen switches for each device.
     """
     devices = entry.runtime_data.devices
     known_ids: set[str] = set()
 
     @callback
     def _async_add_new_devices() -> None:
-        """Add switch entities for newly discovered devices.
-
-        Gold tier: dynamic_devices
-        Creates all switch types for each new device.
-        Uses generator expression for efficient entity creation.
-        """
+        """Add switch entities for newly discovered devices."""
         new_ids = set(devices.keys()) - known_ids
         if not new_ids:
             return
 
-        # Create one entity per device per switch description
         async_add_entities(
             KwiksetSwitch(devices[device_id], description)
             for device_id in new_ids
@@ -165,11 +96,8 @@ async def async_setup_entry(
         known_ids.update(new_ids)
         LOGGER.debug("Added switch entities for devices: %s", new_ids)
 
-    # Add existing devices
     _async_add_new_devices()
 
-    # Listen for new device discovery events
-    # Gold tier: dynamic_devices - runtime discovery support
     entry.async_on_unload(
         hass.bus.async_listen(f"{DOMAIN}_new_device", lambda _: _async_add_new_devices())
     )
@@ -178,30 +106,8 @@ async def async_setup_entry(
 class KwiksetSwitch(KwiksetEntity, SwitchEntity):
     """Kwikset switch entity for device settings.
 
-    Uses entity descriptions for a data-driven approach.
-    All switches use EntityCategory.CONFIG as they control device settings.
-
-    Quality Scale Implementation:
-        Bronze - has_entity_name:
-            Uses translation_key from entity description which maps to
-            entity.switch.<key>.name in strings.json
-        
-        Bronze - entity_unique_id:
-            Inherited from KwiksetEntity: {device_id}_{description.key}
-        
-        Silver - action_exceptions:
-            async_turn_on/off raise HomeAssistantError with translation_key
-        
-        Silver - entity_unavailable:
-            Inherited from KwiksetEntity.available property
-
-    Entity Description Pattern:
-        - is_on reads from description.value_fn(coordinator)
-        - turn_on/off calls description.set_fn(coordinator, value)
-        This keeps the entity class generic while descriptions define specifics.
-
-    Attributes:
-        entity_description: The switch description for this instance
+    Uses entity descriptions for data-driven entity creation.
+    All switches are CONFIG category as they control device settings.
     """
 
     entity_description: KwiksetSwitchEntityDescription
@@ -211,64 +117,30 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
         coordinator: KwiksetDeviceDataUpdateCoordinator,
         description: KwiksetSwitchEntityDescription,
     ) -> None:
-        """Initialize the switch entity.
-
-        Args:
-            coordinator: Device coordinator for this lock
-            description: Entity description defining switch behavior
-        """
-        # Bronze tier: entity_unique_id via parent class
-        # Creates unique_id: {device_id}_{description.key}
-        super().__init__(description.key, coordinator)
+        """Initialize the switch entity."""
         self.entity_description = description
+        super().__init__(description.key, coordinator)
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if switch is on.
-
-        Uses description.value_fn to read state from coordinator.
-        Returns None if state is unknown.
-
-        Returns:
-            True if on, False if off, None if unknown
-        """
+        """Return true if switch is on."""
         return self.entity_description.value_fn(self.coordinator)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the switch on.
-
-        Silver tier: action_exceptions
-        Uses description.set_fn to call coordinator method.
-        Coordinator handles API call, retries, and token refresh.
-
-        Raises:
-            HomeAssistantError: If the operation fails.
-                Uses translation_key for user-friendly message.
-        """
+        """Turn the switch on."""
         try:
-            await self.entity_description.set_fn(self.coordinator, True)
+            await self.entity_description.turn_on_fn(self.coordinator)
         except Exception as err:
-            # Silver tier: action_exceptions with translation_key
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="switch_on_failed",
             ) from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the switch off.
-
-        Silver tier: action_exceptions
-        Uses description.set_fn to call coordinator method.
-        Coordinator handles API call, retries, and token refresh.
-
-        Raises:
-            HomeAssistantError: If the operation fails.
-                Uses translation_key for user-friendly message.
-        """
+        """Turn the switch off."""
         try:
-            await self.entity_description.set_fn(self.coordinator, False)
+            await self.entity_description.turn_off_fn(self.coordinator)
         except Exception as err:
-            # Silver tier: action_exceptions with translation_key
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="switch_off_failed",
