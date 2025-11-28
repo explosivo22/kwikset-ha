@@ -217,7 +217,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     for device in api_devices:
         device_id = device["deviceid"]
         devices_dict[device_id] = KwiksetDeviceDataUpdateCoordinator(
-            hass, client, device_id, device["devicename"], update_interval, entry
+            hass,
+            api_client=client,
+            device_id=device_id,
+            device_name=device["devicename"],
+            update_interval=update_interval,
+            config_entry=entry,
         )
 
     # Platinum tier: runtime_data
@@ -339,7 +344,12 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
                 device_id = device["deviceid"]
                 if device_id in new_device_ids:
                     coordinator = KwiksetDeviceDataUpdateCoordinator(
-                        hass, client, device_id, device["devicename"], update_interval, entry
+                        hass,
+                        api_client=client,
+                        device_id=device_id,
+                        device_name=device["devicename"],
+                        update_interval=update_interval,
+                        config_entry=entry,
                     )
                     await coordinator.async_config_entry_first_refresh()
                     devices_dict[device_id] = coordinator
