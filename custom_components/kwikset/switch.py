@@ -61,6 +61,7 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
         key="secure_screen_switch",
         translation_key="secure_screen_switch",
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         value_fn=lambda c: c.secure_screen_status,
         turn_on_fn=lambda c: c.set_secure_screen(True),
         turn_off_fn=lambda c: c.set_secure_screen(False),

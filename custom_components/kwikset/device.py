@@ -25,9 +25,9 @@ from aiokwikset.api import API, Unauthenticated
 from aiokwikset.errors import RequestError
 
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -164,7 +164,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 translation_key="auth_expired",
                 translation_placeholders={"entry_title": self.config_entry.title},
             )
-            raise ConfigEntryAuthFailed("Token refresh failed") from err
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="token_refresh_failed",
+            ) from err
         except RequestError as err:
             LOGGER.warning("Token refresh network error: %s", err)
 
@@ -186,7 +189,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             try:
                 return await api_call(*args, **kwargs)
             except Unauthenticated as err:
-                raise ConfigEntryAuthFailed("Authentication failed") from err
+                raise ConfigEntryAuthFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="auth_failed",
+                ) from err
             except RequestError as err:
                 last_error = err
                 if attempt < MAX_RETRY_ATTEMPTS - 1:
@@ -198,8 +204,9 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                     )
                     await asyncio.sleep(RETRY_DELAY_SECONDS)
 
-        raise UpdateFailed(
-            f"API error after {MAX_RETRY_ATTEMPTS} attempts"
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="api_error",
         ) from last_error
 
     # -------------------------------------------------------------------------

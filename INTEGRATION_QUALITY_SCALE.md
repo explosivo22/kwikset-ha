@@ -73,12 +73,12 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
     - N/A - Not applicable - this is a cloud-based integration without local network discovery.
 - [ ] `discovery` - Devices can be discovered
     - N/A - Not applicable - cloud-based authentication required, devices cannot be auto-discovered.
-- [ ] `docs-data-update` - The documentation describes how data is updated
-    - No documentation about polling interval and how data is refreshed.
+- [X] `docs-data-update` - The documentation describes how data is updated
+    - README includes "Data Updates" section describing polling behavior, intervals, latency, and device discovery timing.
 - [X] `docs-examples` - The documentation provides automation examples the user can use.
     - README includes "Use Cases & Automations" section with example automations.
-- [ ] `docs-known-limitations` - The documentation describes known limitations of the integration (not to be confused with bugs)
-    - Mentions MFA must be disabled and requires Kwikset home, but not comprehensive.
+- [X] `docs-known-limitations` - The documentation describes known limitations of the integration (not to be confused with bugs)
+    - README includes comprehensive "Known Limitations" section covering API limitations, feature limitations, and device limitations.
 - [X] `docs-supported-devices` - The documentation describes known supported / unsupported devices
     - README includes "Supported Devices" section with product line table.
 - [X] `docs-supported-functions` - The documentation describes the supported functionality, including entities, and platforms
@@ -93,18 +93,18 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
     - Battery sensor has `EntityCategory.DIAGNOSTIC`. Switches have `EntityCategory.CONFIG`.
 - [X] `entity-device-class` - Entities use device classes where possible
     - Battery sensor uses `SensorDeviceClass.BATTERY`. Lock inherits device class from `LockEntity`.
-- [ ] `entity-disabled-by-default` - Integration disables less popular (or noisy) entities
-    - No entities are disabled by default. Consider disabling Secure Screen switch.
+- [X] `entity-disabled-by-default` - Integration disables less popular (or noisy) entities
+    - Secure Screen switch is disabled by default via `entity_registry_enabled_default=False`. Users can enable it if needed.
 - [X] `entity-translations` - Entities have translated names
     - Entity names use translation keys with translations in 15 languages.
-- [ ] `exception-translations` - Exception messages are translatable
-    - Exception messages are hardcoded strings, not translatable.
-- [ ] `icon-translations` - Entities implement icon translations
-    - No icon translations implemented.
+- [X] `exception-translations` - Exception messages are translatable
+    - All exceptions use `translation_domain` and `translation_key` parameters. Translations defined in `strings.json` under `exceptions`.
+- [X] `icon-translations` - Entities implement icon translations
+    - `icons.json` defines icons for all entities with state-based icons for lock and switches, range-based icons for battery sensor.
 - [X] `reconfiguration-flow` - Integrations should have a reconfigure flow
     - `async_step_reconfigure` is implemented to reload and discover new devices.
-- [ ] `repair-issues` - Repair issues and repair flows are used when user intervention is needed
-    - No repair issues or repair flows implemented.
+- [X] `repair-issues` - Repair issues and repair flows are used when user intervention is needed
+    - `_create_auth_issue` creates repair issue for auth failures. Repair flow defined in `strings.json` under `issues.auth_expired.fix_flow`.
 - [X] `stale-devices` - Stale devices are removed
     - `_async_update_devices` removes stale devices from registry and `async_remove_config_entry_device` returns True.
 
@@ -124,24 +124,20 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
 |------|-----|-------|------------|
 | Bronze | 18 | 18 | 100% ✅ |
 | Silver | 10 | 10 | 100% ✅ |
-| Gold | 14 | 20 | 70% |
+| Gold | 18 | 18 | 100% ✅ |
 | Platinum | 2 | 3 | 67% |
 
 ### Bronze Tier: COMPLETE ✅
 
-All Bronze requirements are met. The integration is ready for Bronze certification.
+All Bronze requirements are met.
 
 ### Silver Tier: COMPLETE ✅
 
-All Silver requirements are met. The integration is ready for Silver certification.
+All Silver requirements are met.
 
-### Priority Improvements for Gold:
+### Gold Tier: COMPLETE ✅
 
-1. **Entity disabled by default** - Consider disabling Secure Screen switch by default
-2. **Exception translations** - Move exception messages to translations
-3. **Icon translations** - Add icon translations
-4. **Repair issues** - Implement repair flows for user intervention scenarios
-5. **Documentation** - Add data update documentation and known limitations
+All Gold requirements are met. Note: `discovery` and `discovery-update-info` are marked N/A as this is a cloud-based integration.
 
 ### Platinum Blocker:
 

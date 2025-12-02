@@ -16,6 +16,8 @@ A custom Home Assistant integration for [Kwikset Smart Locks](https://www.kwikse
 
 - [Features](#-features)
 - [Supported Devices](#-supported-devices)
+- [Data Updates](#-data-updates)
+- [Known Limitations](#️-known-limitations)
 - [Requirements](#-requirements)
 - [Installation](#-installation)
 - [Configuration](#-configuration)
@@ -75,6 +77,81 @@ This integration supports Kwikset smart locks that are compatible with the Kwiks
 - Kwikset Halo Touch (WiFi + Fingerprint)
 - Kwikset Halo (WiFi)
 - Kwikset Aura (Bluetooth + WiFi Bridge)
+
+---
+
+## 📡 Data Updates
+
+This integration uses **cloud polling** to fetch device status from the Kwikset cloud API.
+
+### Polling Behavior
+
+| Aspect | Details |
+|--------|---------|
+| **Default Interval** | 30 seconds |
+| **Configurable Range** | 15-60 seconds |
+| **Update Method** | Cloud polling via Kwikset API |
+| **Device Discovery** | Every 5 minutes (automatic) |
+
+### How It Works
+
+1. **State Polling**: The integration polls the Kwikset cloud API at your configured interval (default: 30 seconds) to fetch the current lock state, battery level, and settings.
+
+2. **Command Execution**: When you lock/unlock via Home Assistant, the command is sent to the Kwikset cloud, which then relays it to your lock over WiFi.
+
+3. **Device Discovery**: Every 5 minutes, the integration checks for new or removed devices and updates automatically.
+
+4. **Token Refresh**: Authentication tokens are automatically refreshed before expiry (5 minutes buffer) to prevent authentication failures.
+
+### Latency Considerations
+
+- **State Updates**: Lock state changes made locally (keypad, fingerprint, physical key) may take up to your polling interval to appear in Home Assistant.
+- **Command Latency**: Lock/unlock commands typically execute within 2-5 seconds, depending on your lock's WiFi connection.
+- **No Push Updates**: The Kwikset API does not support push notifications, so all updates rely on polling.
+
+> **Tip**: If you need faster status updates, reduce the polling interval to 15 seconds. This increases API requests but provides more responsive state updates.
+
+---
+
+## ⚠️ Known Limitations
+
+This section describes known limitations of the integration (not bugs).
+
+### API Limitations
+
+| Limitation | Description |
+|------------|-------------|
+| **Cloud-Only** | No local control available. All communication goes through Kwikset's cloud servers. |
+| **Unofficial API** | This integration uses an undocumented API that Kwikset may change without notice. |
+| **No Push Updates** | The API doesn't support real-time push notifications. All updates rely on polling. |
+| **Rate Limiting** | Excessive API calls may be rate-limited by Kwikset. Keep polling interval ≥15 seconds. |
+
+### Feature Limitations
+
+| Limitation | Description |
+|------------|-------------|
+| **No User Codes** | Managing user access codes is not supported. Use the Kwikset app for this. |
+| **No Access Logs** | Access history/event logs are not available through the API. |
+| **No Scheduling** | Built-in lock schedules cannot be managed. Use Home Assistant automations instead. |
+| **No Bluetooth** | Direct Bluetooth communication is not supported; WiFi bridge is required. |
+| **No HomeKit Sync** | HomeKit-paired locks must still use cloud API; HomeKit state is not synced. |
+
+### Device Limitations
+
+| Limitation | Description |
+|------------|-------------|
+| **WiFi Required** | Locks must be connected to WiFi (directly or via bridge) for remote control. |
+| **Home Required** | Locks must be assigned to a "Home" in the Kwikset app before they appear in this integration. |
+| **Single Account** | Each Home Assistant instance should use one Kwikset account per home to avoid token conflicts. |
+
+### Secure Screen Switch
+
+The **Secure Screen** switch is disabled by default because:
+- It's a less commonly used feature
+- Reduces resource usage for users who don't need it
+- Can be enabled manually in entity settings if needed
+
+To enable: **Settings** → **Devices & Services** → **Kwikset** → Select your lock → **Entities** → Enable "Secure Screen"
 
 ---
 

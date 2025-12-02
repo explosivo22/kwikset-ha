@@ -23,7 +23,7 @@ from aiokwikset.api import Unauthenticated
 from aiokwikset.errors import RequestError
 
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.kwikset.const import (
@@ -313,12 +313,12 @@ class TestRetryLogic:
         assert result == MOCK_DEVICE_INFO
         assert api.device.get_device_info.call_count == 3
 
-    async def test_max_retries_exceeded_raises_update_failed(
+    async def test_max_retries_exceeded_raises_home_assistant_error(
         self,
         hass: HomeAssistant,
         mock_config_entry: MagicMock,
     ) -> None:
-        """Test UpdateFailed is raised after max retries."""
+        """Test HomeAssistantError with translation key is raised after max retries."""
         api = MagicMock()
         api.device = MagicMock()
         api.device.get_device_info = AsyncMock(
@@ -335,13 +335,14 @@ class TestRetryLogic:
         )
 
         with patch("custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock):
-            with pytest.raises(UpdateFailed) as exc_info:
+            with pytest.raises(HomeAssistantError) as exc_info:
                 await coordinator._api_call_with_retry(
                     api.device.get_device_info,
                     MOCK_DEVICE_ID,
                 )
 
-        assert "API error after" in str(exc_info.value)
+        # Verify exception uses translation key (Gold: exception-translations)
+        assert exc_info.value.translation_key == "api_error"
         assert api.device.get_device_info.call_count == MAX_RETRY_ATTEMPTS
 
     async def test_auth_error_raises_config_entry_auth_failed(
