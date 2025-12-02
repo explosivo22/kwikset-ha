@@ -97,11 +97,22 @@ This integration uses **cloud polling** to fetch device status from the Kwikset 
 
 1. **State Polling**: The integration polls the Kwikset cloud API at your configured interval (default: 30 seconds) to fetch the current lock state, battery level, and settings.
 
-2. **Command Execution**: When you lock/unlock via Home Assistant, the command is sent to the Kwikset cloud, which then relays it to your lock over WiFi.
+2. **Command Execution**: When you lock/unlock via Home Assistant, the command is sent to the Kwikset cloud, which then relays it to your lock over WiFi. The UI immediately shows "Locking" or "Unlocking" state for instant feedback.
 
 3. **Device Discovery**: Every 5 minutes, the integration checks for new or removed devices and updates automatically.
 
 4. **Token Refresh**: Authentication tokens are automatically refreshed before expiry (5 minutes buffer) to prevent authentication failures.
+
+### Optimistic State Updates
+
+When you issue a lock or unlock command, the integration uses **optimistic state updates** to provide immediate feedback:
+
+1. **Instant Feedback**: The lock shows "Locking" or "Unlocking" state immediately after you click the button
+2. **API Confirmation**: The actual command is sent to the Kwikset cloud and executed on the lock
+3. **State Verification**: The integration polls the API to confirm the final state
+4. **Timeout Protection**: If the API doesn't respond within 30 seconds, the optimistic state resets
+
+This provides a responsive user experience while maintaining accurate state representation.
 
 ### Latency Considerations
 

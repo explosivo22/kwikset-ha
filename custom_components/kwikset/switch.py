@@ -3,6 +3,10 @@
 Provides switch entities for Kwikset lock settings (LED, audio, secure screen).
 All switches use EntityCategory.CONFIG as they control device settings.
 
+Since this is a cloud-based integration with no local push updates, switches
+set assumed_state = True to indicate the state is based on the last known
+value from the API rather than real-time device state.
+
 Quality Scale: Bronze (has_entity_name, entity_unique_id),
 Silver (parallel_updates, action_exceptions), Gold (dynamic_devices).
 """
@@ -109,9 +113,16 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
 
     Uses entity descriptions for data-driven entity creation.
     All switches are CONFIG category as they control device settings.
+
+    Since this is a cloud-based integration without real-time push updates,
+    we set assumed_state = True to indicate the displayed state is based on
+    the last API poll rather than confirmed device state.
     """
 
     entity_description: KwiksetSwitchEntityDescription
+
+    # Cloud-based integration: state is based on last API poll, not real-time
+    _attr_assumed_state = True
 
     def __init__(
         self,

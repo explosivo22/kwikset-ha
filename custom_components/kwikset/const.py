@@ -38,6 +38,12 @@ TOKEN_REFRESH_BUFFER_SECONDS: Final = 300
 MAX_RETRY_ATTEMPTS: Final = 3
 RETRY_DELAY_SECONDS: Final = 2
 
+# Optimistic timeout for lock/unlock operations
+# After sending a command, we optimistically show the transitional state
+# (locking/unlocking) until either the API confirms or this timeout expires.
+# 30 seconds is used by the Matter lock integration as a safe default.
+OPTIMISTIC_TIMEOUT_SECONDS: Final = 30
+
 # Limit concurrent API calls per platform to prevent rate limiting
 # Each platform file uses this value to serialize entity operations
 PARALLEL_UPDATES: Final = 1
