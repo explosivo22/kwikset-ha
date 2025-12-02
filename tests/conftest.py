@@ -188,44 +188,49 @@ def mock_api() -> Generator[MagicMock, None, None]:
     """Create a mock aiokwikset API client for __init__.py tests.
 
     Patches the API class in the main integration module.
+    Also patches async_get_clientsession to prevent pycares thread creation.
     """
     with patch("custom_components.kwikset.API") as mock_api_class:
-        api = MagicMock()
+        with patch("custom_components.kwikset.async_get_clientsession") as mock_session:
+            # Return a MagicMock for the session
+            mock_session.return_value = MagicMock()
 
-        # Token properties
-        api.id_token = MOCK_ID_TOKEN
-        api.access_token = MOCK_ACCESS_TOKEN
-        api.refresh_token = MOCK_REFRESH_TOKEN
-        api.is_authenticated = True
+            api = MagicMock()
 
-        # Async authentication methods
-        api.async_login = AsyncMock()
-        api.async_authenticate_with_tokens = AsyncMock()
-        api.async_renew_access_token = AsyncMock()
-        api.async_respond_to_mfa_challenge = AsyncMock()
-        api.async_close = AsyncMock()
+            # Token properties
+            api.id_token = MOCK_ID_TOKEN
+            api.access_token = MOCK_ACCESS_TOKEN
+            api.refresh_token = MOCK_REFRESH_TOKEN
+            api.is_authenticated = True
 
-        # User namespace
-        api.user = MagicMock()
-        api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
-        api.user.get_homes = AsyncMock(return_value=MOCK_HOMES)
+            # Async authentication methods
+            api.async_login = AsyncMock()
+            api.async_authenticate_with_tokens = AsyncMock()
+            api.async_renew_access_token = AsyncMock()
+            api.async_respond_to_mfa_challenge = AsyncMock()
+            api.async_close = AsyncMock()
 
-        # Device namespace
-        api.device = MagicMock()
-        api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
-        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-        api.device.lock_device = AsyncMock()
-        api.device.unlock_device = AsyncMock()
-        api.device.set_led_enabled = AsyncMock()
-        api.device.set_audio_enabled = AsyncMock()
-        api.device.set_secure_screen_enabled = AsyncMock()
-        # Legacy methods for backwards compatibility
-        api.device.set_ledstatus = AsyncMock()
-        api.device.set_audiostatus = AsyncMock()
-        api.device.set_securescreenstatus = AsyncMock()
+            # User namespace
+            api.user = MagicMock()
+            api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
+            api.user.get_homes = AsyncMock(return_value=MOCK_HOMES)
 
-        mock_api_class.return_value = api
-        yield api
+            # Device namespace
+            api.device = MagicMock()
+            api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
+            api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+            api.device.lock_device = AsyncMock()
+            api.device.unlock_device = AsyncMock()
+            api.device.set_led_enabled = AsyncMock()
+            api.device.set_audio_enabled = AsyncMock()
+            api.device.set_secure_screen_enabled = AsyncMock()
+            # Legacy methods for backwards compatibility
+            api.device.set_ledstatus = AsyncMock()
+            api.device.set_audiostatus = AsyncMock()
+            api.device.set_securescreenstatus = AsyncMock()
+
+            mock_api_class.return_value = api
+            yield api
 
 
 @pytest.fixture
