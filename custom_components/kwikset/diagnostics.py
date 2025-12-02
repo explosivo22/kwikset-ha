@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_HOME_ID,
+    CONF_ID_TOKEN,
     CONF_REFRESH_TOKEN,
 )
 
@@ -22,6 +23,7 @@ TO_REDACT = {
     CONF_EMAIL,
     CONF_PASSWORD,
     CONF_ACCESS_TOKEN,
+    CONF_ID_TOKEN,
     CONF_REFRESH_TOKEN,
     CONF_HOME_ID,
     "deviceid",

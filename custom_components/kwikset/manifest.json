@@ -6,7 +6,7 @@
   "documentation": "https://github.com/explosivo22/kwikset-ha/",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/explosivo22/kwikset-ha/issues",
-  "quality_scale": "gold",
+  "quality_scale": "platinum",
   "requirements": ["aiokwikset==0.3.0b1"],
   "version": "0.3.5"
 }
