@@ -121,14 +121,27 @@ class TestTokenManagement:
     async def test_parse_valid_jwt_token(
         self,
         hass: HomeAssistant,
-        mock_config_entry: MagicMock,
     ) -> None:
         """Test JWT token expiry is parsed correctly."""
-        # Use a token with known expiry
-        mock_config_entry.data = {
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+        from homeassistant.config_entries import ConfigEntryState
+        from custom_components.kwikset.const import DOMAIN, CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
+
+        # Create entry with custom token
+        entry_data = {
             **MOCK_ENTRY_DATA,
             CONF_ACCESS_TOKEN: generate_mock_jwt(expiry_seconds=3600),
         }
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data=entry_data,
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+            title="Test Home",
+            unique_id="test_home_valid_jwt",
+            version=4,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         api = MagicMock()
         api.device = MagicMock()
@@ -140,7 +153,7 @@ class TestTokenManagement:
             device_id=MOCK_DEVICE_ID,
             device_name=MOCK_DEVICE_NAME,
             update_interval=30,
-            config_entry=mock_config_entry,
+            config_entry=entry,
         )
 
         # Token should not be expiring soon (3600s > 300s buffer)
@@ -149,14 +162,27 @@ class TestTokenManagement:
     async def test_detect_expiring_token(
         self,
         hass: HomeAssistant,
-        mock_config_entry: MagicMock,
     ) -> None:
         """Test token expiring within buffer is detected."""
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+        from homeassistant.config_entries import ConfigEntryState
+        from custom_components.kwikset.const import DOMAIN, CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
+
         # Token expires in 60 seconds (within 300s buffer)
-        mock_config_entry.data = {
+        entry_data = {
             **MOCK_ENTRY_DATA,
             CONF_ACCESS_TOKEN: generate_expiring_soon_jwt(),
         }
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data=entry_data,
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+            title="Test Home",
+            unique_id="test_home_expiring_jwt",
+            version=4,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         api = MagicMock()
         api.device = MagicMock()
@@ -168,7 +194,7 @@ class TestTokenManagement:
             device_id=MOCK_DEVICE_ID,
             device_name=MOCK_DEVICE_NAME,
             update_interval=30,
-            config_entry=mock_config_entry,
+            config_entry=entry,
         )
 
         assert coordinator._is_token_expiring_soon()
@@ -176,13 +202,26 @@ class TestTokenManagement:
     async def test_invalid_jwt_format_handled(
         self,
         hass: HomeAssistant,
-        mock_config_entry: MagicMock,
     ) -> None:
         """Test invalid JWT format is handled gracefully."""
-        mock_config_entry.data = {
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+        from homeassistant.config_entries import ConfigEntryState
+        from custom_components.kwikset.const import DOMAIN, CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
+
+        entry_data = {
             **MOCK_ENTRY_DATA,
             CONF_ACCESS_TOKEN: "not.a.valid.jwt.token",
         }
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data=entry_data,
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+            title="Test Home",
+            unique_id="test_home_invalid_jwt",
+            version=4,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         api = MagicMock()
         api.device = MagicMock()
@@ -195,7 +234,7 @@ class TestTokenManagement:
             device_id=MOCK_DEVICE_ID,
             device_name=MOCK_DEVICE_NAME,
             update_interval=30,
-            config_entry=mock_config_entry,
+            config_entry=entry,
         )
 
         assert coordinator._token_expiry is None

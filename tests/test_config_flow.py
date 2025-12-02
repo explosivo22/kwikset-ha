@@ -24,11 +24,11 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.kwikset.config_flow import (
     CannotConnect,
     KwiksetFlowHandler,
-    KwiksetOptionsFlow,
 )
 from custom_components.kwikset.const import (
     CONF_ACCESS_TOKEN,
@@ -242,10 +242,14 @@ class TestMFAFlow:
         mock_api_config_flow: MagicMock,
     ) -> None:
         """Test successful MFA verification."""
-        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
-            mfa_type="SOFTWARE_TOKEN_MFA",
-            mfa_tokens={"session": "mock_session"},
-        )
+        # First call triggers MFA, subsequent calls succeed
+        mock_api_config_flow.async_login.side_effect = [
+            MFAChallengeRequired(
+                mfa_type="SOFTWARE_TOKEN_MFA",
+                mfa_tokens={"session": "mock_session"},
+            ),
+            None,  # Second call succeeds after MFA
+        ]
 
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": config_entries.SOURCE_USER}
@@ -307,21 +311,26 @@ class TestMFAFlow:
 class TestReauthFlow:
     """Tests for reauthentication flow."""
 
-    async def test_reauth_flow_success(
+    async def test_reauth_flow_shows_form(
         self,
         hass: HomeAssistant,
         mock_api_config_flow: MagicMock,
     ) -> None:
-        """Test successful reauthentication."""
-        # Create existing entry
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.data = {
-            CONF_EMAIL: MOCK_EMAIL,
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_ACCESS_TOKEN: "old_token",
-            CONF_REFRESH_TOKEN: "old_refresh",
-        }
+        """Test reauthentication shows the confirm form."""
+        # Create a mock config entry for reauth
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: "old_token",
+                CONF_REFRESH_TOKEN: "old_refresh",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=4,
+        )
+        entry.add_to_hass(hass)
 
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -335,34 +344,6 @@ class TestReauthFlow:
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "reauth_confirm"
 
-    async def test_reauth_confirm_success(
-        self,
-        hass: HomeAssistant,
-        mock_api_config_flow: MagicMock,
-    ) -> None:
-        """Test reauthentication confirm step updates entry."""
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.data = {
-            CONF_EMAIL: MOCK_EMAIL,
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_ACCESS_TOKEN: "old_token",
-            CONF_REFRESH_TOKEN: "old_refresh",
-        }
-
-        # Simulate the reauth flow with proper entry setup
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={
-                "source": config_entries.SOURCE_REAUTH,
-                "entry_id": entry.entry_id,
-            },
-            data=entry.data,
-        )
-
-        # Ensure we're at the confirm step
-        assert result["step_id"] == "reauth_confirm"
-
     async def test_reauth_with_mfa(
         self,
         hass: HomeAssistant,
@@ -374,14 +355,20 @@ class TestReauthFlow:
             mfa_tokens={"session": "mock_session"},
         )
 
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.data = {
-            CONF_EMAIL: MOCK_EMAIL,
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_ACCESS_TOKEN: "old_token",
-            CONF_REFRESH_TOKEN: "old_refresh",
-        }
+        # Create a mock config entry for reauth
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: "old_token",
+                CONF_REFRESH_TOKEN: "old_refresh",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=4,
+        )
+        entry.add_to_hass(hass)
 
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -415,14 +402,20 @@ class TestReconfigureFlow:
         mock_api_config_flow: MagicMock,
     ) -> None:
         """Test reconfigure form is displayed."""
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.data = {
-            CONF_EMAIL: MOCK_EMAIL,
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
-            CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
-        }
+        # Create a mock config entry for reconfigure
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=4,
+        )
+        entry.add_to_hass(hass)
 
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -430,7 +423,6 @@ class TestReconfigureFlow:
                 "source": config_entries.SOURCE_RECONFIGURE,
                 "entry_id": entry.entry_id,
             },
-            data=entry.data,
         )
 
         assert result["type"] == FlowResultType.FORM
@@ -448,17 +440,27 @@ class TestOptionsFlow:
     async def test_options_flow_init(
         self,
         hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
     ) -> None:
         """Test options flow initialization."""
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.options = {CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL}
+        # Create a mock config entry
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=4,
+        )
+        entry.add_to_hass(hass)
 
-        flow = KwiksetOptionsFlow()
-        flow.hass = hass
-        flow.config_entry = entry
-
-        result = await flow.async_step_init(None)
+        # Initialize options flow
+        result = await hass.config_entries.options.async_init(entry.entry_id)
 
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "init"
@@ -466,17 +468,31 @@ class TestOptionsFlow:
     async def test_options_flow_saves_interval(
         self,
         hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
     ) -> None:
         """Test options flow saves new refresh interval."""
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.options = {CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL}
+        # Create a mock config entry
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=4,
+        )
+        entry.add_to_hass(hass)
 
-        flow = KwiksetOptionsFlow()
-        flow.hass = hass
-        flow.config_entry = entry
-
-        result = await flow.async_step_init({CONF_REFRESH_INTERVAL: 45})
+        # Initialize and complete options flow
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {CONF_REFRESH_INTERVAL: 45},
+        )
 
         assert result["type"] == FlowResultType.CREATE_ENTRY
         assert result["data"][CONF_REFRESH_INTERVAL] == 45

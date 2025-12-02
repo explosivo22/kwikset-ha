@@ -267,6 +267,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="user",
                 data_schema=CREDENTIALS_SCHEMA,
+                errors={},
             )
 
         self.username = user_input[CONF_EMAIL]
@@ -282,8 +283,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None or CONF_HOME_ID not in user_input:
             error = await self._async_authenticate()
             if error:
-                errors["base"] = error
-                raise CannotConnect
+                return self.async_abort(reason=error)
             if self.mfa_type:
                 return await self.async_step_mfa()
 

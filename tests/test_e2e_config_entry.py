@@ -96,18 +96,32 @@ class TestEntrySetup:
         mock_api: MagicMock,
     ) -> None:
         """Test setup creates a coordinator for each device."""
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+        from homeassistant.config_entries import ConfigEntryState
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data=MOCK_ENTRY_DATA.copy(),
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            title="Test Home",
+            unique_id="test_home_coordinators",
+            version=4,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         # Return both devices
         mock_api.device.get_devices.return_value = MOCK_DEVICES
-        mock_api.device.get_device_info.side_effect = [
-            MOCK_DEVICE_INFO,
-            MOCK_DEVICE_INFO_2,
-        ]
+
+        # Use a function to return different device info based on device_id
+        def get_device_info_side_effect(device_id: str) -> dict:
+            if device_id == MOCK_DEVICE_ID:
+                return MOCK_DEVICE_INFO
+            elif device_id == MOCK_DEVICE_ID_2:
+                return MOCK_DEVICE_INFO_2
+            return MOCK_DEVICE_INFO  # Default
+
+        mock_api.device.get_device_info = AsyncMock(side_effect=get_device_info_side_effect)
 
         with patch(
             "custom_components.kwikset.async_track_time_interval",
@@ -161,14 +175,22 @@ class TestEntrySetup:
         mock_api: MagicMock,
     ) -> None:
         """Test setup saves refreshed tokens to config entry."""
-        entry = MagicMock()
-        entry.entry_id = "test_entry_id"
-        entry.data = {
-            **MOCK_ENTRY_DATA,
-            CONF_ACCESS_TOKEN: "old_token",
-        }
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+        from homeassistant.config_entries import ConfigEntryState
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                **MOCK_ENTRY_DATA,
+                CONF_ACCESS_TOKEN: "old_token",
+            },
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            title="Test Home",
+            unique_id="test_home_tokens",
+            version=4,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         # API returns new tokens
         mock_api.access_token = "new_access_token"
@@ -183,8 +205,9 @@ class TestEntrySetup:
             ):
                 await async_setup_entry(hass, entry)
 
-        # Verify tokens were updated
-        hass.config_entries.async_update_entry.assert_called()
+        # Verify tokens were updated in entry data
+        assert entry.data[CONF_ACCESS_TOKEN] == "new_access_token"
+        assert entry.data[CONF_REFRESH_TOKEN] == "new_refresh_token"
 
 
 # =============================================================================
@@ -273,12 +296,19 @@ class TestMigration:
         hass: HomeAssistant,
     ) -> None:
         """Test migration from version 1 to 4."""
-        entry = MagicMock()
-        entry.version = 1
-        entry.data = {
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
-        }
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id="migrate_v1_test",
+            version=1,
+        )
+        entry.add_to_hass(hass)
 
         result = await async_migrate_entry(hass, entry)
 
@@ -290,37 +320,51 @@ class TestMigration:
         hass: HomeAssistant,
     ) -> None:
         """Test migration from version 2 to 4."""
-        entry = MagicMock()
-        entry.version = 2
-        entry.data = {
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
-        }
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id="migrate_v2_test",
+            version=2,
+        )
+        entry.add_to_hass(hass)
 
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        # Should have added access token
-        hass.config_entries.async_update_entry.assert_called()
+        # Should have migrated to v4
+        assert entry.version == 4
 
     async def test_migrate_v3_to_v4(
         self,
         hass: HomeAssistant,
     ) -> None:
         """Test migration from version 3 to 4."""
-        entry = MagicMock()
-        entry.version = 3
-        entry.data = {
-            CONF_HOME_ID: MOCK_HOME_ID,
-            CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
-            CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
-        }
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id="migrate_v3_test",
+            version=3,
+        )
+        entry.add_to_hass(hass)
 
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        # Should have added refresh interval
-        hass.config_entries.async_update_entry.assert_called()
+        # Should have migrated to v4
+        assert entry.version == 4
 
 
 # =============================================================================

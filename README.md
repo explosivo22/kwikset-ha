@@ -174,6 +174,41 @@ Each home creates a separate integration entry.
 
 ---
 
+## 🗑️ Removal
+
+### Removing the Integration
+
+To remove the Kwikset integration from Home Assistant:
+
+1. Go to **Settings** → **Devices & Services**
+2. Find the **Kwikset Smart Locks** integration
+3. Click the three dots menu (⋮) on the integration card
+4. Select **Delete**
+5. Confirm the removal
+
+This will remove all Kwikset devices and entities from Home Assistant. Your Kwikset account and locks are not affected.
+
+### Uninstalling via HACS
+
+To completely uninstall the integration:
+
+1. First, remove the integration (steps above)
+2. Open **HACS** → **Integrations**
+3. Find "Kwikset Smart Locks"
+4. Click the three dots menu (⋮)
+5. Select **Remove** → **Remove**
+6. Restart Home Assistant
+
+### Manual Uninstallation
+
+If you installed manually:
+
+1. First, remove the integration from Settings (steps above)
+2. Delete the `custom_components/kwikset` folder
+3. Restart Home Assistant
+
+---
+
 ## 🎛️ Entities
 
 Each Kwikset lock creates the following entities:
@@ -194,6 +229,25 @@ Each Kwikset lock creates the following entities:
 | `switch.<device_name>_led` | Switch | Config | LED indicator on/off |
 | `switch.<device_name>_audio` | Switch | Config | Audio feedback on/off |
 | `switch.<device_name>_secure_screen` | Switch | Config | Secure screen mode on/off |
+
+### Service Actions
+
+This integration uses standard Home Assistant service actions:
+
+#### Lock Actions
+| Action | Description | Example |
+|--------|-------------|---------|
+| `lock.lock` | Lock the door | `service: lock.lock`<br>`target: entity_id: lock.front_door_lock` |
+| `lock.unlock` | Unlock the door | `service: lock.unlock`<br>`target: entity_id: lock.front_door_lock` |
+
+#### Switch Actions
+| Action | Description | Example |
+|--------|-------------|---------|
+| `switch.turn_on` | Enable a setting | `service: switch.turn_on`<br>`target: entity_id: switch.front_door_led` |
+| `switch.turn_off` | Disable a setting | `service: switch.turn_off`<br>`target: entity_id: switch.front_door_led` |
+| `switch.toggle` | Toggle a setting | `service: switch.toggle`<br>`target: entity_id: switch.front_door_audio` |
+
+> **Note**: This integration does not provide custom service actions. All functionality uses standard Home Assistant lock and switch services.
 
 ---
 

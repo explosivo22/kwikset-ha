@@ -14,6 +14,7 @@ Quality Scale: Platinum tier - comprehensive test infrastructure.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import time
@@ -22,9 +23,37 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL
 from homeassistant.core import HomeAssistant
+
+
+# =============================================================================
+# Pytest-asyncio Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    """Create an event loop for async tests.
+
+    Required by pytest-homeassistant-custom-component.
+    """
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
+    """Enable loading custom integrations in all tests.
+
+    This fixture is automatically applied to all tests, enabling
+    the custom Kwikset integration to be loaded.
+    """
+    return
 
 from custom_components.kwikset.const import (
     CONF_ACCESS_TOKEN,
@@ -345,17 +374,41 @@ def mock_coordinator_unlocked() -> MagicMock:
 
 
 @pytest.fixture
-def mock_config_entry() -> MagicMock:
-    """Create a mock config entry for unit tests."""
-    entry = MagicMock()
-    entry.entry_id = "test_entry_id"
-    entry.unique_id = MOCK_HOME_ID
-    entry.domain = DOMAIN
-    entry.title = MOCK_HOME_NAME
-    entry.data = MOCK_ENTRY_DATA.copy()
-    entry.options = MOCK_ENTRY_OPTIONS.copy()
-    entry.version = 4
-    entry.async_on_unload = MagicMock()
+def mock_config_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Create a mock config entry for unit tests.
+
+    Uses MockConfigEntry which properly integrates with Home Assistant's
+    config entry system.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_ENTRY_DATA.copy(),
+        options=MOCK_ENTRY_OPTIONS.copy(),
+        title=MOCK_HOME_NAME,
+        unique_id=MOCK_HOME_ID,
+        version=4,
+    )
+    entry.add_to_hass(hass)
+    # Set state to SETUP_IN_PROGRESS for async_config_entry_first_refresh
+    entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
+    return entry
+
+
+@pytest.fixture
+def mock_config_entry_not_setup(hass: HomeAssistant) -> MockConfigEntry:
+    """Create a mock config entry that hasn't started setup.
+
+    Useful for tests that don't need async_config_entry_first_refresh.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_ENTRY_DATA.copy(),
+        options=MOCK_ENTRY_OPTIONS.copy(),
+        title=MOCK_HOME_NAME,
+        unique_id=MOCK_HOME_ID,
+        version=4,
+    )
+    entry.add_to_hass(hass)
     return entry
 
 
