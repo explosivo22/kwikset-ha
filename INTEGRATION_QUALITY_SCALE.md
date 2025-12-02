@@ -47,10 +47,10 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
     - Device coordinator methods raise `ConfigEntryAuthFailed` on auth errors and `HomeAssistantError` with translation keys for user-facing errors.
 - [X] `config-entry-unloading` - Support config entry unloading
     - `async_unload_entry` is implemented, unloads platforms and cleans up runtime data.
-- [ ] `docs-configuration-parameters` - The documentation describes all integration configuration options
-    - Options (refresh_interval) are not fully documented in README.
-- [ ] `docs-installation-parameters` - The documentation describes all integration installation parameters
-    - Email, password, and home selection are not fully documented in README.
+- [X] `docs-configuration-parameters` - The documentation describes all integration configuration options
+    - README includes "Configuration Options" section documenting polling interval (15-60s, default 30s) with descriptions and recommendations.
+- [X] `docs-installation-parameters` - The documentation describes all integration installation parameters
+    - README includes "Installation Parameters" section documenting all setup parameters: Email, Password, Verification Code (MFA), and Home selection.
 - [X] `entity-unavailable` - Mark entity unavailable if appropriate
     - `available` property returns `self.coordinator.last_update_success` in base entity.
 - [X] `integration-owner` - Has an integration owner
@@ -123,7 +123,7 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
 | Tier | Met | Total | Percentage |
 |------|-----|-------|------------|
 | Bronze | 18 | 18 | 100% ✅ |
-| Silver | 8 | 10 | 80% |
+| Silver | 10 | 10 | 100% ✅ |
 | Gold | 14 | 20 | 70% |
 | Platinum | 2 | 3 | 67% |
 
@@ -131,9 +131,9 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
 
 All Bronze requirements are met. The integration is ready for Bronze certification.
 
-### Priority Improvements for Silver:
+### Silver Tier: COMPLETE ✅
 
-1. **Document parameters** - Document all config and options parameters in README
+All Silver requirements are met. The integration is ready for Silver certification.
 
 ### Priority Improvements for Gold:
 
