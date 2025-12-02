@@ -38,6 +38,7 @@ from custom_components.kwikset import (
 from custom_components.kwikset.const import (
     CONF_ACCESS_TOKEN,
     CONF_HOME_ID,
+    CONF_ID_TOKEN,
     CONF_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
     DEFAULT_REFRESH_INTERVAL,
@@ -139,10 +140,8 @@ class TestAsyncSetupEntry:
             ):
                 await async_setup_entry(hass, entry)
 
-        mock_api.async_renew_access_token.assert_called_once_with(
-            MOCK_ACCESS_TOKEN,
-            MOCK_REFRESH_TOKEN,
-        )
+        # Verify session restoration with tokens
+        mock_api.async_authenticate_with_tokens.assert_called_once()
         mock_api.user.get_info.assert_called_once()
 
     async def test_setup_fetches_devices(
@@ -311,7 +310,7 @@ class TestSetupErrorHandling:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.title = "Test Entry"
 
-        mock_api.async_renew_access_token.side_effect = Unauthenticated("Token expired")
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated("Token expired")
 
         with pytest.raises(ConfigEntryAuthFailed):
             await async_setup_entry(hass, entry)
@@ -327,7 +326,7 @@ class TestSetupErrorHandling:
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
 
-        mock_api.async_renew_access_token.side_effect = RequestError("Connection failed")
+        mock_api.async_authenticate_with_tokens.side_effect = RequestError("Connection failed")
 
         with pytest.raises(ConfigEntryNotReady):
             await async_setup_entry(hass, entry)
@@ -337,7 +336,7 @@ class TestSetupErrorHandling:
         hass: HomeAssistant,
         mock_api: MagicMock,
     ) -> None:
-        """Test setup updates config entry when tokens are refreshed."""
+        """Test token callback updates config entry when tokens are refreshed."""
         # Use MockConfigEntry with add_to_hass to enable async_update_entry
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -347,24 +346,38 @@ class TestSetupErrorHandling:
                 CONF_ACCESS_TOKEN: "old_access_token",
             },
             options=MOCK_ENTRY_OPTIONS.copy(),
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
 
-        # API returns new tokens
-        mock_api.access_token = "new_access_token"
-        mock_api.refresh_token = "new_refresh_token"
+        # Capture the token_update_callback that will be passed to API
+        captured_callback = None
+
+        def capture_callback(*args, **kwargs):
+            nonlocal captured_callback
+            captured_callback = kwargs.get("token_update_callback")
+            return mock_api
 
         with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+            "custom_components.kwikset.API",
+            side_effect=capture_callback,
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+            with patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
             ):
-                await async_setup_entry(hass, entry)
+                with patch.object(
+                    hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+                ):
+                    await async_setup_entry(hass, entry)
 
-        # Verify tokens were updated by checking entry data
+        # Verify callback was registered
+        assert captured_callback is not None
+
+        # Simulate token refresh via callback
+        await captured_callback("new_id_token", "new_access_token", "new_refresh_token")
+
+        # Verify tokens were updated via callback
         assert entry.data.get(CONF_ACCESS_TOKEN) == "new_access_token"
         assert entry.data.get(CONF_REFRESH_TOKEN) == "new_refresh_token"
 
@@ -486,7 +499,7 @@ class TestAsyncUnloadEntry:
 class TestAsyncMigrateEntry:
     """Tests for async_migrate_entry function."""
 
-    async def test_migrate_from_v1_to_v4(
+    async def test_migrate_from_v1_to_v5(
         self,
         hass: HomeAssistant,
     ) -> None:
@@ -521,7 +534,7 @@ class TestAsyncMigrateEntry:
             result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        assert entry.version == 4
+        assert entry.version == 5
 
     async def test_migrate_from_v2_adds_access_token(
         self,
@@ -575,9 +588,13 @@ class TestAsyncMigrateEntry:
         hass: HomeAssistant,
     ) -> None:
         """Test migration returns True for already current version."""
-        entry = MagicMock()
-        entry.version = 4
-        entry.data = MOCK_ENTRY_DATA.copy()
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            version=5,
+            data=MOCK_ENTRY_DATA.copy(),
+        )
+        entry.add_to_hass(hass)
 
         result = await async_migrate_entry(hass, entry)
 

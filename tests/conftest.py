@@ -58,6 +58,7 @@ def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
 from custom_components.kwikset.const import (
     CONF_ACCESS_TOKEN,
     CONF_HOME_ID,
+    CONF_ID_TOKEN,
     CONF_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
     DEFAULT_REFRESH_INTERVAL,
@@ -161,11 +162,13 @@ def generate_expiring_soon_jwt() -> str:
 
 
 MOCK_ACCESS_TOKEN = generate_mock_jwt()
+MOCK_ID_TOKEN = generate_mock_jwt()
 MOCK_REFRESH_TOKEN = "mock_refresh_token_abc123"
 
 MOCK_ENTRY_DATA = {
     CONF_EMAIL: MOCK_EMAIL,
     CONF_HOME_ID: MOCK_HOME_ID,
+    CONF_ID_TOKEN: MOCK_ID_TOKEN,
     CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
 }
@@ -190,13 +193,17 @@ def mock_api() -> Generator[MagicMock, None, None]:
         api = MagicMock()
 
         # Token properties
+        api.id_token = MOCK_ID_TOKEN
         api.access_token = MOCK_ACCESS_TOKEN
         api.refresh_token = MOCK_REFRESH_TOKEN
+        api.is_authenticated = True
 
         # Async authentication methods
         api.async_login = AsyncMock()
+        api.async_authenticate_with_tokens = AsyncMock()
         api.async_renew_access_token = AsyncMock()
         api.async_respond_to_mfa_challenge = AsyncMock()
+        api.async_close = AsyncMock()
 
         # User namespace
         api.user = MagicMock()
@@ -209,6 +216,10 @@ def mock_api() -> Generator[MagicMock, None, None]:
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
         api.device.lock_device = AsyncMock()
         api.device.unlock_device = AsyncMock()
+        api.device.set_led_enabled = AsyncMock()
+        api.device.set_audio_enabled = AsyncMock()
+        api.device.set_secure_screen_enabled = AsyncMock()
+        # Legacy methods for backwards compatibility
         api.device.set_ledstatus = AsyncMock()
         api.device.set_audiostatus = AsyncMock()
         api.device.set_securescreenstatus = AsyncMock()
@@ -227,13 +238,17 @@ def mock_api_config_flow() -> Generator[MagicMock, None, None]:
         api = MagicMock()
 
         # Token properties
+        api.id_token = MOCK_ID_TOKEN
         api.access_token = MOCK_ACCESS_TOKEN
         api.refresh_token = MOCK_REFRESH_TOKEN
+        api.is_authenticated = True
 
         # Async authentication methods
         api.async_login = AsyncMock()
+        api.async_authenticate_with_tokens = AsyncMock()
         api.async_renew_access_token = AsyncMock()
         api.async_respond_to_mfa_challenge = AsyncMock()
+        api.async_close = AsyncMock()
 
         # User namespace
         api.user = MagicMock()
@@ -258,10 +273,14 @@ def mock_api_device() -> Generator[MagicMock, None, None]:
     with patch("custom_components.kwikset.device.API") as mock_api_class:
         api = MagicMock()
 
+        api.id_token = MOCK_ID_TOKEN
         api.access_token = MOCK_ACCESS_TOKEN
         api.refresh_token = MOCK_REFRESH_TOKEN
+        api.is_authenticated = True
 
+        api.async_authenticate_with_tokens = AsyncMock()
         api.async_renew_access_token = AsyncMock()
+        api.async_close = AsyncMock()
 
         api.user = MagicMock()
         api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
@@ -270,6 +289,10 @@ def mock_api_device() -> Generator[MagicMock, None, None]:
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
         api.device.lock_device = AsyncMock()
         api.device.unlock_device = AsyncMock()
+        api.device.set_led_enabled = AsyncMock()
+        api.device.set_audio_enabled = AsyncMock()
+        api.device.set_secure_screen_enabled = AsyncMock()
+        # Legacy methods for backwards compatibility
         api.device.set_ledstatus = AsyncMock()
         api.device.set_audiostatus = AsyncMock()
         api.device.set_securescreenstatus = AsyncMock()
@@ -386,7 +409,7 @@ def mock_config_entry(hass: HomeAssistant) -> MockConfigEntry:
         options=MOCK_ENTRY_OPTIONS.copy(),
         title=MOCK_HOME_NAME,
         unique_id=MOCK_HOME_ID,
-        version=4,
+        version=5,
     )
     entry.add_to_hass(hass)
     # Set state to SETUP_IN_PROGRESS for async_config_entry_first_refresh
@@ -406,7 +429,7 @@ def mock_config_entry_not_setup(hass: HomeAssistant) -> MockConfigEntry:
         options=MOCK_ENTRY_OPTIONS.copy(),
         title=MOCK_HOME_NAME,
         unique_id=MOCK_HOME_ID,
-        version=4,
+        version=5,
     )
     entry.add_to_hass(hass)
     return entry

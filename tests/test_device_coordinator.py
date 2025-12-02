@@ -1,7 +1,6 @@
 """Tests for the KwiksetDeviceDataUpdateCoordinator.
 
 Tests the device coordinator including:
-- Token management and proactive refresh
 - API call retry logic
 - Device property access
 - Lock/unlock and settings actions
@@ -13,25 +12,21 @@ Quality Scale: Platinum tier - coordinator is the central data management compon
 from __future__ import annotations
 
 import asyncio
-import time
 from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiokwikset.api import Unauthenticated
-from aiokwikset.errors import RequestError
+from aiokwikset.errors import RequestError, TokenExpiredError, Unauthenticated
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
-from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.kwikset.const import (
     CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
     MAX_RETRY_ATTEMPTS,
     RETRY_DELAY_SECONDS,
-    TOKEN_REFRESH_BUFFER_SECONDS,
 )
 from custom_components.kwikset.device import (
     KwiksetDeviceData,
@@ -47,8 +42,6 @@ from .conftest import (
     MOCK_ENTRY_OPTIONS,
     MOCK_REFRESH_TOKEN,
     MOCK_USER_INFO,
-    generate_expired_jwt,
-    generate_expiring_soon_jwt,
     generate_mock_jwt,
 )
 
@@ -108,138 +101,6 @@ class TestCoordinatorInit:
         assert coordinator.data is not None
         assert coordinator.data["door_status"] == "Locked"
         assert coordinator.data["battery_percentage"] == 85
-
-
-# =============================================================================
-# Token Management Tests
-# =============================================================================
-
-
-class TestTokenManagement:
-    """Tests for token parsing and refresh logic."""
-
-    async def test_parse_valid_jwt_token(
-        self,
-        hass: HomeAssistant,
-    ) -> None:
-        """Test JWT token expiry is parsed correctly."""
-        from pytest_homeassistant_custom_component.common import MockConfigEntry
-        from homeassistant.config_entries import ConfigEntryState
-        from custom_components.kwikset.const import DOMAIN, CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
-
-        # Create entry with custom token
-        entry_data = {
-            **MOCK_ENTRY_DATA,
-            CONF_ACCESS_TOKEN: generate_mock_jwt(expiry_seconds=3600),
-        }
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data=entry_data,
-            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
-            title="Test Home",
-            unique_id="test_home_valid_jwt",
-            version=4,
-        )
-        entry.add_to_hass(hass)
-        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
-
-        api = MagicMock()
-        api.device = MagicMock()
-        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-
-        coordinator = KwiksetDeviceDataUpdateCoordinator(
-            hass=hass,
-            api_client=api,
-            device_id=MOCK_DEVICE_ID,
-            device_name=MOCK_DEVICE_NAME,
-            update_interval=30,
-            config_entry=entry,
-        )
-
-        # Token should not be expiring soon (3600s > 300s buffer)
-        assert not coordinator._is_token_expiring_soon()
-
-    async def test_detect_expiring_token(
-        self,
-        hass: HomeAssistant,
-    ) -> None:
-        """Test token expiring within buffer is detected."""
-        from pytest_homeassistant_custom_component.common import MockConfigEntry
-        from homeassistant.config_entries import ConfigEntryState
-        from custom_components.kwikset.const import DOMAIN, CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
-
-        # Token expires in 60 seconds (within 300s buffer)
-        entry_data = {
-            **MOCK_ENTRY_DATA,
-            CONF_ACCESS_TOKEN: generate_expiring_soon_jwt(),
-        }
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data=entry_data,
-            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
-            title="Test Home",
-            unique_id="test_home_expiring_jwt",
-            version=4,
-        )
-        entry.add_to_hass(hass)
-        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
-
-        api = MagicMock()
-        api.device = MagicMock()
-        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-
-        coordinator = KwiksetDeviceDataUpdateCoordinator(
-            hass=hass,
-            api_client=api,
-            device_id=MOCK_DEVICE_ID,
-            device_name=MOCK_DEVICE_NAME,
-            update_interval=30,
-            config_entry=entry,
-        )
-
-        assert coordinator._is_token_expiring_soon()
-
-    async def test_invalid_jwt_format_handled(
-        self,
-        hass: HomeAssistant,
-    ) -> None:
-        """Test invalid JWT format is handled gracefully."""
-        from pytest_homeassistant_custom_component.common import MockConfigEntry
-        from homeassistant.config_entries import ConfigEntryState
-        from custom_components.kwikset.const import DOMAIN, CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
-
-        entry_data = {
-            **MOCK_ENTRY_DATA,
-            CONF_ACCESS_TOKEN: "not.a.valid.jwt.token",
-        }
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data=entry_data,
-            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
-            title="Test Home",
-            unique_id="test_home_invalid_jwt",
-            version=4,
-        )
-        entry.add_to_hass(hass)
-        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
-
-        api = MagicMock()
-        api.device = MagicMock()
-        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-
-        # Should not raise, but token expiry should be None
-        coordinator = KwiksetDeviceDataUpdateCoordinator(
-            hass=hass,
-            api_client=api,
-            device_id=MOCK_DEVICE_ID,
-            device_name=MOCK_DEVICE_NAME,
-            update_interval=30,
-            config_entry=entry,
-        )
-
-        assert coordinator._token_expiry is None
-        # With None expiry, should assume expiring soon
-        assert coordinator._is_token_expiring_soon()
 
 
 # =============================================================================
@@ -354,7 +215,34 @@ class TestRetryLogic:
         api = MagicMock()
         api.device = MagicMock()
         api.device.get_device_info = AsyncMock(
-            side_effect=Unauthenticated("Token expired")
+            side_effect=TokenExpiredError("Token expired")
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await coordinator._api_call_with_retry(
+                api.device.get_device_info,
+                MOCK_DEVICE_ID,
+            )
+
+    async def test_unauthenticated_error_raises_config_entry_auth_failed(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test ConfigEntryAuthFailed is raised on Unauthenticated error."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(
+            side_effect=Unauthenticated("Invalid credentials")
         )
 
         coordinator = KwiksetDeviceDataUpdateCoordinator(
@@ -506,7 +394,7 @@ class TestDeviceActions:
         api = MagicMock()
         api.device = MagicMock()
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-        api.device.set_ledstatus = AsyncMock()
+        api.device.set_led_enabled = AsyncMock()
 
         coordinator = KwiksetDeviceDataUpdateCoordinator(
             hass=hass,
@@ -520,9 +408,9 @@ class TestDeviceActions:
         await coordinator.async_config_entry_first_refresh()
         await coordinator.set_led(True)
 
-        api.device.set_ledstatus.assert_called_once()
-        call_args = api.device.set_ledstatus.call_args
-        assert call_args[0][1] == "true"
+        api.device.set_led_enabled.assert_called_once()
+        call_args = api.device.set_led_enabled.call_args
+        assert call_args[0][1] is True
 
     async def test_set_audio_action(
         self,
@@ -533,7 +421,7 @@ class TestDeviceActions:
         api = MagicMock()
         api.device = MagicMock()
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-        api.device.set_audiostatus = AsyncMock()
+        api.device.set_audio_enabled = AsyncMock()
 
         coordinator = KwiksetDeviceDataUpdateCoordinator(
             hass=hass,
@@ -547,9 +435,9 @@ class TestDeviceActions:
         await coordinator.async_config_entry_first_refresh()
         await coordinator.set_audio(False)
 
-        api.device.set_audiostatus.assert_called_once()
-        call_args = api.device.set_audiostatus.call_args
-        assert call_args[0][1] == "false"
+        api.device.set_audio_enabled.assert_called_once()
+        call_args = api.device.set_audio_enabled.call_args
+        assert call_args[0][1] is False
 
     async def test_set_secure_screen_action(
         self,
@@ -560,7 +448,7 @@ class TestDeviceActions:
         api = MagicMock()
         api.device = MagicMock()
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-        api.device.set_securescreenstatus = AsyncMock()
+        api.device.set_secure_screen_enabled = AsyncMock()
 
         coordinator = KwiksetDeviceDataUpdateCoordinator(
             hass=hass,
@@ -574,9 +462,9 @@ class TestDeviceActions:
         await coordinator.async_config_entry_first_refresh()
         await coordinator.set_secure_screen(True)
 
-        api.device.set_securescreenstatus.assert_called_once()
-        call_args = api.device.set_securescreenstatus.call_args
-        assert call_args[0][1] == "true"
+        api.device.set_secure_screen_enabled.assert_called_once()
+        call_args = api.device.set_secure_screen_enabled.call_args
+        assert call_args[0][1] is True
 
 
 # =============================================================================

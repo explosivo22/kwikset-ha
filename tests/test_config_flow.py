@@ -158,11 +158,16 @@ class TestHomeSelection:
             {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
         )
 
-        # Select home
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"],
-            {CONF_HOME_ID: MOCK_HOME_ID},
-        )
+        # Mock async_setup_entry to prevent actual setup
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            # Select home
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_HOME_ID: MOCK_HOME_ID},
+            )
 
         assert result["type"] == FlowResultType.CREATE_ENTRY
         assert result["title"] == MOCK_HOME_NAME
@@ -328,7 +333,7 @@ class TestReauthFlow:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
 
@@ -366,7 +371,7 @@ class TestReauthFlow:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
 
@@ -413,7 +418,7 @@ class TestReconfigureFlow:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
 
@@ -455,7 +460,7 @@ class TestOptionsFlow:
             options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
 
@@ -483,7 +488,7 @@ class TestOptionsFlow:
             options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
 
@@ -512,22 +517,27 @@ class TestEdgeCases:
         mock_api_config_flow: MagicMock,
     ) -> None:
         """Test that duplicate entries are prevented via unique_id."""
-        # Complete first flow
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
+        # Mock async_setup_entry to prevent actual setup
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            # Complete first flow
+            result = await hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": config_entries.SOURCE_USER}
+            )
 
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"],
-            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
-        )
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+            )
 
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"],
-            {CONF_HOME_ID: MOCK_HOME_ID},
-        )
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_HOME_ID: MOCK_HOME_ID},
+            )
 
-        assert result["type"] == FlowResultType.CREATE_ENTRY
+            assert result["type"] == FlowResultType.CREATE_ENTRY
 
         # Try to create another entry for the same home
         mock_api_config_flow.user.get_homes.return_value = [
@@ -555,4 +565,4 @@ class TestEdgeCases:
 
     async def test_flow_handler_version(self) -> None:
         """Test flow handler has correct version."""
-        assert KwiksetFlowHandler.VERSION == 4
+        assert KwiksetFlowHandler.VERSION == 5

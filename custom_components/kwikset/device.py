@@ -14,15 +14,17 @@ Quality Scale:
 from __future__ import annotations
 
 import asyncio
-import base64
-import json
-import time
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
-from aiokwikset.api import API, Unauthenticated
-from aiokwikset.errors import RequestError
+from aiokwikset import API
+from aiokwikset.errors import (
+    ConnectionError as KwiksetConnectionError,
+    RequestError,
+    TokenExpiredError,
+    Unauthenticated,
+)
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
@@ -30,13 +32,10 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_REFRESH_TOKEN,
     DOMAIN,
     LOGGER,
     MAX_RETRY_ATTEMPTS,
     RETRY_DELAY_SECONDS,
-    TOKEN_REFRESH_BUFFER_SECONDS,
 )
 
 if TYPE_CHECKING:
@@ -73,8 +72,11 @@ class KwiksetDeviceData(TypedDict, total=False):
 class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData]):
     """Coordinator for a single Kwikset device.
 
-    Centralizes API communication, token refresh, and retry logic.
+    Centralizes API communication and retry logic.
     Entities use coordinator methods/properties, never the API directly.
+
+    Token refresh is now handled automatically by the aiokwikset library
+    via the token_update_callback passed during API initialization.
     """
 
     config_entry: KwiksetConfigEntry
@@ -100,76 +102,6 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self.device_id = device_id
         self._device_name = device_name
         self._device_info: dict[str, Any] = {}
-        self._token_expiry: float | None = None
-        self._parse_token_expiry()
-
-    # -------------------------------------------------------------------------
-    # Token Management
-    # -------------------------------------------------------------------------
-
-    def _parse_token_expiry(self) -> None:
-        """Parse JWT token to extract expiration time."""
-        access_token = self.config_entry.data.get(CONF_ACCESS_TOKEN, "")
-        parts = access_token.split(".")
-        if len(parts) != 3:
-            self._token_expiry = None
-            return
-
-        try:
-            # Decode JWT payload (add base64 padding)
-            payload = parts[1] + "=" * (-len(parts[1]) % 4)
-            token_data = json.loads(base64.urlsafe_b64decode(payload))
-            self._token_expiry = float(token_data["exp"])
-            LOGGER.debug("Token expiry parsed: %s", self._token_expiry)
-        except (ValueError, KeyError, json.JSONDecodeError) as err:
-            LOGGER.debug("Could not parse token expiry: %s", err)
-            self._token_expiry = None
-
-    def _is_token_expiring_soon(self) -> bool:
-        """Check if token is expiring within buffer period."""
-        if self._token_expiry is None:
-            return True
-        return time.time() >= (self._token_expiry - TOKEN_REFRESH_BUFFER_SECONDS)
-
-    async def _ensure_valid_token(self) -> None:
-        """Refresh token if expiring soon."""
-        if not self._is_token_expiring_soon():
-            return
-
-        LOGGER.debug("Token expiring soon, refreshing proactively")
-        try:
-            await self.api_client.async_renew_access_token(
-                self.config_entry.data[CONF_ACCESS_TOKEN],
-                self.config_entry.data[CONF_REFRESH_TOKEN],
-            )
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                data={
-                    **self.config_entry.data,
-                    CONF_ACCESS_TOKEN: self.api_client.access_token,
-                    CONF_REFRESH_TOKEN: self.api_client.refresh_token,
-                },
-            )
-            self._parse_token_expiry()
-            LOGGER.debug("Token refreshed successfully")
-        except Unauthenticated as err:
-            # Create repair issue to notify user of authentication expiry
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                f"auth_expired_{self.config_entry.entry_id}",
-                is_fixable=True,
-                is_persistent=True,
-                severity=ir.IssueSeverity.ERROR,
-                translation_key="auth_expired",
-                translation_placeholders={"entry_title": self.config_entry.title},
-            )
-            raise ConfigEntryAuthFailed(
-                translation_domain=DOMAIN,
-                translation_key="token_refresh_failed",
-            ) from err
-        except RequestError as err:
-            LOGGER.warning("Token refresh network error: %s", err)
 
     # -------------------------------------------------------------------------
     # API Call Wrapper
@@ -181,19 +113,32 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         *args: Any,
         **kwargs: Any,
     ) -> _T:
-        """Execute API call with retry logic and token refresh."""
+        """Execute API call with retry logic.
+
+        Token refresh is handled automatically by the aiokwikset library.
+        """
         last_error: Exception | None = None
 
         for attempt in range(MAX_RETRY_ATTEMPTS):
-            await self._ensure_valid_token()
             try:
                 return await api_call(*args, **kwargs)
-            except Unauthenticated as err:
+            except (TokenExpiredError, Unauthenticated) as err:
+                # Create repair issue to notify user of authentication expiry
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    f"auth_expired_{self.config_entry.entry_id}",
+                    is_fixable=True,
+                    is_persistent=True,
+                    severity=ir.IssueSeverity.ERROR,
+                    translation_key="auth_expired",
+                    translation_placeholders={"entry_title": self.config_entry.title},
+                )
                 raise ConfigEntryAuthFailed(
                     translation_domain=DOMAIN,
                     translation_key="auth_failed",
                 ) from err
-            except RequestError as err:
+            except (RequestError, KwiksetConnectionError) as err:
                 last_error = err
                 if attempt < MAX_RETRY_ATTEMPTS - 1:
                     LOGGER.debug(
@@ -349,31 +294,31 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         await self.async_request_refresh()
 
     async def set_led(self, enabled: bool) -> None:
-        """Set LED status."""
+        """Set LED status using convenience method."""
         await self._api_call_with_retry(
-            self.api_client.device.set_ledstatus,
+            self.api_client.device.set_led_enabled,
             self._device_info,
-            "true" if enabled else "false",
+            enabled,
         )
         LOGGER.debug("LED set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()
 
     async def set_audio(self, enabled: bool) -> None:
-        """Set audio status."""
+        """Set audio status using convenience method."""
         await self._api_call_with_retry(
-            self.api_client.device.set_audiostatus,
+            self.api_client.device.set_audio_enabled,
             self._device_info,
-            "true" if enabled else "false",
+            enabled,
         )
         LOGGER.debug("Audio set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()
 
     async def set_secure_screen(self, enabled: bool) -> None:
-        """Set secure screen status."""
+        """Set secure screen status using convenience method."""
         await self._api_call_with_retry(
-            self.api_client.device.set_securescreenstatus,
+            self.api_client.device.set_secure_screen_enabled,
             self._device_info,
-            "true" if enabled else "false",
+            enabled,
         )
         LOGGER.debug("Secure screen set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()

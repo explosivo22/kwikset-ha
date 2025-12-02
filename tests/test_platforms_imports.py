@@ -309,13 +309,11 @@ class TestConstantsModuleImports:
             DEFAULT_REFRESH_INTERVAL,
             MAX_RETRY_ATTEMPTS,
             RETRY_DELAY_SECONDS,
-            TOKEN_REFRESH_BUFFER_SECONDS,
         )
 
         assert DEFAULT_REFRESH_INTERVAL == 30
         assert MAX_RETRY_ATTEMPTS == 3
         assert RETRY_DELAY_SECONDS == 2
-        assert TOKEN_REFRESH_BUFFER_SECONDS == 300
 
     def test_constants_has_logger(self) -> None:
         """Test constants module exports LOGGER."""
@@ -351,10 +349,10 @@ class TestConfigFlowModuleImports:
         assert KwiksetOptionsFlow is not None
 
     def test_config_flow_handler_version(self) -> None:
-        """Test config flow handler has version 4."""
+        """Test config flow handler has version 5."""
         from custom_components.kwikset.config_flow import KwiksetFlowHandler
 
-        assert KwiksetFlowHandler.VERSION == 4
+        assert KwiksetFlowHandler.VERSION == 5
 
 
 # =============================================================================

@@ -13,7 +13,7 @@ Flow Steps:
 
 Architecture:
     - Uses aiokwikset library for all API communication
-    - Tokens are stored in config_entry.data for persistence
+    - Tokens (id_token, access_token, refresh_token) are stored in config_entry.data
     - Refresh interval is stored in config_entry.options for user customization
     - Each home is a separate config entry (unique_id = home_id)
 """
@@ -24,7 +24,13 @@ from collections.abc import Mapping
 from typing import Any
 
 from aiokwikset import API
-from aiokwikset.errors import MFAChallengeRequired, RequestError
+from aiokwikset.errors import (
+    ConnectionError as KwiksetConnectionError,
+    MFAChallengeRequired,
+    RequestError,
+    TokenExpiredError,
+    Unauthenticated,
+)
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
@@ -41,6 +47,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_HOME_ID,
+    CONF_ID_TOKEN,
     CONF_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
     DEFAULT_REFRESH_INTERVAL,
@@ -71,7 +78,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     Also handles reauthentication when tokens expire.
     """
 
-    VERSION = 4
+    VERSION = 5
 
     def __init__(self) -> None:
         """Initialize the flow handler."""
@@ -106,7 +113,10 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self.mfa_type = mfa_error.mfa_type
             self.mfa_tokens = mfa_error.mfa_tokens
             return None  # MFA needed, but not an error
-        except RequestError as err:
+        except Unauthenticated:
+            LOGGER.error("Invalid credentials")
+            return "invalid_auth"
+        except (RequestError, KwiksetConnectionError) as err:
             LOGGER.error("API connection error: %s", err)
             return "cannot_connect"
         except Exception:
@@ -126,7 +136,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self.mfa_type = None
             self.mfa_tokens = None
             return None  # Success
-        except RequestError:
+        except (RequestError, Unauthenticated):
             LOGGER.error("MFA verification failed")
             return "invalid_mfa"
         except Exception:
@@ -137,6 +147,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Create token data dict for config entry."""
         return {
             CONF_EMAIL: self.username,
+            CONF_ID_TOKEN: self.api.id_token,
             CONF_ACCESS_TOKEN: self.api.access_token,
             CONF_REFRESH_TOKEN: self.api.refresh_token,
         }
@@ -232,18 +243,23 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             entry = self._get_reconfigure_entry()
             try:
                 self.api = API()
-                await self.api.async_renew_access_token(
-                    entry.data[CONF_ACCESS_TOKEN],
-                    entry.data[CONF_REFRESH_TOKEN],
+                await self.api.async_authenticate_with_tokens(
+                    id_token=entry.data.get(CONF_ID_TOKEN, ""),
+                    access_token=entry.data[CONF_ACCESS_TOKEN],
+                    refresh_token=entry.data[CONF_REFRESH_TOKEN],
                 )
                 return self.async_update_reload_and_abort(
                     entry,
                     data_updates={
+                        CONF_ID_TOKEN: self.api.id_token,
                         CONF_ACCESS_TOKEN: self.api.access_token,
                         CONF_REFRESH_TOKEN: self.api.refresh_token,
                     },
                 )
-            except RequestError as err:
+            except (TokenExpiredError, Unauthenticated) as err:
+                LOGGER.error("Reconfigure auth error: %s", err)
+                errors["base"] = "token_expired"
+            except (RequestError, KwiksetConnectionError) as err:
                 LOGGER.error("Reconfigure connection error: %s", err)
                 errors["base"] = "cannot_connect"
             except Exception:
@@ -343,6 +359,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         entry_data = {
             CONF_EMAIL: self.username,
             CONF_HOME_ID: self.home_id,
+            CONF_ID_TOKEN: self.api.id_token,
             CONF_ACCESS_TOKEN: self.api.access_token,
             CONF_REFRESH_TOKEN: self.api.refresh_token,
         }

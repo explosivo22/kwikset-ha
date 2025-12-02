@@ -111,8 +111,8 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
 ## Platinum
 - [X] `async-dependency` - Dependency is async
     - Uses `aiokwikset` which is an async library (aio prefix).
-- [ ] `inject-websession` - The integration dependency supports passing in a websession
-    - `async_get_clientsession(hass)` is imported but not passed to `API()`. The API client should accept a websession parameter. **Blocked by upstream library.**
+- [X] `inject-websession` - The integration dependency supports passing in a websession
+    - `async_get_clientsession(hass)` is passed to `API(websession=...)` in `async_setup_entry`. The API client accepts the websession parameter and uses it for all HTTP requests.
 - [X] `strict-typing` - Strict typing
     - `py.typed` marker file exists. Full type annotations throughout with TypedDict, Final, and generic types.
 
@@ -125,7 +125,7 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
 | Bronze | 18 | 18 | 100% ✅ |
 | Silver | 10 | 10 | 100% ✅ |
 | Gold | 18 | 18 | 100% ✅ |
-| Platinum | 2 | 3 | 67% |
+| Platinum | 3 | 3 | 100% ✅ |
 
 ### Bronze Tier: COMPLETE ✅
 
@@ -139,6 +139,6 @@ All Silver requirements are met.
 
 All Gold requirements are met. Note: `discovery` and `discovery-update-info` are marked N/A as this is a cloud-based integration.
 
-### Platinum Blocker:
+### Platinum Tier: COMPLETE ✅
 
-1. **inject-websession** - Requires upstream `aiokwikset` library changes to accept a websession parameter
+All Platinum requirements are met! The `inject-websession` requirement is now fulfilled with the updated aiokwikset library.

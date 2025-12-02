@@ -104,8 +104,8 @@ class TestEntrySetup:
             data=MOCK_ENTRY_DATA.copy(),
             options=MOCK_ENTRY_OPTIONS.copy(),
             title="Test Home",
-            unique_id="test_home_coordinators",
-            version=4,
+            unique_id="test_home_id",
+            version=5,
         )
         entry.add_to_hass(hass)
         entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
@@ -148,7 +148,7 @@ class TestEntrySetup:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.title = "Test Entry"
 
-        mock_api.async_renew_access_token.side_effect = Unauthenticated("Token expired")
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated("Token expired")
 
         with pytest.raises(ConfigEntryAuthFailed):
             await async_setup_entry(hass, entry)
@@ -164,7 +164,7 @@ class TestEntrySetup:
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
 
-        mock_api.async_renew_access_token.side_effect = RequestError("Connection failed")
+        mock_api.async_authenticate_with_tokens.side_effect = RequestError("Connection failed")
 
         with pytest.raises(ConfigEntryNotReady):
             await async_setup_entry(hass, entry)
@@ -174,7 +174,7 @@ class TestEntrySetup:
         hass: HomeAssistant,
         mock_api: MagicMock,
     ) -> None:
-        """Test setup saves refreshed tokens to config entry."""
+        """Test token callback saves refreshed tokens to config entry."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
         from homeassistant.config_entries import ConfigEntryState
 
@@ -187,25 +187,39 @@ class TestEntrySetup:
             options=MOCK_ENTRY_OPTIONS.copy(),
             title="Test Home",
             unique_id="test_home_tokens",
-            version=4,
+            version=5,
         )
         entry.add_to_hass(hass)
         entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
-        # API returns new tokens
-        mock_api.access_token = "new_access_token"
-        mock_api.refresh_token = "new_refresh_token"
+        # Capture the token_update_callback that will be passed to API
+        captured_callback = None
+
+        def capture_callback(*args, **kwargs):
+            nonlocal captured_callback
+            captured_callback = kwargs.get("token_update_callback")
+            return mock_api
 
         with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+            "custom_components.kwikset.API",
+            side_effect=capture_callback,
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+            with patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
             ):
-                await async_setup_entry(hass, entry)
+                with patch.object(
+                    hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+                ):
+                    await async_setup_entry(hass, entry)
 
-        # Verify tokens were updated in entry data
+        # Verify callback was registered
+        assert captured_callback is not None
+
+        # Simulate token refresh via callback
+        await captured_callback("new_id_token", "new_access_token", "new_refresh_token")
+
+        # Verify tokens were updated via callback
         assert entry.data[CONF_ACCESS_TOKEN] == "new_access_token"
         assert entry.data[CONF_REFRESH_TOKEN] == "new_refresh_token"
 
@@ -291,11 +305,11 @@ class TestEntryUnload:
 class TestMigration:
     """Tests for config entry migration."""
 
-    async def test_migrate_v1_to_v4(
+    async def test_migrate_v1_to_v5(
         self,
         hass: HomeAssistant,
     ) -> None:
-        """Test migration from version 1 to 4."""
+        """Test migration from version 1 to 5."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
 
         entry = MockConfigEntry(
@@ -313,13 +327,13 @@ class TestMigration:
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        assert entry.version == 4
+        assert entry.version == 5
 
-    async def test_migrate_v2_to_v4(
+    async def test_migrate_v2_to_v5(
         self,
         hass: HomeAssistant,
     ) -> None:
-        """Test migration from version 2 to 4."""
+        """Test migration from version 2 to 5."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
 
         entry = MockConfigEntry(
@@ -337,14 +351,14 @@ class TestMigration:
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        # Should have migrated to v4
-        assert entry.version == 4
+        # Should have migrated to v5
+        assert entry.version == 5
 
-    async def test_migrate_v3_to_v4(
+    async def test_migrate_v3_to_v5(
         self,
         hass: HomeAssistant,
     ) -> None:
-        """Test migration from version 3 to 4."""
+        """Test migration from version 3 to 5."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
 
         entry = MockConfigEntry(
@@ -363,8 +377,8 @@ class TestMigration:
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        # Should have migrated to v4
-        assert entry.version == 4
+        # Should have migrated to v5
+        assert entry.version == 5
 
 
 # =============================================================================

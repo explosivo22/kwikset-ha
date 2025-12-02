@@ -16,26 +16,29 @@ import logging
 from typing import Any
 
 from aiokwikset import API
-from aiokwikset.api import Unauthenticated
-from aiokwikset.errors import RequestError
+from aiokwikset.errors import ConnectionError as KwiksetConnectionError
+from aiokwikset.errors import RequestError, TokenExpiredError, Unauthenticated
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_HOME_ID,
+    CONF_ID_TOKEN,
     CONF_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
 )
 from .device import KwiksetDeviceDataUpdateCoordinator
+
+from homeassistant.helpers.event import async_track_time_interval
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,28 +93,34 @@ def _create_auth_issue(hass: HomeAssistant, entry: KwiksetConfigEntry) -> None:
     )
 
 
-async def _refresh_tokens(
+async def _async_update_tokens(
     hass: HomeAssistant,
     entry: KwiksetConfigEntry,
-    client: API,
+    id_token: str,
+    access_token: str,
+    refresh_token: str,
 ) -> None:
-    """Refresh and persist tokens if changed.
+    """Callback to update config entry with new tokens.
+
+    This is called by the aiokwikset library when tokens are refreshed.
 
     Args:
         hass: Home Assistant instance.
         entry: Config entry with stored tokens.
-        client: API client with potentially new tokens.
+        id_token: New ID token.
+        access_token: New access token.
+        refresh_token: New refresh token.
     """
-    if client.access_token != entry.data[CONF_ACCESS_TOKEN]:
-        hass.config_entries.async_update_entry(
-            entry,
-            data={
-                **entry.data,
-                CONF_ACCESS_TOKEN: client.access_token,
-                CONF_REFRESH_TOKEN: client.refresh_token,
-            },
-        )
-        _LOGGER.debug("Tokens refreshed and saved to config entry")
+    hass.config_entries.async_update_entry(
+        entry,
+        data={
+            **entry.data,
+            CONF_ID_TOKEN: id_token,
+            CONF_ACCESS_TOKEN: access_token,
+            CONF_REFRESH_TOKEN: refresh_token,
+        },
+    )
+    _LOGGER.debug("Tokens refreshed and saved to config entry")
 
 
 def _create_coordinator(
@@ -185,20 +194,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         ConfigEntryAuthFailed: If authentication fails.
         ConfigEntryNotReady: If there's a transient connection issue.
     """
-    client = API()
+    # Get Home Assistant's shared aiohttp session (Platinum: inject-websession)
+    websession = async_get_clientsession(hass)
 
-    # Authenticate and validate tokens
+    # Create token update callback bound to this entry
+    async def token_update_callback(
+        id_token: str, access_token: str, refresh_token: str
+    ) -> None:
+        """Update tokens when the library refreshes them."""
+        await _async_update_tokens(hass, entry, id_token, access_token, refresh_token)
+
+    # Create API client with websession and token callback
+    client = API(
+        websession=websession,
+        token_update_callback=token_update_callback,
+    )
+
+    # Authenticate and validate tokens using session restoration
     try:
-        await client.async_renew_access_token(
-            entry.data[CONF_ACCESS_TOKEN],
-            entry.data[CONF_REFRESH_TOKEN],
+        await client.async_authenticate_with_tokens(
+            id_token=entry.data.get(CONF_ID_TOKEN, ""),
+            access_token=entry.data[CONF_ACCESS_TOKEN],
+            refresh_token=entry.data[CONF_REFRESH_TOKEN],
         )
-        await _refresh_tokens(hass, entry, client)
         await client.user.get_info()
-    except Unauthenticated as err:
+    except (TokenExpiredError, Unauthenticated) as err:
         _create_auth_issue(hass, entry)
         raise ConfigEntryAuthFailed(err) from err
-    except RequestError as err:
+    except (RequestError, KwiksetConnectionError) as err:
         raise ConfigEntryNotReady from err
 
     # Fetch devices and create coordinators
@@ -236,6 +259,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> 
     if entry.runtime_data.cancel_device_discovery:
         entry.runtime_data.cancel_device_discovery()
         entry.runtime_data.cancel_device_discovery = None
+
+    # Close the API client to cleanup resources
+    if hasattr(entry.runtime_data.client, "async_close"):
+        await entry.runtime_data.client.async_close()
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
@@ -334,7 +361,7 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
             _LOGGER.info("Detected %d removed device(s): %s", len(removed_device_ids), removed_device_ids)
             await _async_remove_stale_devices(hass, entry, removed_device_ids)
 
-    except (Unauthenticated, RequestError) as err:
+    except (TokenExpiredError, Unauthenticated, RequestError, KwiksetConnectionError) as err:
         _LOGGER.error("Error checking for device changes: %s", err)
 
 # =============================================================================
@@ -394,6 +421,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         v1 → v2: Version bump only.
         v2 → v3: Added CONF_ACCESS_TOKEN field.
         v3 → v4: Moved CONF_REFRESH_INTERVAL to options.
+        v4 → v5: Added CONF_ID_TOKEN field for new aiokwikset API.
     """
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
@@ -412,6 +440,14 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         if not data.get(CONF_REFRESH_INTERVAL):
             data[CONF_REFRESH_INTERVAL] = DEFAULT_REFRESH_INTERVAL
         hass.config_entries.async_update_entry(config_entry, data=data, version=4)
+
+    if config_entry.version == 4:
+        # v4 → v5: Add CONF_ID_TOKEN (use access_token as placeholder until refreshed)
+        data = {**config_entry.data}
+        if not data.get(CONF_ID_TOKEN):
+            # Use empty string as placeholder - will be populated on first token refresh
+            data[CONF_ID_TOKEN] = ""
+        hass.config_entries.async_update_entry(config_entry, data=data, version=5)
 
     _LOGGER.info("Migration to version %s successful", config_entry.version)
     return True

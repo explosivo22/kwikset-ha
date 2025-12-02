@@ -21,18 +21,15 @@ DOMAIN: Final = "kwikset"
 # Configuration keys stored in config_entry.data
 # Note: We use HA's CONF_EMAIL, CONF_PASSWORD from homeassistant.const
 CONF_HOME_ID: Final = "conf_home_id"
-CONF_REFRESH_TOKEN: Final = "conf_refresh_token"
+CONF_ID_TOKEN: Final = "conf_id_token"
 CONF_ACCESS_TOKEN: Final = "conf_access_token"
+CONF_REFRESH_TOKEN: Final = "conf_refresh_token"
 
 # Configuration keys stored in config_entry.options
 CONF_REFRESH_INTERVAL: Final = "refresh_interval"
 
 # Default polling interval in seconds (configurable 15-60s via options flow)
 DEFAULT_REFRESH_INTERVAL: Final = 30
-
-# Token refresh settings for proactive JWT token management
-# Refresh 5 minutes before expiry to prevent auth failures during API calls
-TOKEN_REFRESH_BUFFER_SECONDS: Final = 300
 
 # Retry settings for transient API failures (network issues, rate limits)
 MAX_RETRY_ATTEMPTS: Final = 3
