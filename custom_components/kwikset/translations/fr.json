@@ -1,0 +1,145 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Se connecter à Kwikset",
+                "description": "Entrez vos identifiants de compte Kwikset.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Mot de passe"
+                },
+                "data_description": {
+                    "email": "L'adresse e-mail utilisée pour votre compte Kwikset",
+                    "password": "Le mot de passe de votre compte Kwikset"
+                }
+            },
+            "select_home": {
+                "title": "Sélectionner la maison",
+                "description": "Choisissez quelle maison Kwikset configurer.",
+                "data": {
+                    "conf_home_id": "Maison"
+                },
+                "data_description": {
+                    "conf_home_id": "Sélectionnez la maison Kwikset contenant vos serrures intelligentes"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Réauthentification requise",
+                "description": "L'intégration Kwikset doit réauthentifier votre compte. Veuillez entrer vos identifiants.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Mot de passe"
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigurer Kwikset",
+                "description": "Cela rechargera l'intégration et découvrira tous les nouveaux appareils ajoutés à votre maison Kwikset."
+            },
+            "mfa": {
+                "title": "Authentification multifacteur",
+                "description": "Entrez le code de vérification de votre {mfa_type}.",
+                "data": {
+                    "mfa_code": "Code de vérification"
+                },
+                "data_description": {
+                    "mfa_code": "Le code à 6 chiffres envoyé à votre appareil"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Authentification multifacteur",
+                "description": "Entrez le code de vérification de votre {mfa_type} pour terminer la réauthentification.",
+                "data": {
+                    "mfa_code": "Code de vérification"
+                },
+                "data_description": {
+                    "mfa_code": "Le code à 6 chiffres envoyé à votre appareil"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Échec de la connexion",
+            "invalid_auth": "Authentification invalide",
+            "invalid_mfa": "Code de vérification invalide. Veuillez réessayer.",
+            "unknown": "Erreur inattendue",
+            "token_expired": "Le jeton d'authentification a expiré. Veuillez vous reconnecter."
+        },
+        "abort": {
+            "already_configured": "L'appareil est déjà configuré",
+            "reauth_successful": "La réauthentification a réussi",
+            "no_available_homes": "Aucune maison disponible à configurer"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Options Kwikset",
+                "description": "Configurer les options d'intégration Kwikset.",
+                "data": {
+                    "refresh_interval": "Intervalle d'interrogation (secondes)",
+                    "refresh_devices": "Recharger pour découvrir de nouveaux appareils"
+                },
+                "data_description": {
+                    "refresh_interval": "Fréquence d'interrogation du cloud Kwikset pour l'état de l'appareil (15-60 secondes)",
+                    "refresh_devices": "Activez cette option pour recharger l'intégration et découvrir les appareils nouvellement ajoutés"
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Serrure"
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Batterie"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Audio"
+            },
+            "secure_screen_switch": {
+                "name": "Écran sécurisé"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Échec de l'authentification. Veuillez vérifier vos identifiants et réessayer."
+        },
+        "connection_error": {
+            "message": "Impossible de se connecter au service cloud Kwikset. Veuillez réessayer plus tard."
+        },
+        "token_refresh_failed": {
+            "message": "Échec du rafraîchissement du jeton d'authentification. Veuillez vous réauthentifier."
+        }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Appareil hors ligne : {device_name}",
+            "description": "La serrure **{device_name}** semble être hors ligne. Cela pourrait être dû à :\n\n- Batterie faible\n- Problèmes de connectivité WiFi\n- Appareil hors de portée\n\nVeuillez vérifier l'appareil et vous assurer qu'il a de l'alimentation et une connectivité WiFi."
+        },
+        "auth_failed": {
+            "title": "Authentification requise",
+            "description": "L'intégration Kwikset doit se réauthentifier. Allez dans **Paramètres → Appareils et services → Kwikset** et cliquez sur **Reconfigurer** pour mettre à jour vos identifiants."
+        },
+        "auth_expired": {
+            "title": "Authentification expirée : {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Réauthentifier Kwikset",
+                        "description": "L'authentification pour **{entry_title}** a expiré. Cliquez sur **Soumettre** pour démarrer le flux de réauthentification."
+                    }
+                }
+            },
+            "description": "Les jetons d'authentification pour l'intégration Kwikset (**{entry_title}**) ont expiré et doivent être rafraîchis.\n\nCela se produit généralement lorsque :\n- Les jetons ont naturellement expiré après une longue période\n- Le mot de passe a été changé dans l'application Kwikset\n- Le compte a été déconnecté depuis un autre appareil\n\nCliquez sur le bouton **Réparer** ci-dessous pour saisir à nouveau vos identifiants Kwikset."
+        }
+    }
+}

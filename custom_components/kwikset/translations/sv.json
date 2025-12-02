@@ -1,0 +1,145 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Logga in på Kwikset",
+                "description": "Ange dina Kwikset-kontouppgifter.",
+                "data": {
+                    "email": "E-post",
+                    "password": "Lösenord"
+                },
+                "data_description": {
+                    "email": "E-postadressen som används för ditt Kwikset-konto",
+                    "password": "Ditt Kwikset-kontolösenord"
+                }
+            },
+            "select_home": {
+                "title": "Välj hem",
+                "description": "Välj vilket Kwikset-hem som ska konfigureras.",
+                "data": {
+                    "conf_home_id": "Hem"
+                },
+                "data_description": {
+                    "conf_home_id": "Välj det Kwikset-hem som innehåller dina smarta lås"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Omautentisering krävs",
+                "description": "Kwikset-integrationen behöver autentisera ditt konto igen. Vänligen ange dina uppgifter.",
+                "data": {
+                    "email": "E-post",
+                    "password": "Lösenord"
+                }
+            },
+            "reconfigure": {
+                "title": "Konfigurera om Kwikset",
+                "description": "Detta kommer att ladda om integrationen och upptäcka nya enheter som har lagts till i ditt Kwikset-hem."
+            },
+            "mfa": {
+                "title": "Multifaktorautentisering",
+                "description": "Ange verifieringskoden från din {mfa_type}.",
+                "data": {
+                    "mfa_code": "Verifieringskod"
+                },
+                "data_description": {
+                    "mfa_code": "Den 6-siffriga koden som skickades till din enhet"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Multifaktorautentisering",
+                "description": "Ange verifieringskoden från din {mfa_type} för att slutföra omautentiseringen.",
+                "data": {
+                    "mfa_code": "Verifieringskod"
+                },
+                "data_description": {
+                    "mfa_code": "Den 6-siffriga koden som skickades till din enhet"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Kunde inte ansluta",
+            "invalid_auth": "Ogiltig autentisering",
+            "invalid_mfa": "Ogiltig verifieringskod. Vänligen försök igen.",
+            "unknown": "Oväntat fel",
+            "token_expired": "Autentiseringstoken har gått ut. Vänligen logga in igen."
+        },
+        "abort": {
+            "already_configured": "Enheten är redan konfigurerad",
+            "reauth_successful": "Omautentiseringen lyckades",
+            "no_available_homes": "Inga tillgängliga hem att konfigurera"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kwikset-alternativ",
+                "description": "Konfigurera Kwikset-integrationsalternativ.",
+                "data": {
+                    "refresh_interval": "Pollningsintervall (sekunder)",
+                    "refresh_devices": "Ladda om för att upptäcka nya enheter"
+                },
+                "data_description": {
+                    "refresh_interval": "Hur ofta Kwikset-molnet ska pollas för enhetsstatus (15-60 sekunder)",
+                    "refresh_devices": "Aktivera detta alternativ för att ladda om integrationen och upptäcka nyligen tillagda enheter"
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Lås"
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Batteri"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Ljud"
+            },
+            "secure_screen_switch": {
+                "name": "Säker skärm"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Autentisering misslyckades. Vänligen kontrollera dina uppgifter och försök igen."
+        },
+        "connection_error": {
+            "message": "Kan inte ansluta till Kwikset-molntjänsten. Vänligen försök igen senare."
+        },
+        "token_refresh_failed": {
+            "message": "Kunde inte uppdatera autentiseringstoken. Vänligen autentisera igen."
+        }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Enhet offline: {device_name}",
+            "description": "Låset **{device_name}** verkar vara offline. Detta kan bero på:\n\n- Låg batterinivå\n- WiFi-anslutningsproblem\n- Enheten är utom räckhåll\n\nKontrollera enheten och se till att den har ström och WiFi-anslutning."
+        },
+        "auth_failed": {
+            "title": "Autentisering krävs",
+            "description": "Kwikset-integrationen behöver autentiseras på nytt. Gå till **Inställningar → Enheter och tjänster → Kwikset** och klicka på **Konfigurera om** för att uppdatera dina uppgifter."
+        },
+        "auth_expired": {
+            "title": "Autentisering utgången: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Omautentisera Kwikset",
+                        "description": "Autentiseringen för **{entry_title}** har gått ut. Klicka på **Skicka** för att starta omautentiseringsflödet."
+                    }
+                }
+            },
+            "description": "Autentiseringstokens för Kwikset-integrationen (**{entry_title}**) har gått ut och behöver uppdateras.\n\nDetta händer vanligtvis när:\n- Tokens har naturligt gått ut efter en lång period\n- Lösenordet ändrades i Kwikset-appen\n- Kontot loggades ut från en annan enhet\n\nKlicka på knappen **Reparera** nedan för att ange dina Kwikset-uppgifter på nytt."
+        }
+    }
+}

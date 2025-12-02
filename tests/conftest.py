@@ -1,13 +1,29 @@
-"""Fixtures for Kwikset Smart Locks tests."""
+"""Fixtures for Kwikset Smart Locks tests.
+
+Provides reusable mocks and fixtures for testing all aspects of the
+Kwikset integration following Home Assistant testing best practices.
+
+Architecture:
+    - Mock API fixtures for unit tests
+    - Config entry factories for integration tests
+    - Coordinator mocks for entity tests
+    - JWT token generation for authentication tests
+
+Quality Scale: Platinum tier - comprehensive test infrastructure.
+"""
+
 from __future__ import annotations
 
+import base64
+import json
+import time
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.const import CONF_EMAIL
 from homeassistant.core import HomeAssistant
 
 from custom_components.kwikset.const import (
@@ -15,12 +31,23 @@ from custom_components.kwikset.const import (
     CONF_HOME_ID,
     CONF_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
+    DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
 )
 
-# Mock device data from API
+# =============================================================================
+# Mock Data Constants
+# =============================================================================
+
+MOCK_EMAIL = "user@example.com"
+MOCK_PASSWORD = "secure_password123"
+MOCK_HOME_ID = "home_001"
+MOCK_HOME_NAME = "My House"
+
 MOCK_DEVICE_ID = "device_123"
 MOCK_DEVICE_NAME = "Front Door Lock"
+MOCK_DEVICE_ID_2 = "device_456"
+MOCK_DEVICE_NAME_2 = "Back Door Lock"
 
 MOCK_DEVICES = [
     {
@@ -28,8 +55,8 @@ MOCK_DEVICES = [
         "devicename": MOCK_DEVICE_NAME,
     },
     {
-        "deviceid": "device_456",
-        "devicename": "Back Door Lock",
+        "deviceid": MOCK_DEVICE_ID_2,
+        "devicename": MOCK_DEVICE_NAME_2,
     },
 ]
 
@@ -46,17 +73,30 @@ MOCK_DEVICE_INFO = {
     "securescreenstatus": "false",
 }
 
+MOCK_DEVICE_INFO_2 = {
+    "deviceid": MOCK_DEVICE_ID_2,
+    "devicename": MOCK_DEVICE_NAME_2,
+    "doorstatus": "Unlocked",
+    "batterypercentage": 72,
+    "modelnumber": "Halo WiFi",
+    "serialnumber": "SN87654321",
+    "firmwarebundleversion": "2.0.1",
+    "ledstatus": "false",
+    "audiostatus": False,
+    "securescreenstatus": "true",
+}
+
 MOCK_USER_INFO = {
     "userid": "user_abc123",
-    "email": "user@example.com",
+    "email": MOCK_EMAIL,
     "firstname": "John",
     "lastname": "Doe",
 }
 
 MOCK_HOMES = [
     {
-        "homeid": "home_001",
-        "homename": "My House",
+        "homeid": MOCK_HOME_ID,
+        "homename": MOCK_HOME_NAME,
     },
     {
         "homeid": "home_002",
@@ -64,44 +104,77 @@ MOCK_HOMES = [
     },
 ]
 
-MOCK_TOKENS = {
-    "access_token": "mock_access_token_xyz",
-    "refresh_token": "mock_refresh_token_abc",
-}
+
+def generate_mock_jwt(expiry_seconds: int = 3600) -> str:
+    """Generate a mock JWT token with configurable expiry.
+
+    Args:
+        expiry_seconds: Seconds from now until token expires.
+
+    Returns:
+        Base64-encoded mock JWT token string.
+    """
+    header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
+    payload_data = {"exp": time.time() + expiry_seconds, "sub": "mock_user"}
+    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).decode().rstrip("=")
+    signature = base64.urlsafe_b64encode(b"mock_signature").decode().rstrip("=")
+    return f"{header}.{payload}.{signature}"
+
+
+def generate_expired_jwt() -> str:
+    """Generate an expired JWT token for testing refresh logic."""
+    return generate_mock_jwt(expiry_seconds=-100)
+
+
+def generate_expiring_soon_jwt() -> str:
+    """Generate a JWT token expiring within the refresh buffer (5 min)."""
+    return generate_mock_jwt(expiry_seconds=60)  # Expires in 60 seconds
+
+
+MOCK_ACCESS_TOKEN = generate_mock_jwt()
+MOCK_REFRESH_TOKEN = "mock_refresh_token_abc123"
 
 MOCK_ENTRY_DATA = {
-    CONF_EMAIL: "user@example.com",
-    CONF_HOME_ID: "home_001",
-    CONF_ACCESS_TOKEN: "old_access_token",
-    CONF_REFRESH_TOKEN: "old_refresh_token",
+    CONF_EMAIL: MOCK_EMAIL,
+    CONF_HOME_ID: MOCK_HOME_ID,
+    CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+    CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
 }
 
 MOCK_ENTRY_OPTIONS = {
-    CONF_REFRESH_INTERVAL: 30,
+    CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
 }
+
+
+# =============================================================================
+# API Mock Fixtures
+# =============================================================================
 
 
 @pytest.fixture
 def mock_api() -> Generator[MagicMock, None, None]:
-    """Create a mock aiokwikset API client."""
+    """Create a mock aiokwikset API client for __init__.py tests.
+
+    Patches the API class in the main integration module.
+    """
     with patch("custom_components.kwikset.API") as mock_api_class:
         api = MagicMock()
-        
-        # Set token properties
-        api.access_token = MOCK_TOKENS["access_token"]
-        api.refresh_token = MOCK_TOKENS["refresh_token"]
-        
-        # Mock async methods
+
+        # Token properties
+        api.access_token = MOCK_ACCESS_TOKEN
+        api.refresh_token = MOCK_REFRESH_TOKEN
+
+        # Async authentication methods
         api.async_login = AsyncMock()
         api.async_renew_access_token = AsyncMock()
         api.async_respond_to_mfa_challenge = AsyncMock()
-        
-        # Mock user namespace
+
+        # User namespace
         api.user = MagicMock()
         api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
         api.user.get_homes = AsyncMock(return_value=MOCK_HOMES)
-        
-        # Mock device namespace
+
+        # Device namespace
         api.device = MagicMock()
         api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
@@ -110,43 +183,83 @@ def mock_api() -> Generator[MagicMock, None, None]:
         api.device.set_ledstatus = AsyncMock()
         api.device.set_audiostatus = AsyncMock()
         api.device.set_securescreenstatus = AsyncMock()
-        
+
         mock_api_class.return_value = api
         yield api
 
 
 @pytest.fixture
 def mock_api_config_flow() -> Generator[MagicMock, None, None]:
-    """Create a mock aiokwikset API client for config flow tests."""
+    """Create a mock aiokwikset API client for config_flow.py tests.
+
+    Patches the API class in the config_flow module.
+    """
     with patch("custom_components.kwikset.config_flow.API") as mock_api_class:
         api = MagicMock()
-        
-        # Set token properties
-        api.access_token = MOCK_TOKENS["access_token"]
-        api.refresh_token = MOCK_TOKENS["refresh_token"]
-        
-        # Mock async methods
+
+        # Token properties
+        api.access_token = MOCK_ACCESS_TOKEN
+        api.refresh_token = MOCK_REFRESH_TOKEN
+
+        # Async authentication methods
         api.async_login = AsyncMock()
         api.async_renew_access_token = AsyncMock()
         api.async_respond_to_mfa_challenge = AsyncMock()
-        
-        # Mock user namespace
+
+        # User namespace
         api.user = MagicMock()
         api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
         api.user.get_homes = AsyncMock(return_value=MOCK_HOMES)
-        
-        # Mock device namespace
+
+        # Device namespace
         api.device = MagicMock()
         api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
         api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
-        
+
         mock_api_class.return_value = api
         yield api
 
 
 @pytest.fixture
+def mock_api_device() -> Generator[MagicMock, None, None]:
+    """Create a mock aiokwikset API client for device.py coordinator tests.
+
+    Patches the API at the device module level.
+    """
+    with patch("custom_components.kwikset.device.API") as mock_api_class:
+        api = MagicMock()
+
+        api.access_token = MOCK_ACCESS_TOKEN
+        api.refresh_token = MOCK_REFRESH_TOKEN
+
+        api.async_renew_access_token = AsyncMock()
+
+        api.user = MagicMock()
+        api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
+
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.lock_device = AsyncMock()
+        api.device.unlock_device = AsyncMock()
+        api.device.set_ledstatus = AsyncMock()
+        api.device.set_audiostatus = AsyncMock()
+        api.device.set_securescreenstatus = AsyncMock()
+
+        mock_api_class.return_value = api
+        yield api
+
+
+# =============================================================================
+# Coordinator Mock Fixtures
+# =============================================================================
+
+
+@pytest.fixture
 def mock_coordinator() -> MagicMock:
-    """Create a mock coordinator for entity testing."""
+    """Create a mock coordinator for entity testing.
+
+    Returns a MagicMock that simulates KwiksetDeviceDataUpdateCoordinator.
+    """
     coordinator = MagicMock()
     coordinator.device_id = MOCK_DEVICE_ID
     coordinator.device_name = MOCK_DEVICE_NAME
@@ -160,8 +273,21 @@ def mock_coordinator() -> MagicMock:
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
     coordinator.last_update_success = True
-    
-    # Async methods
+
+    # Data dict for coordinator entity pattern
+    coordinator.data = {
+        "device_info": MOCK_DEVICE_INFO,
+        "door_status": "Locked",
+        "battery_percentage": 85,
+        "model_number": "Halo Touch",
+        "serial_number": "SN12345678",
+        "firmware_version": "1.2.3",
+        "led_status": True,
+        "audio_status": True,
+        "secure_screen_status": False,
+    }
+
+    # Async action methods
     coordinator.lock = AsyncMock()
     coordinator.unlock = AsyncMock()
     coordinator.set_led = AsyncMock()
@@ -169,20 +295,82 @@ def mock_coordinator() -> MagicMock:
     coordinator.set_secure_screen = AsyncMock()
     coordinator.async_request_refresh = AsyncMock()
     coordinator.async_config_entry_first_refresh = AsyncMock()
-    
+
     return coordinator
 
 
 @pytest.fixture
+def mock_coordinator_unlocked() -> MagicMock:
+    """Create a mock coordinator with unlocked state."""
+    coordinator = MagicMock()
+    coordinator.device_id = MOCK_DEVICE_ID
+    coordinator.device_name = MOCK_DEVICE_NAME
+    coordinator.manufacturer = "Kwikset"
+    coordinator.model = "Halo Touch"
+    coordinator.firmware_version = "1.2.3"
+    coordinator.serial_number = "SN12345678"
+    coordinator.battery_percentage = 85
+    coordinator.status = "Unlocked"
+    coordinator.led_status = True
+    coordinator.audio_status = True
+    coordinator.secure_screen_status = False
+    coordinator.last_update_success = True
+
+    coordinator.data = {
+        "device_info": MOCK_DEVICE_INFO,
+        "door_status": "Unlocked",
+        "battery_percentage": 85,
+        "model_number": "Halo Touch",
+        "serial_number": "SN12345678",
+        "firmware_version": "1.2.3",
+        "led_status": True,
+        "audio_status": True,
+        "secure_screen_status": False,
+    }
+
+    coordinator.lock = AsyncMock()
+    coordinator.unlock = AsyncMock()
+    coordinator.set_led = AsyncMock()
+    coordinator.set_audio = AsyncMock()
+    coordinator.set_secure_screen = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+
+    return coordinator
+
+
+# =============================================================================
+# Config Entry Fixtures
+# =============================================================================
+
+
+@pytest.fixture
 def mock_config_entry() -> MagicMock:
-    """Create a mock config entry."""
+    """Create a mock config entry for unit tests."""
     entry = MagicMock()
     entry.entry_id = "test_entry_id"
-    entry.unique_id = "home_001"
+    entry.unique_id = MOCK_HOME_ID
     entry.domain = DOMAIN
-    entry.title = "My House"
+    entry.title = MOCK_HOME_NAME
     entry.data = MOCK_ENTRY_DATA.copy()
     entry.options = MOCK_ENTRY_OPTIONS.copy()
     entry.version = 4
     entry.async_on_unload = MagicMock()
     return entry
+
+
+# =============================================================================
+# Utility Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def mock_device_info_response() -> dict[str, Any]:
+    """Return mock device info response for API tests."""
+    return MOCK_DEVICE_INFO.copy()
+
+
+@pytest.fixture
+def mock_devices_response() -> list[dict[str, Any]]:
+    """Return mock devices list response for API tests."""
+    return MOCK_DEVICES.copy()

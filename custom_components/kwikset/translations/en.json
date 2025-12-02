@@ -1,0 +1,170 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Sign in to Kwikset",
+                "description": "Enter your Kwikset account credentials to connect your smart locks.",
+                "data": {
+                    "email": "Email",
+                    "password": "Password"
+                },
+                "data_description": {
+                    "email": "The email address used for your Kwikset account",
+                    "password": "Your Kwikset account password"
+                }
+            },
+            "select_home": {
+                "title": "Select Home",
+                "description": "Choose which Kwikset home to configure. Each home will be set up as a separate integration entry.",
+                "data": {
+                    "conf_home_id": "Home"
+                },
+                "data_description": {
+                    "conf_home_id": "Select the Kwikset home containing your smart locks"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Reauthentication Required",
+                "description": "The Kwikset integration needs to re-authenticate your account. Please enter your credentials.",
+                "data": {
+                    "email": "Email",
+                    "password": "Password"
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigure Kwikset",
+                "description": "This will reload the integration and discover any new devices that have been added to your Kwikset home.",
+                "submit": "Reload Integration"
+            },
+            "mfa": {
+                "title": "Multi-Factor Authentication",
+                "description": "Enter the verification code from your {mfa_type}.",
+                "data": {
+                    "mfa_code": "Verification Code"
+                },
+                "data_description": {
+                    "mfa_code": "The 6-digit code sent to your device"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Multi-Factor Authentication",
+                "description": "Enter the verification code from your {mfa_type} to complete reauthentication.",
+                "data": {
+                    "mfa_code": "Verification Code"
+                },
+                "data_description": {
+                    "mfa_code": "The 6-digit code sent to your device"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "invalid_mfa": "Invalid verification code. Please try again.",
+            "unknown": "Unexpected error",
+            "token_expired": "Authentication token has expired. Please sign in again."
+        },
+        "abort": {
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Re-authentication was successful",
+            "reconfigure_successful": "Integration reloaded successfully. New devices will appear shortly.",
+            "no_available_homes": "No available homes to configure. All homes are already set up or you have no homes in your Kwikset account."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kwikset Options",
+                "description": "Configure Kwikset integration options.",
+                "data": {
+                    "refresh_interval": "Polling interval (seconds)"
+                },
+                "data_description": {
+                    "refresh_interval": "How often to poll the Kwikset cloud for device status (15-60 seconds). Lower values provide faster updates but may increase API load."
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Lock",
+                "state": {
+                    "locked": "Locked",
+                    "unlocked": "Unlocked",
+                    "locking": "Locking",
+                    "unlocking": "Unlocking",
+                    "jammed": "Jammed"
+                }
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Battery"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Audio"
+            },
+            "secure_screen_switch": {
+                "name": "Secure Screen"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Authentication failed. Please check your credentials and try again."
+        },
+        "connection_error": {
+            "message": "Unable to connect to Kwikset cloud service. Please check your internet connection and try again."
+        },
+        "token_refresh_failed": {
+            "message": "Failed to refresh authentication token. Please re-authenticate the integration."
+        },
+        "lock_failed": {
+            "message": "Failed to lock the device. The device may be offline or there may be a temporary connectivity issue. Please try again."
+        },
+        "unlock_failed": {
+            "message": "Failed to unlock the device. The device may be offline or there may be a temporary connectivity issue. Please try again."
+        },
+        "switch_on_failed": {
+            "message": "Failed to turn on the setting. Please try again."
+        },
+        "switch_off_failed": {
+            "message": "Failed to turn off the setting. Please try again."
+        },
+        "device_offline": {
+            "message": "The device appears to be offline. Please check that the lock has power and is connected to your WiFi network."
+        },
+        "api_error": {
+            "message": "An error occurred communicating with the Kwikset service. Please try again later."
+        }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Device Offline: {device_name}",
+            "description": "The lock **{device_name}** appears to be offline. This could be due to:\n\n- Low battery\n- WiFi connectivity issues\n- Device out of range\n\nPlease check the device and ensure it has power and WiFi connectivity."
+        },
+        "auth_failed": {
+            "title": "Authentication Required",
+            "description": "The Kwikset integration needs to re-authenticate. Please go to **Settings → Devices & Services → Kwikset** and click **Reconfigure** to update your credentials."
+        },
+        "auth_expired": {
+            "title": "Authentication Expired: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Reauthenticate Kwikset",
+                        "description": "The authentication for **{entry_title}** has expired. Click **Submit** to start the reauthentication flow."
+                    }
+                }
+            },
+            "description": "The authentication tokens for the Kwikset integration (**{entry_title}**) have expired and need to be refreshed.\n\nThis usually happens when:\n- The tokens have naturally expired after a long period\n- The password was changed in the Kwikset app\n- The account was logged out from another device\n\nClick the **Fix** button below to re-enter your Kwikset credentials."
+        }
+    }
+}
