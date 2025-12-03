@@ -25,7 +25,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .const import LOGGER
@@ -44,6 +44,7 @@ PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 class KwiksetSwitchEntityDescription(SwitchEntityDescription):
     """Describes a Kwikset switch entity with value and control functions."""
 
+    key: str
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]
     turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
     turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
@@ -81,7 +82,7 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: KwiksetConfigEntry,
-    async_add_entities: AddConfigEntryEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Kwikset switch entities from a config entry.
 

@@ -99,6 +99,7 @@ class KwiksetSensorEntityDescription(SensorEntityDescription):
 
     """
 
+    key: str
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None]
 
 

@@ -408,7 +408,7 @@ async def _async_options_updated(
                 if coordinator.update_interval
                 else None
             )
-            coordinator.update_interval = new_interval_td
+            coordinator.set_update_interval(new_interval_td)
             _LOGGER.debug(
                 "Updated refresh interval for %s from %s to %s seconds",
                 coordinator.device_name,

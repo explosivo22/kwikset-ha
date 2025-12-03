@@ -322,3 +322,12 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         )
         LOGGER.debug("Secure screen set to %s for %s", enabled, self.device_id)
         await self.async_request_refresh()
+
+    def set_update_interval(self, interval: timedelta) -> None:
+        """Set the update interval for polling.
+
+        This method exists to provide a type-safe way to update the interval,
+        as the base class property may be typed as read-only in some stubs.
+        """
+        # Use object.__setattr__ to bypass any read-only typing issues
+        object.__setattr__(self, "update_interval", interval)

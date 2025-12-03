@@ -121,6 +121,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _async_complete_mfa(self, mfa_code: str) -> str | None:
         """Complete MFA verification. Returns error key or None on success."""
+        assert self.api is not None  # Set during authentication
         try:
             await self.api.async_respond_to_mfa_challenge(
                 mfa_code=mfa_code,
@@ -141,6 +142,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     def _create_token_data(self) -> dict[str, Any]:
         """Create token data dict for config entry."""
+        assert self.api is not None  # Set during authentication
         return {
             CONF_EMAIL: self.username,
             CONF_ID_TOKEN: self.api.id_token,
@@ -304,6 +306,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             existing_homes = [
                 entry.data[CONF_HOME_ID] for entry in self._async_current_entries()
             ]
+            assert self.api is not None  # Set during authentication
             homes = await self.api.user.get_homes()
             homes_options = {
                 home["homeid"]: home["homename"]
@@ -350,6 +353,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self, data: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Create config entry at completion of flow."""
+        assert self.api is not None  # Set during authentication
         entry_data = {
             CONF_EMAIL: self.username,
             CONF_HOME_ID: self.home_id,

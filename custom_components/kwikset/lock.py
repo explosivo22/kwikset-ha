@@ -36,7 +36,7 @@ from homeassistant.components.lock import LockEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .const import LOGGER
@@ -62,7 +62,7 @@ _STATUS_TO_LOCKED: dict[str, bool | None] = {
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: KwiksetConfigEntry,
-    async_add_entities: AddConfigEntryEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Kwikset lock entities from a config entry.
 
