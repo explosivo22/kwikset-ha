@@ -344,7 +344,10 @@ class TestDeviceActions:
         )
 
         await coordinator.async_config_entry_first_refresh()
-        await coordinator.lock()
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.lock()
 
         api.device.lock_device.assert_called_once()
 
@@ -371,7 +374,10 @@ class TestDeviceActions:
         )
 
         await coordinator.async_config_entry_first_refresh()
-        await coordinator.unlock()
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.unlock()
 
         api.device.unlock_device.assert_called_once()
 
@@ -396,7 +402,10 @@ class TestDeviceActions:
         )
 
         await coordinator.async_config_entry_first_refresh()
-        await coordinator.set_led(True)
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.set_led(True)
 
         api.device.set_led_enabled.assert_called_once()
         call_args = api.device.set_led_enabled.call_args
@@ -423,7 +432,10 @@ class TestDeviceActions:
         )
 
         await coordinator.async_config_entry_first_refresh()
-        await coordinator.set_audio(False)
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.set_audio(False)
 
         api.device.set_audio_enabled.assert_called_once()
         call_args = api.device.set_audio_enabled.call_args
@@ -450,7 +462,10 @@ class TestDeviceActions:
         )
 
         await coordinator.async_config_entry_first_refresh()
-        await coordinator.set_secure_screen(True)
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.set_secure_screen(True)
 
         api.device.set_secure_screen_enabled.assert_called_once()
         call_args = api.device.set_secure_screen_enabled.call_args
