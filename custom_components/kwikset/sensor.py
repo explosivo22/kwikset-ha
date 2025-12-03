@@ -49,6 +49,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorDeviceClass
@@ -76,7 +77,7 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class KwiksetSensorEntityDescription(SensorEntityDescription):
     """Describes a Kwikset sensor entity.
 
@@ -98,7 +99,7 @@ class KwiksetSensorEntityDescription(SensorEntityDescription):
 
     """
 
-    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None]
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None] = field()
 
 
 # Sensor descriptions tuple - immutable collection of all sensor definitions

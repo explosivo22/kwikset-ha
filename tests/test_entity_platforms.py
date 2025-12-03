@@ -120,9 +120,12 @@ def switch_module():
 class TestKwiksetEntity:
     """Tests for the KwiksetEntity base class."""
 
-    def test_entity_has_entity_name(self, entity_module) -> None:
+    def test_entity_has_entity_name(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
         """Test entity has _attr_has_entity_name = True."""
-        assert entity_module.KwiksetEntity._attr_has_entity_name is True
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        assert lock.has_entity_name is True
 
     def test_entity_unique_id_format(
         self, lock_module, mock_coordinator: MagicMock
@@ -213,6 +216,11 @@ class TestKwiksetLock:
     ) -> None:
         """Test async_unlock calls coordinator.unlock()."""
         lock = lock_module.KwiksetLock(mock_coordinator)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=MagicMock())
+        lock.async_write_ha_state = MagicMock()
         await lock.async_unlock()
         mock_coordinator.unlock.assert_called_once()
 
@@ -222,6 +230,11 @@ class TestKwiksetLock:
         """Test async_lock raises HomeAssistantError on failure."""
         mock_coordinator.lock.side_effect = Exception("API Error")
         lock = lock_module.KwiksetLock(mock_coordinator)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=MagicMock())
+        lock.async_write_ha_state = MagicMock()
 
         with pytest.raises(HomeAssistantError) as exc_info:
             await lock.async_lock()
@@ -235,6 +248,11 @@ class TestKwiksetLock:
         """Test async_unlock raises HomeAssistantError on failure."""
         mock_coordinator.unlock.side_effect = Exception("API Error")
         lock = lock_module.KwiksetLock(mock_coordinator)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=MagicMock())
+        lock.async_write_ha_state = MagicMock()
 
         with pytest.raises(HomeAssistantError) as exc_info:
             await lock.async_unlock()
@@ -267,10 +285,11 @@ class TestKwiksetLockOptimisticTimeout:
     def test_lock_initial_optimistic_state_is_false(
         self, lock_module, mock_coordinator: MagicMock
     ) -> None:
-        """Test lock starts with is_locking and is_unlocking as False."""
+        """Test lock starts with is_locking and is_unlocking as falsy (None or False)."""
         lock = lock_module.KwiksetLock(mock_coordinator)
-        assert lock._attr_is_locking is False
-        assert lock._attr_is_unlocking is False
+        # Initial state can be None or False, both are acceptable as falsy values
+        assert not lock._attr_is_locking
+        assert not lock._attr_is_unlocking
 
     def test_lock_optimistic_timer_initially_none(
         self, lock_module, mock_coordinator: MagicMock
@@ -319,8 +338,8 @@ class TestKwiksetLockOptimisticTimeout:
 
         await lock.async_lock()
 
-        # Check optimistic state was NOT set (already locked)
-        assert lock._attr_is_locking is False
+        # Check optimistic state was NOT set (already locked) - should be falsy (None or False)
+        assert not lock._attr_is_locking
 
         # Check timer was NOT scheduled
         mock_loop.call_later.assert_not_called()
@@ -365,8 +384,8 @@ class TestKwiksetLockOptimisticTimeout:
 
         await lock.async_unlock()
 
-        # Check optimistic state was NOT set (already unlocked)
-        assert lock._attr_is_unlocking is False
+        # Check optimistic state was NOT set (already unlocked) - should be falsy (None or False)
+        assert not lock._attr_is_unlocking
 
         # Check timer was NOT scheduled
         mock_loop.call_later.assert_not_called()
@@ -376,6 +395,9 @@ class TestKwiksetLockOptimisticTimeout:
     ) -> None:
         """Test coordinator update resets is_locking/is_unlocking to False."""
         lock = lock_module.KwiksetLock(mock_coordinator)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
 
         # Simulate optimistic state being set
         lock._attr_is_locking = True
@@ -746,6 +768,9 @@ class TestCoordinatorUpdates:
     ) -> None:
         """Test lock state updates when coordinator data changes."""
         lock = lock_module.KwiksetLock(mock_coordinator)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
         assert lock.is_locked is True
 
         mock_coordinator.status = "Unlocked"

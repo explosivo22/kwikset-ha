@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Awaitable
 from collections.abc import Callable
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -40,13 +41,17 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class KwiksetSwitchEntityDescription(SwitchEntityDescription):
     """Describes a Kwikset switch entity with value and control functions."""
 
-    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]
-    turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
-    turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None] = field()
+    turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]] = (
+        field()
+    )
+    turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]] = (
+        field()
+    )
 
 
 SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
