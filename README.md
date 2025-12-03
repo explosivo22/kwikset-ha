@@ -4,7 +4,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 [![Validate](https://github.com/explosivo22/kwikset-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/explosivo22/kwikset-ha/actions/workflows/validate.yml)
 [![HA integration usage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.kwikset.total&style=for-the-badge&logo=home-assistant&label=integration%20usage&color=41BDF5)](https://analytics.home-assistant.io/custom_integrations.json)
-[![Quality Scale](https://img.shields.io/badge/Quality%20Scale-Gold-gold?style=for-the-badge)](https://developers.home-assistant.io/docs/core/integration-quality-scale)
+[![Quality Scale](https://img.shields.io/badge/Quality%20Scale-Platinum-E5E4E2?style=for-the-badge)](https://developers.home-assistant.io/docs/core/integration-quality-scale)
 
 <a href="https://www.buymeacoffee.com/Explosivo22" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
@@ -12,8 +12,29 @@ A custom Home Assistant integration for [Kwikset Smart Locks](https://www.kwikse
 
 ---
 
+## 🚨 Breaking Change Notice (v0.4.0)
+
+> **⚠️ IMPORTANT: If you are upgrading from v0.3.x to v0.4.0, manual steps are required!**
+>
+> The integration folder has been renamed from `kwikset-ha` to `kwikset` to follow Home Assistant's domain naming conventions. **HACS cannot automatically upgrade** due to this change.
+>
+> **📖 [Read the Migration Guide](MIGRATION.md) before upgrading!**
+>
+> ### Quick Summary:
+> 1. Remove the integration from Settings → Devices & Services
+> 2. Uninstall via HACS
+> 3. **Delete the old folder**: `custom_components/kwikset-ha`
+> 4. Restart Home Assistant
+> 5. Re-add the repository in HACS and download v0.4.0
+> 6. Restart Home Assistant and re-configure the integration
+>
+> Your automations and entity IDs will continue to work after migration.
+
+---
+
 ## 📋 Table of Contents
 
+- [Breaking Change Notice (v0.4.0)](#-breaking-change-notice-v040)
 - [Features](#-features)
 - [Supported Devices](#-supported-devices)
 - [Data Updates](#-data-updates)
@@ -188,6 +209,8 @@ To enable: **Settings** → **Devices & Services** → **Kwikset** → Select yo
 ---
 
 ## 📦 Installation
+
+> ⚠️ **Upgrading from v0.3.x?** See the [Migration Guide](MIGRATION.md) for required steps.
 
 ### Option 1: HACS (Recommended)
 
@@ -538,25 +561,16 @@ logger:
 
 ## 📊 Quality Scale Compliance
 
-This integration targets the [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale) **Platinum tier**.
+This integration meets the [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale) **Platinum tier**.
 
-### Current Status: Gold ✅
+### Current Status: Platinum ✅
 
 | Tier | Status | Requirements Met |
 |------|--------|------------------|
-| **Bronze** | ✅ Complete | 9/9 |
-| **Silver** | ✅ Complete | 8/8 |
-| **Gold** | ✅ Complete | 9/9 |
-| **Platinum** | 🔄 In Progress | 3/4 |
-
-### Platinum Progress
-
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| `async_dependency` | ✅ Done | aiokwikset is fully async |
-| `runtime_data` | ✅ Done | Uses `KwiksetRuntimeData` dataclass |
-| `strict_typing` | ✅ Done | `py.typed` marker, full annotations |
-| `inject_websession` | ❌ Blocked | Requires upstream aiokwikset changes |
+| **Bronze** | ✅ Complete | 18/18 |
+| **Silver** | ✅ Complete | 10/10 |
+| **Gold** | ✅ Complete | 18/18 |
+| **Platinum** | ✅ Complete | 3/3 |
 
 ### Key Quality Features
 
@@ -565,11 +579,14 @@ This integration targets the [Home Assistant Integration Quality Scale](https://
 - **Dynamic Discovery**: Automatic detection of new/removed devices
 - **Stale Device Removal**: Cleanup of devices removed from account
 - **Diagnostics**: Full diagnostic data with sensitive info redaction
-- **Test Coverage**: Comprehensive pytest test suite
+- **Test Coverage**: Comprehensive pytest test suite with 95%+ coverage
 - **Type Safety**: Full type annotations with `py.typed` marker
+- **Strict Typing**: All modules pass mypy strict type checking
+- **Async Dependency**: Uses fully async `aiokwikset` library
+- **Inject WebSession**: Passes Home Assistant's aiohttp session to API client
 - **Error Handling**: Proper exception handling with user-friendly messages
 
-See [quality_scale.yaml](custom_components/kwikset-ha/quality_scale.yaml) for detailed compliance tracking.
+See [INTEGRATION_QUALITY_SCALE.md](INTEGRATION_QUALITY_SCALE.md) for detailed compliance tracking.
 
 ---
 

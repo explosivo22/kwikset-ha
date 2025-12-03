@@ -7,10 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.0] - 2025-12-03
+
+### ⚠️ BREAKING CHANGES
+
+- **Folder Rename**: The integration folder has been renamed from `custom_components/kwikset-ha` to `custom_components/kwikset` to follow Home Assistant's domain naming conventions
+  - **HACS cannot automatically upgrade** from v0.3.x to v0.4.0
+  - **Manual migration required** - see [MIGRATION.md](MIGRATION.md) for detailed instructions
+  - The old `kwikset-ha` folder must be manually deleted before installing v0.4.0
+  - Your automations and entity IDs will continue to work after migration (domain is unchanged)
+
 ### Added
-- Comprehensive CHANGELOG.md with full version history
-- Enhanced README.md with complete documentation
-- Quality Scale compliance documentation and tracking
+- **Migration Guide**: Comprehensive [MIGRATION.md](MIGRATION.md) with step-by-step upgrade instructions
+- **Platinum Quality Scale**: Full platinum tier compliance achieved
+  - `inject_websession`: Now passes Home Assistant's aiohttp session to the API client
+- **Comprehensive CHANGELOG.md**: Full version history documentation
+- **Enhanced README.md**: Complete documentation with breaking change notice
+
+### Changed
+- **Folder Structure**: `custom_components/kwikset-ha/` → `custom_components/kwikset/`
+- **Quality Scale**: Updated from Gold to Platinum tier
+- **aiokwikset**: Updated to version 0.4.0 with websession injection support
+
+### Fixed
+- Domain and folder name mismatch that could cause issues with future Home Assistant updates
 
 ---
 
@@ -174,7 +196,8 @@ This integration was originally created by [@explosivo22](https://github.com/exp
 
 ---
 
-[Unreleased]: https://github.com/explosivo22/kwikset-ha/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/explosivo22/kwikset-ha/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/explosivo22/kwikset-ha/compare/v0.3.5...v0.4.0
 [0.3.5]: https://github.com/explosivo22/kwikset-ha/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/explosivo22/kwikset-ha/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/explosivo22/kwikset-ha/compare/v0.3.2...v0.3.3

@@ -18,7 +18,7 @@ This checklist follows the [Home Assistant Integration Quality Scale](https://de
     - [X] Uses `ConfigEntry.data` and `ConfigEntry.options` correctly
     - UI-based config flow implemented with `data_description` for all fields in strings.json.
 - [X] `dependency-transparency` - Dependency transparency
-    - `aiokwikset==0.3.0b1` is listed in `manifest.json` requirements.
+    - `aiokwikset==0.4.0` is listed in `manifest.json` requirements.
 - [X] `docs-actions` - The documentation describes the provided service actions that can be used
     - README documents all service actions including lock/unlock and switch controls (LED, Audio, Secure Screen).
 - [X] `docs-high-level-description` - The documentation includes a high-level description of the integration brand, product, or service
