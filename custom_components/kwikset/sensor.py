@@ -75,7 +75,9 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-class KwiksetSensorEntityDescription(SensorEntityDescription, frozen_or_thawed=True, kw_only=True):
+class KwiksetSensorEntityDescription(
+    SensorEntityDescription, frozen_or_thawed=True, kw_only=True
+):
     """Describes a Kwikset sensor entity.
 
     This dataclass extends Home Assistant's SensorEntityDescription to add

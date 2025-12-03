@@ -39,7 +39,9 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-class KwiksetSwitchEntityDescription(SwitchEntityDescription, frozen_or_thawed=True, kw_only=True):
+class KwiksetSwitchEntityDescription(
+    SwitchEntityDescription, frozen_or_thawed=True, kw_only=True
+):
     """Describes a Kwikset switch entity with value and control functions."""
 
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]

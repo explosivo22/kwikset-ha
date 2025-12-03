@@ -782,7 +782,7 @@ class TestCoordinatorUpdates:
         self, sensor_module, mock_coordinator: MagicMock
     ) -> None:
         """Test sensor native_value reflects coordinator data after update.
-        
+
         The sensor uses _attr_native_value which is set during __init__ and
         updated via _handle_coordinator_update. We directly update the attribute
         to avoid needing a full hass context.
@@ -802,7 +802,7 @@ class TestCoordinatorUpdates:
         self, switch_module, mock_coordinator: MagicMock
     ) -> None:
         """Test switch is_on reflects coordinator data after update.
-        
+
         The switch uses _attr_is_on which is set during __init__ and
         updated via _handle_coordinator_update. We directly update the attribute
         to avoid needing a full hass context.
