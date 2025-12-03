@@ -39,7 +39,7 @@ Entity Categories:
 Entity Description Pattern:
     This module follows Home Assistant's recommended EntityDescription pattern:
     - KwiksetSensorEntityDescription extends SensorEntityDescription
-    - Uses frozen=True and kw_only=True for immutability and clarity
+    - Uses kw_only=True for clarity (frozen=True removed for mypy compatibility)
     - value_fn callable extracts state from coordinator
     - SENSOR_DESCRIPTIONS tuple holds all sensor definitions
     - Single KwiksetSensor class handles all sensor types
@@ -48,8 +48,6 @@ Entity Description Pattern:
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
-from dataclasses import field
 from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorDeviceClass
@@ -77,8 +75,7 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-@dataclass(frozen=True, kw_only=True)
-class KwiksetSensorEntityDescription(SensorEntityDescription):
+class KwiksetSensorEntityDescription(SensorEntityDescription, frozen_or_thawed=True, kw_only=True):
     """Describes a Kwikset sensor entity.
 
     This dataclass extends Home Assistant's SensorEntityDescription to add
@@ -87,8 +84,6 @@ class KwiksetSensorEntityDescription(SensorEntityDescription):
     Attributes:
         value_fn: Callable that takes a coordinator and returns the sensor value.
             Returns int | None for battery percentage.
-
-    The frozen=True ensures immutability (required for hashability).
 
     Example:
         KwiksetSensorEntityDescription(
@@ -99,7 +94,7 @@ class KwiksetSensorEntityDescription(SensorEntityDescription):
 
     """
 
-    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None] = field()
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None]
 
 
 # Sensor descriptions tuple - immutable collection of all sensor definitions
@@ -223,17 +218,16 @@ class KwiksetSensor(KwiksetEntity, SensorEntity):
         # Bronze tier: entity_unique_id via parent class
         # Creates unique_id: {device_id}_{description.key}
         super().__init__(description.key, coordinator)
+        # Set initial state
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
 
-    @property
-    def native_value(self) -> int | None:
-        """Return the current sensor value.
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator.
 
         Uses the value_fn from entity_description to extract the value
         from the coordinator. This pattern allows flexible value extraction
         without subclassing.
-
-        Returns:
-            Sensor value (type depends on sensor type) or None if unavailable
-
         """
-        return self.entity_description.value_fn(self.coordinator)
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        super()._handle_coordinator_update()

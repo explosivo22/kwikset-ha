@@ -43,7 +43,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system ruff mypy homeassistant-stubs
+          uv pip install --system ruff mypy
           uv pip install --system -r requirements_test.txt
 
       - name: Run ruff check

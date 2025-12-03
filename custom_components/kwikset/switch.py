@@ -15,8 +15,6 @@ from __future__ import annotations
 
 from collections.abc import Awaitable
 from collections.abc import Callable
-from dataclasses import dataclass
-from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -41,17 +39,12 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-@dataclass(frozen=True, kw_only=True)
-class KwiksetSwitchEntityDescription(SwitchEntityDescription):
+class KwiksetSwitchEntityDescription(SwitchEntityDescription, frozen_or_thawed=True, kw_only=True):
     """Describes a Kwikset switch entity with value and control functions."""
 
-    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None] = field()
-    turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]] = (
-        field()
-    )
-    turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]] = (
-        field()
-    )
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]
+    turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
+    turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
 
 
 SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
@@ -144,11 +137,14 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
         """Initialize the switch entity."""
         self.entity_description = description
         super().__init__(description.key, coordinator)
+        # Set initial state
+        self._attr_is_on = self.entity_description.value_fn(self.coordinator)
 
-    @property
-    def is_on(self) -> bool | None:
-        """Return true if switch is on."""
-        return self.entity_description.value_fn(self.coordinator)
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_is_on = self.entity_description.value_fn(self.coordinator)
+        super()._handle_coordinator_update()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""

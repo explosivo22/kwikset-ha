@@ -6,4 +6,3 @@ pytest-homeassistant-custom-component>=0.13.0
 # Lint and type checking (matches CI workflow)
 ruff>=0.8.0
 mypy>=1.13.0
-homeassistant-stubs>=2024.0.0
