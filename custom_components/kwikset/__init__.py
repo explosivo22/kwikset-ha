@@ -224,6 +224,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
             access_token=entry.data[CONF_ACCESS_TOKEN],
             refresh_token=entry.data[CONF_REFRESH_TOKEN],
         )
+        assert client.user is not None  # Set after authentication
         await client.user.get_info()
     except (TokenExpiredError, Unauthenticated) as err:
         _create_auth_issue(hass, entry)
@@ -232,6 +233,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         raise ConfigEntryNotReady from err
 
     # Fetch devices and create coordinators
+    assert client.device is not None  # Set after authentication
     api_devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
     devices = await _build_device_coordinators(hass, entry, client, api_devices)
 
@@ -353,6 +355,7 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
     runtime_data = entry.runtime_data
 
     try:
+        assert runtime_data.client.device is not None  # Set after authentication
         api_devices = await runtime_data.client.device.get_devices(
             entry.data[CONF_HOME_ID]
         )

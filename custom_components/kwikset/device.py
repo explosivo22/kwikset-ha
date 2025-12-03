@@ -160,18 +160,22 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     async def _async_setup(self) -> None:
         """Load initial device information."""
-        self._device_info = await self._api_call_with_retry(
+        assert self.api_client.device is not None  # Set after authentication
+        result = await self._api_call_with_retry(
             self.api_client.device.get_device_info,
             self.device_id,
         )
+        self._device_info = result if result is not None else {}
         LOGGER.debug("Initial device data loaded for %s", self.device_id)
 
     async def _async_update_data(self) -> KwiksetDeviceData:
         """Fetch current device state."""
-        info = await self._api_call_with_retry(
+        assert self.api_client.device is not None  # Set after authentication
+        result = await self._api_call_with_retry(
             self.api_client.device.get_device_info,
             self.device_id,
         )
+        info = result if result is not None else {}
         self._device_info = info
 
         return KwiksetDeviceData(
@@ -269,10 +273,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     async def _get_user_info(self) -> dict[str, Any]:
         """Get user info required for lock/unlock commands."""
-        return await self._api_call_with_retry(self.api_client.user.get_info)
+        assert self.api_client.user is not None  # Set after authentication
+        result = await self._api_call_with_retry(self.api_client.user.get_info)
+        return result if result is not None else {}
 
     async def lock(self) -> None:
         """Lock the device."""
+        assert self.api_client.device is not None  # Set after authentication
         user_info = await self._get_user_info()
         await self._api_call_with_retry(
             self.api_client.device.lock_device,
@@ -284,6 +291,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     async def unlock(self) -> None:
         """Unlock the device."""
+        assert self.api_client.device is not None  # Set after authentication
         user_info = await self._get_user_info()
         await self._api_call_with_retry(
             self.api_client.device.unlock_device,
@@ -295,6 +303,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     async def set_led(self, enabled: bool) -> None:
         """Set LED status using convenience method."""
+        assert self.api_client.device is not None  # Set after authentication
         await self._api_call_with_retry(
             self.api_client.device.set_led_enabled,
             self._device_info,
@@ -305,6 +314,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     async def set_audio(self, enabled: bool) -> None:
         """Set audio status using convenience method."""
+        assert self.api_client.device is not None  # Set after authentication
         await self._api_call_with_retry(
             self.api_client.device.set_audio_enabled,
             self._device_info,
@@ -315,6 +325,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     async def set_secure_screen(self, enabled: bool) -> None:
         """Set secure screen status using convenience method."""
+        assert self.api_client.device is not None  # Set after authentication
         await self._api_call_with_retry(
             self.api_client.device.set_secure_screen_enabled,
             self._device_info,

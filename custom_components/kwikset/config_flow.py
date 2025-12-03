@@ -100,6 +100,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             None: On success (including when MFA is required)
 
         """
+        if not self.username or not self.password:
+            return "invalid_auth"
         try:
             self.api = API()
             await self.api.async_login(self.username, self.password)
@@ -307,6 +309,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 entry.data[CONF_HOME_ID] for entry in self._async_current_entries()
             ]
             assert self.api is not None  # Set during authentication
+            assert self.api.user is not None  # Set after successful authentication
             homes = await self.api.user.get_homes()
             homes_options = {
                 home["homeid"]: home["homename"]
@@ -354,6 +357,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Create config entry at completion of flow."""
         assert self.api is not None  # Set during authentication
+        assert self.api.user is not None  # Set after successful authentication
         entry_data = {
             CONF_EMAIL: self.username,
             CONF_HOME_ID: self.home_id,
