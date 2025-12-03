@@ -160,11 +160,10 @@
                 "step": {
                     "confirm": {
                         "title": "Omautentisera Kwikset",
-                        "description": "Autentiseringen för **{entry_title}** har gått ut. Klicka på **Skicka** för att starta omautentiseringsflödet."
+                        "description": "Autentiseringstokens för Kwikset-integrationen (**{entry_title}**) har gått ut och behöver uppdateras.\n\nDetta händer vanligtvis när:\n- Tokens har naturligt gått ut efter en lång period\n- Lösenordet ändrades i Kwikset-appen\n- Kontot loggades ut från en annan enhet\n\nKlicka på knappen **Reparera** nedan för att ange dina Kwikset-uppgifter på nytt."
                     }
                 }
-            },
-            "description": "Autentiseringstokens för Kwikset-integrationen (**{entry_title}**) har gått ut och behöver uppdateras.\n\nDetta händer vanligtvis när:\n- Tokens har naturligt gått ut efter en lång period\n- Lösenordet ändrades i Kwikset-appen\n- Kontot loggades ut från en annan enhet\n\nKlicka på knappen **Reparera** nedan för att ange dina Kwikset-uppgifter på nytt."
+            }
         }
     }
 }

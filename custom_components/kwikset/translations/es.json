@@ -160,11 +160,10 @@
                 "step": {
                     "confirm": {
                         "title": "Reautenticar Kwikset",
-                        "description": "La autenticación para **{entry_title}** ha expirado. Haga clic en **Enviar** para iniciar el flujo de reautenticación."
+                        "description": "Los tokens de autenticación para la integración de Kwikset (**{entry_title}**) han expirado y necesitan ser actualizados.\n\nEsto generalmente sucede cuando:\n- Los tokens han expirado naturalmente después de un largo período\n- La contraseña fue cambiada en la aplicación Kwikset\n- La cuenta fue desconectada desde otro dispositivo\n\nHaga clic en el botón **Reparar** a continuación para volver a ingresar sus credenciales de Kwikset."
                     }
                 }
-            },
-            "description": "Los tokens de autenticación para la integración de Kwikset (**{entry_title}**) han expirado y necesitan ser actualizados.\n\nEsto generalmente sucede cuando:\n- Los tokens han expirado naturalmente después de un largo período\n- La contraseña fue cambiada en la aplicación Kwikset\n- La cuenta fue desconectada desde otro dispositivo\n\nHaga clic en el botón **Reparar** a continuación para volver a ingresar sus credenciales de Kwikset."
+            }
         }
     }
 }

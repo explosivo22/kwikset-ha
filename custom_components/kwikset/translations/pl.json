@@ -160,11 +160,10 @@
                 "step": {
                     "confirm": {
                         "title": "Ponowne uwierzytelnienie Kwikset",
-                        "description": "Uwierzytelnienie dla **{entry_title}** wygasło. Kliknij **Wyślij**, aby rozpocząć proces ponownego uwierzytelniania."
+                        "description": "Tokeny uwierzytelniające dla integracji Kwikset (**{entry_title}**) wygasły i wymagają odświeżenia.\n\nZwykle dzieje się tak, gdy:\n- Tokeny naturalnie wygasły po długim okresie\n- Hasło zostało zmienione w aplikacji Kwikset\n- Konto zostało wylogowane z innego urządzenia\n\nKliknij przycisk **Napraw** poniżej, aby ponownie wprowadzić dane logowania Kwikset."
                     }
                 }
-            },
-            "description": "Tokeny uwierzytelniające dla integracji Kwikset (**{entry_title}**) wygasły i wymagają odświeżenia.\n\nZwykle dzieje się tak, gdy:\n- Tokeny naturalnie wygasły po długim okresie\n- Hasło zostało zmienione w aplikacji Kwikset\n- Konto zostało wylogowane z innego urządzenia\n\nKliknij przycisk **Napraw** poniżej, aby ponownie wprowadzić dane logowania Kwikset."
+            }
         }
     }
 }

@@ -160,11 +160,10 @@
                 "step": {
                     "confirm": {
                         "title": "重新驗證 Kwikset",
-                        "description": "**{entry_title}** 的驗證已過期。點擊 **提交** 開始重新驗證流程。"
+                        "description": "Kwikset 整合（**{entry_title}**）的驗證權杖已過期，需要重新整理。\n\n這通常發生在：\n- 權杖在長時間後自然過期\n- 在 Kwikset 應用程式中更改了密碼\n- 從另一台裝置登出了帳戶\n\n點擊下方的 **修復** 按鈕重新輸入您的 Kwikset 憑證。"
                     }
                 }
-            },
-            "description": "Kwikset 整合（**{entry_title}**）的驗證權杖已過期，需要重新整理。\n\n這通常發生在：\n- 權杖在長時間後自然過期\n- 在 Kwikset 應用程式中更改了密碼\n- 從另一台裝置登出了帳戶\n\n點擊下方的 **修復** 按鈕重新輸入您的 Kwikset 憑證。"
+            }
         }
     }
 }

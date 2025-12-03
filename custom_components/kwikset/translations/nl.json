@@ -160,11 +160,10 @@
                 "step": {
                     "confirm": {
                         "title": "Kwikset opnieuw verifiëren",
-                        "description": "De authenticatie voor **{entry_title}** is verlopen. Klik op **Verzenden** om de herauthenticatiestroom te starten."
+                        "description": "De authenticatietokens voor de Kwikset-integratie (**{entry_title}**) zijn verlopen en moeten worden vernieuwd.\n\nDit gebeurt meestal wanneer:\n- De tokens natuurlijk zijn verlopen na een lange periode\n- Het wachtwoord is gewijzigd in de Kwikset-app\n- Het account is uitgelogd vanaf een ander apparaat\n\nKlik op de knop **Repareren** hieronder om uw Kwikset-inloggegevens opnieuw in te voeren."
                     }
                 }
-            },
-            "description": "De authenticatietokens voor de Kwikset-integratie (**{entry_title}**) zijn verlopen en moeten worden vernieuwd.\n\nDit gebeurt meestal wanneer:\n- De tokens natuurlijk zijn verlopen na een lange periode\n- Het wachtwoord is gewijzigd in de Kwikset-app\n- Het account is uitgelogd vanaf een ander apparaat\n\nKlik op de knop **Repareren** hieronder om uw Kwikset-inloggegevens opnieuw in te voeren."
+            }
         }
     }
 }
