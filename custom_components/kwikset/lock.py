@@ -29,14 +29,18 @@ Coordinator Pattern:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from homeassistant.components.lock import LockEntity
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN, LOGGER, OPTIMISTIC_TIMEOUT_SECONDS
+from .const import DOMAIN
+from .const import LOGGER
+from .const import OPTIMISTIC_TIMEOUT_SECONDS
 from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
@@ -80,7 +84,9 @@ async def async_setup_entry(
 
     # Gold tier: dynamic_devices - listen for runtime discoveries
     entry.async_on_unload(
-        hass.bus.async_listen(f"{DOMAIN}_new_device", lambda _: _async_add_new_devices())
+        hass.bus.async_listen(
+            f"{DOMAIN}_new_device", lambda _: _async_add_new_devices()
+        )
     )
 
 
@@ -148,6 +154,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
         Args:
             write_state: Whether to write state to HA after reset.
+
         """
         if self._optimistic_timer and not self._optimistic_timer.cancelled():
             self._optimistic_timer.cancel()

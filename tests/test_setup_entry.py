@@ -16,50 +16,41 @@ Quality Scale: Gold tier - complete entry lifecycle testing.
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from aiokwikset.api import Unauthenticated
 from aiokwikset.errors import RequestError
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryNotReady
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.const import CONF_EMAIL, Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from custom_components.kwikset import PLATFORMS
+from custom_components.kwikset import KwiksetRuntimeData
+from custom_components.kwikset import async_migrate_entry
+from custom_components.kwikset import async_setup_entry
+from custom_components.kwikset import async_unload_entry
+from custom_components.kwikset.const import CONF_ACCESS_TOKEN
+from custom_components.kwikset.const import CONF_HOME_ID
+from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
+from custom_components.kwikset.const import CONF_REFRESH_TOKEN
+from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
+from custom_components.kwikset.const import DOMAIN
 
-from custom_components.kwikset import (
-    KwiksetRuntimeData,
-    PLATFORMS,
-    async_migrate_entry,
-    async_setup_entry,
-    async_unload_entry,
-)
-from custom_components.kwikset.const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOME_ID,
-    CONF_ID_TOKEN,
-    CONF_REFRESH_INTERVAL,
-    CONF_REFRESH_TOKEN,
-    DEFAULT_REFRESH_INTERVAL,
-    DOMAIN,
-)
-
-from .conftest import (
-    MOCK_ACCESS_TOKEN,
-    MOCK_DEVICE_ID,
-    MOCK_DEVICE_ID_2,
-    MOCK_DEVICE_INFO,
-    MOCK_DEVICE_INFO_2,
-    MOCK_DEVICES,
-    MOCK_EMAIL,
-    MOCK_ENTRY_DATA,
-    MOCK_ENTRY_OPTIONS,
-    MOCK_HOME_ID,
-    MOCK_REFRESH_TOKEN,
-    MOCK_USER_INFO,
-)
-
+from .conftest import MOCK_ACCESS_TOKEN
+from .conftest import MOCK_DEVICE_ID
+from .conftest import MOCK_DEVICE_ID_2
+from .conftest import MOCK_DEVICE_INFO
+from .conftest import MOCK_DEVICE_INFO_2
+from .conftest import MOCK_DEVICES
+from .conftest import MOCK_ENTRY_DATA
+from .conftest import MOCK_ENTRY_OPTIONS
+from .conftest import MOCK_HOME_ID
+from .conftest import MOCK_REFRESH_TOKEN
 
 # =============================================================================
 # Setup Entry Tests
@@ -81,14 +72,18 @@ class TestAsyncSetupEntry:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                result = await async_setup_entry(hass, entry)
+            result = await async_setup_entry(hass, entry)
 
         assert result is True
 
@@ -104,14 +99,18 @@ class TestAsyncSetupEntry:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         assert hasattr(entry, "runtime_data")
         assert isinstance(entry.runtime_data, KwiksetRuntimeData)
@@ -131,14 +130,18 @@ class TestAsyncSetupEntry:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         # Verify session restoration with tokens
         mock_api.async_authenticate_with_tokens.assert_called_once()
@@ -156,14 +159,18 @@ class TestAsyncSetupEntry:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         mock_api.device.get_devices.assert_called_once_with(MOCK_HOME_ID)
 
@@ -186,7 +193,7 @@ class TestAsyncSetupEntry:
         def get_device_info_side_effect(device_id: str) -> dict:
             if device_id == MOCK_DEVICE_ID:
                 return MOCK_DEVICE_INFO
-            elif device_id == MOCK_DEVICE_ID_2:
+            if device_id == MOCK_DEVICE_ID_2:
                 return MOCK_DEVICE_INFO_2
             raise ValueError(f"Unknown device ID: {device_id}")
 
@@ -194,14 +201,18 @@ class TestAsyncSetupEntry:
             side_effect=get_device_info_side_effect
         )
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         assert len(entry.runtime_data.devices) == 2
         assert MOCK_DEVICE_ID in entry.runtime_data.devices
@@ -220,14 +231,18 @@ class TestAsyncSetupEntry:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ) as mock_forward,
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ) as mock_forward:
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         mock_forward.assert_called_once()
         call_args = mock_forward.call_args
@@ -251,14 +266,18 @@ class TestAsyncSetupEntry:
         entry.async_on_unload = MagicMock()
         entry.add_update_listener = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         # Should register listener via async_on_unload
         entry.async_on_unload.assert_called()
@@ -277,14 +296,18 @@ class TestAsyncSetupEntry:
 
         cancel_mock = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=cancel_mock,
-        ) as mock_track:
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=cancel_mock,
+            ) as mock_track,
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
 
         mock_track.assert_called_once()
         assert entry.runtime_data.cancel_device_discovery == cancel_mock
@@ -310,7 +333,9 @@ class TestSetupErrorHandling:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.title = "Test Entry"
 
-        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated("Token expired")
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
 
         with pytest.raises(ConfigEntryAuthFailed):
             await async_setup_entry(hass, entry)
@@ -326,7 +351,9 @@ class TestSetupErrorHandling:
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
 
-        mock_api.async_authenticate_with_tokens.side_effect = RequestError("Connection failed")
+        mock_api.async_authenticate_with_tokens.side_effect = RequestError(
+            "Connection failed"
+        )
 
         with pytest.raises(ConfigEntryNotReady):
             await async_setup_entry(hass, entry)
@@ -367,7 +394,9 @@ class TestSetupErrorHandling:
                 return_value=MagicMock(),
             ):
                 with patch.object(
-                    hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
+                    hass.config_entries,
+                    "async_forward_entry_setups",
+                    new_callable=AsyncMock,
                 ):
                     await async_setup_entry(hass, entry)
 
@@ -403,14 +432,18 @@ class TestAsyncUnloadEntry:
         entry.async_on_unload = MagicMock()
 
         # Set up first
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         # Unload
         with patch.object(
@@ -436,14 +469,18 @@ class TestAsyncUnloadEntry:
         cancel_mock = MagicMock()
 
         # Set up with discovery timer
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=cancel_mock,
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=cancel_mock,
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         # Verify timer is registered
         assert entry.runtime_data.cancel_device_discovery is not None
@@ -472,14 +509,18 @@ class TestAsyncUnloadEntry:
         entry.async_on_unload = MagicMock()
 
         # Set up first
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         # Unload
         with patch.object(
@@ -694,17 +735,23 @@ class TestCoordinatorInterval:
         entry.options = {}  # No custom interval
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         for coordinator in entry.runtime_data.devices.values():
-            assert coordinator.update_interval == timedelta(seconds=DEFAULT_REFRESH_INTERVAL)
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
 
     async def test_coordinator_uses_custom_interval(
         self,
@@ -719,14 +766,18 @@ class TestCoordinatorInterval:
         entry.options = {CONF_REFRESH_INTERVAL: custom_interval}
         entry.async_on_unload = MagicMock()
 
-        with patch(
-            "custom_components.kwikset.async_track_time_interval",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
         ):
-            with patch.object(
-                hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock
-            ):
-                await async_setup_entry(hass, entry)
+            await async_setup_entry(hass, entry)
 
         for coordinator in entry.runtime_data.devices.values():
             assert coordinator.update_interval == timedelta(seconds=custom_interval)

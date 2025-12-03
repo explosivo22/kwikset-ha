@@ -11,40 +11,26 @@ Quality Scale: Platinum tier - coordinator is the central data management compon
 
 from __future__ import annotations
 
-import asyncio
 from datetime import timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
-from aiokwikset.errors import RequestError, TokenExpiredError, Unauthenticated
-
+from aiokwikset.errors import RequestError
+from aiokwikset.errors import TokenExpiredError
+from aiokwikset.errors import Unauthenticated
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.kwikset.const import (
-    CONF_ACCESS_TOKEN,
-    CONF_REFRESH_TOKEN,
-    MAX_RETRY_ATTEMPTS,
-    RETRY_DELAY_SECONDS,
-)
-from custom_components.kwikset.device import (
-    KwiksetDeviceData,
-    KwiksetDeviceDataUpdateCoordinator,
-)
+from custom_components.kwikset.const import MAX_RETRY_ATTEMPTS
+from custom_components.kwikset.device import KwiksetDeviceDataUpdateCoordinator
 
-from .conftest import (
-    MOCK_ACCESS_TOKEN,
-    MOCK_DEVICE_ID,
-    MOCK_DEVICE_INFO,
-    MOCK_DEVICE_NAME,
-    MOCK_ENTRY_DATA,
-    MOCK_ENTRY_OPTIONS,
-    MOCK_REFRESH_TOKEN,
-    MOCK_USER_INFO,
-    generate_mock_jwt,
-)
-
+from .conftest import MOCK_DEVICE_ID
+from .conftest import MOCK_DEVICE_INFO
+from .conftest import MOCK_DEVICE_NAME
+from .conftest import MOCK_USER_INFO
 
 # =============================================================================
 # Coordinator Initialization Tests
@@ -165,7 +151,9 @@ class TestRetryLogic:
         )
 
         # Patch sleep to speed up test
-        with patch("custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock
+        ):
             result = await coordinator._api_call_with_retry(
                 api.device.get_device_info,
                 MOCK_DEVICE_ID,
@@ -195,7 +183,9 @@ class TestRetryLogic:
             config_entry=mock_config_entry,
         )
 
-        with patch("custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock
+        ):
             with pytest.raises(HomeAssistantError) as exc_info:
                 await coordinator._api_call_with_retry(
                     api.device.get_device_info,

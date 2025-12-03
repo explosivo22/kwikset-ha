@@ -9,36 +9,37 @@ Data Flow:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import timedelta
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import timedelta
 from typing import Any
 
 from aiokwikset import API
 from aiokwikset.errors import ConnectionError as KwiksetConnectionError
-from aiokwikset.errors import RequestError, TokenExpiredError, Unauthenticated
-
+from aiokwikset.errors import RequestError
+from aiokwikset.errors import TokenExpiredError
+from aiokwikset.errors import Unauthenticated
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntry
-
-from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOME_ID,
-    CONF_ID_TOKEN,
-    CONF_REFRESH_INTERVAL,
-    CONF_REFRESH_TOKEN,
-    DEFAULT_REFRESH_INTERVAL,
-    DOMAIN,
-)
-from .device import KwiksetDeviceDataUpdateCoordinator
-
 from homeassistant.helpers.event import async_track_time_interval
+
+from .const import CONF_ACCESS_TOKEN
+from .const import CONF_HOME_ID
+from .const import CONF_ID_TOKEN
+from .const import CONF_REFRESH_INTERVAL
+from .const import CONF_REFRESH_TOKEN
+from .const import DEFAULT_REFRESH_INTERVAL
+from .const import DOMAIN
+from .device import KwiksetDeviceDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ class KwiksetRuntimeData:
         devices: Device ID to coordinator mapping.
         known_devices: Tracked device IDs for stale device detection.
         cancel_device_discovery: Cancellation callback for discovery timer.
+
     """
 
     client: API
@@ -100,7 +102,7 @@ async def _async_update_tokens(
     access_token: str,
     refresh_token: str,
 ) -> None:
-    """Callback to update config entry with new tokens.
+    """Update config entry with new tokens.
 
     This is called by the aiokwikset library when tokens are refreshed.
 
@@ -110,6 +112,7 @@ async def _async_update_tokens(
         id_token: New ID token.
         access_token: New access token.
         refresh_token: New refresh token.
+
     """
     hass.config_entries.async_update_entry(
         entry,
@@ -141,6 +144,7 @@ def _create_coordinator(
 
     Returns:
         Configured coordinator for the device.
+
     """
     return KwiksetDeviceDataUpdateCoordinator(
         hass,
@@ -150,6 +154,7 @@ def _create_coordinator(
         update_interval=update_interval,
         config_entry=entry,
     )
+
 
 async def _build_device_coordinators(
     hass: HomeAssistant,
@@ -167,6 +172,7 @@ async def _build_device_coordinators(
 
     Returns:
         Dictionary mapping device IDs to their coordinators.
+
     """
     update_interval = _get_update_interval(entry)
     devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = {}
@@ -193,6 +199,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     Raises:
         ConfigEntryAuthFailed: If authentication fails.
         ConfigEntryNotReady: If there's a transient connection issue.
+
     """
     # Get Home Assistant's shared aiohttp session (Platinum: inject-websession)
     websession = async_get_clientsession(hass)
@@ -285,6 +292,7 @@ async def _async_add_new_devices(
         entry: Config entry for the integration.
         new_device_ids: Set of new device IDs to add.
         api_devices: List of all device data from API.
+
     """
     runtime_data = entry.runtime_data
     update_interval = _get_update_interval(entry)
@@ -317,6 +325,7 @@ async def _async_remove_stale_devices(
         hass: Home Assistant instance.
         entry: Config entry for the integration.
         removed_device_ids: Set of device IDs to remove.
+
     """
     runtime_data = entry.runtime_data
     device_registry = dr.async_get(hass)
@@ -352,17 +361,29 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
         # Handle new devices
         new_device_ids = current_device_ids - runtime_data.known_devices
         if new_device_ids:
-            _LOGGER.info("Discovered %d new device(s): %s", len(new_device_ids), new_device_ids)
+            _LOGGER.info(
+                "Discovered %d new device(s): %s", len(new_device_ids), new_device_ids
+            )
             await _async_add_new_devices(hass, entry, new_device_ids, api_devices)
 
         # Handle removed devices
         removed_device_ids = runtime_data.known_devices - current_device_ids
         if removed_device_ids:
-            _LOGGER.info("Detected %d removed device(s): %s", len(removed_device_ids), removed_device_ids)
+            _LOGGER.info(
+                "Detected %d removed device(s): %s",
+                len(removed_device_ids),
+                removed_device_ids,
+            )
             await _async_remove_stale_devices(hass, entry, removed_device_ids)
 
-    except (TokenExpiredError, Unauthenticated, RequestError, KwiksetConnectionError) as err:
-        _LOGGER.error("Error checking for device changes: %s", err)
+    except (
+        TokenExpiredError,
+        Unauthenticated,
+        RequestError,
+        KwiksetConnectionError,
+    ):
+        _LOGGER.exception("Error checking for device changes")
+
 
 # =============================================================================
 # Options & Device Removal

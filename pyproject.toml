@@ -58,10 +58,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests can use assert and don't need docstrings
-"tests/**/*.py" = ["S101", "D", "PLR2004"]
-# Config flow may have complex conditional logic
-"**/config_flow.py" = ["PLR0912"]
+# Tests can use assert, don't need docstrings, can have imports inside functions,
+# and allow longer lines, nested with statements, mock passwords, and late imports
+"tests/**/*.py" = ["S101", "D", "PLR2004", "PLC0415", "TRY300", "E501", "SIM117", "S105", "E402"]
+# Config flow may have complex conditional logic and return in try blocks is intentional
+"**/config_flow.py" = ["PLR0912", "TRY300"]
+# Constants file has token configuration keys that look like hardcoded secrets
+"**/const.py" = ["S105"]
 
 [tool.ruff.lint.isort]
 # Force single-line imports for cleaner diffs

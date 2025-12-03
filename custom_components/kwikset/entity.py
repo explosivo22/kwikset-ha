@@ -50,6 +50,7 @@ class KwiksetEntity(CoordinatorEntity["KwiksetDeviceDataUpdateCoordinator"]):
         Args:
             entity_type: Entity type key (e.g., "lock", "battery") for unique_id.
             coordinator: Device coordinator for state and actions.
+
         """
         super().__init__(coordinator)
 

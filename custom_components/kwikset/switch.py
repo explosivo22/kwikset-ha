@@ -13,17 +13,22 @@ Silver (parallel_updates, action_exceptions), Gold (dynamic_devices).
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN
+from .const import LOGGER
 from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
 from .entity import KwiksetEntity
 
@@ -104,7 +109,9 @@ async def async_setup_entry(
     _async_add_new_devices()
 
     entry.async_on_unload(
-        hass.bus.async_listen(f"{DOMAIN}_new_device", lambda _: _async_add_new_devices())
+        hass.bus.async_listen(
+            f"{DOMAIN}_new_device", lambda _: _async_add_new_devices()
+        )
     )
 
 

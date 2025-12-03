@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.const import CONF_EMAIL
+from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 
-from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOME_ID,
-    CONF_ID_TOKEN,
-    CONF_REFRESH_TOKEN,
-)
+from .const import CONF_ACCESS_TOKEN
+from .const import CONF_HOME_ID
+from .const import CONF_ID_TOKEN
+from .const import CONF_REFRESH_TOKEN
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry

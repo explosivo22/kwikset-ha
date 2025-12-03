@@ -14,41 +14,33 @@ Quality Scale: Gold tier - comprehensive config flow test coverage.
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
-import pytest
-from aiokwikset.errors import MFAChallengeRequired, RequestError
-
+from aiokwikset.errors import MFAChallengeRequired
+from aiokwikset.errors import RequestError
 from homeassistant import config_entries
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.const import CONF_EMAIL
+from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.kwikset.config_flow import (
-    CannotConnect,
-    KwiksetFlowHandler,
-)
-from custom_components.kwikset.const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOME_ID,
-    CONF_REFRESH_INTERVAL,
-    CONF_REFRESH_TOKEN,
-    DEFAULT_REFRESH_INTERVAL,
-    DOMAIN,
-)
+from custom_components.kwikset.config_flow import CannotConnect
+from custom_components.kwikset.config_flow import KwiksetFlowHandler
+from custom_components.kwikset.const import CONF_ACCESS_TOKEN
+from custom_components.kwikset.const import CONF_HOME_ID
+from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
+from custom_components.kwikset.const import CONF_REFRESH_TOKEN
+from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
+from custom_components.kwikset.const import DOMAIN
 
-from .conftest import (
-    MOCK_ACCESS_TOKEN,
-    MOCK_EMAIL,
-    MOCK_HOME_ID,
-    MOCK_HOME_NAME,
-    MOCK_HOMES,
-    MOCK_PASSWORD,
-    MOCK_REFRESH_TOKEN,
-)
-
+from .conftest import MOCK_ACCESS_TOKEN
+from .conftest import MOCK_EMAIL
+from .conftest import MOCK_HOME_ID
+from .conftest import MOCK_HOME_NAME
+from .conftest import MOCK_PASSWORD
+from .conftest import MOCK_REFRESH_TOKEN
 
 # =============================================================================
 # User Flow Tests

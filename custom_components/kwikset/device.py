@@ -14,29 +14,29 @@ Quality Scale:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
+from collections.abc import Callable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import TypedDict
+from typing import TypeVar
 
 from aiokwikset import API
-from aiokwikset.errors import (
-    ConnectionError as KwiksetConnectionError,
-    RequestError,
-    TokenExpiredError,
-    Unauthenticated,
-)
-
+from aiokwikset.errors import ConnectionError as KwiksetConnectionError
+from aiokwikset.errors import RequestError
+from aiokwikset.errors import TokenExpiredError
+from aiokwikset.errors import Unauthenticated
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import (
-    DOMAIN,
-    LOGGER,
-    MAX_RETRY_ATTEMPTS,
-    RETRY_DELAY_SECONDS,
-)
+from .const import DOMAIN
+from .const import LOGGER
+from .const import MAX_RETRY_ATTEMPTS
+from .const import RETRY_DELAY_SECONDS
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry

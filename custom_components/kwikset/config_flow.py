@@ -23,37 +23,32 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from aiokwikset import API
-from aiokwikset.errors import (
-    ConnectionError as KwiksetConnectionError,
-    MFAChallengeRequired,
-    RequestError,
-    TokenExpiredError,
-    Unauthenticated,
-)
 import voluptuous as vol
-
-from homeassistant import config_entries, exceptions
+from aiokwikset import API
+from aiokwikset.errors import ConnectionError as KwiksetConnectionError
+from aiokwikset.errors import MFAChallengeRequired
+from aiokwikset.errors import RequestError
+from aiokwikset.errors import TokenExpiredError
+from aiokwikset.errors import Unauthenticated
+from homeassistant import config_entries
+from homeassistant import exceptions
 from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.const import CONF_EMAIL
+from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-)
+from homeassistant.helpers.selector import NumberSelector
+from homeassistant.helpers.selector import NumberSelectorConfig
+from homeassistant.helpers.selector import NumberSelectorMode
 
-from .const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOME_ID,
-    CONF_ID_TOKEN,
-    CONF_REFRESH_INTERVAL,
-    CONF_REFRESH_TOKEN,
-    DEFAULT_REFRESH_INTERVAL,
-    DOMAIN,
-    LOGGER,
-)
+from .const import CONF_ACCESS_TOKEN
+from .const import CONF_HOME_ID
+from .const import CONF_ID_TOKEN
+from .const import CONF_REFRESH_INTERVAL
+from .const import CONF_REFRESH_TOKEN
+from .const import DEFAULT_REFRESH_INTERVAL
+from .const import DOMAIN
+from .const import LOGGER
 
 # Schema definitions
 CREDENTIALS_SCHEMA = vol.Schema(
@@ -103,6 +98,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         Returns:
             str: Error key if authentication failed
             None: On success (including when MFA is required)
+
         """
         try:
             self.api = API()
@@ -297,8 +293,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle home selection."""
-        errors: dict[str, str] = {}
-
         if user_input is None or CONF_HOME_ID not in user_input:
             error = await self._async_authenticate()
             if error:

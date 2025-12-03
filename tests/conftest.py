@@ -20,15 +20,15 @@ import json
 import time
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL
 from homeassistant.core import HomeAssistant
-
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 # =============================================================================
 # Pytest-asyncio Fixtures
@@ -55,15 +55,14 @@ def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
     """
     return
 
-from custom_components.kwikset.const import (
-    CONF_ACCESS_TOKEN,
-    CONF_HOME_ID,
-    CONF_ID_TOKEN,
-    CONF_REFRESH_INTERVAL,
-    CONF_REFRESH_TOKEN,
-    DEFAULT_REFRESH_INTERVAL,
-    DOMAIN,
-)
+
+from custom_components.kwikset.const import CONF_ACCESS_TOKEN
+from custom_components.kwikset.const import CONF_HOME_ID
+from custom_components.kwikset.const import CONF_ID_TOKEN
+from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
+from custom_components.kwikset.const import CONF_REFRESH_TOKEN
+from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
+from custom_components.kwikset.const import DOMAIN
 
 # =============================================================================
 # Mock Data Constants
@@ -144,9 +143,13 @@ def generate_mock_jwt(expiry_seconds: int = 3600) -> str:
     Returns:
         Base64-encoded mock JWT token string.
     """
-    header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
+    header = (
+        base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
+    )
     payload_data = {"exp": time.time() + expiry_seconds, "sub": "mock_user"}
-    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).decode().rstrip("=")
+    payload = (
+        base64.urlsafe_b64encode(json.dumps(payload_data).encode()).decode().rstrip("=")
+    )
     signature = base64.urlsafe_b64encode(b"mock_signature").decode().rstrip("=")
     return f"{header}.{payload}.{signature}"
 

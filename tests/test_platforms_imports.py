@@ -43,7 +43,9 @@ def _can_import_switch_module() -> bool:
 
 # Skip reasons for API compatibility
 LOCK_SKIP_REASON = "lock module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
-SWITCH_SKIP_REASON = "switch module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
+SWITCH_SKIP_REASON = (
+    "switch module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
+)
 
 
 # =============================================================================
@@ -291,12 +293,10 @@ class TestConstantsModuleImports:
 
     def test_constants_has_conf_keys(self) -> None:
         """Test constants module exports configuration keys."""
-        from custom_components.kwikset.const import (
-            CONF_ACCESS_TOKEN,
-            CONF_HOME_ID,
-            CONF_REFRESH_INTERVAL,
-            CONF_REFRESH_TOKEN,
-        )
+        from custom_components.kwikset.const import CONF_ACCESS_TOKEN
+        from custom_components.kwikset.const import CONF_HOME_ID
+        from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
+        from custom_components.kwikset.const import CONF_REFRESH_TOKEN
 
         assert CONF_ACCESS_TOKEN is not None
         assert CONF_HOME_ID is not None
@@ -305,11 +305,9 @@ class TestConstantsModuleImports:
 
     def test_constants_has_defaults(self) -> None:
         """Test constants module exports default values."""
-        from custom_components.kwikset.const import (
-            DEFAULT_REFRESH_INTERVAL,
-            MAX_RETRY_ATTEMPTS,
-            RETRY_DELAY_SECONDS,
-        )
+        from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
+        from custom_components.kwikset.const import MAX_RETRY_ATTEMPTS
+        from custom_components.kwikset.const import RETRY_DELAY_SECONDS
 
         assert DEFAULT_REFRESH_INTERVAL == 30
         assert MAX_RETRY_ATTEMPTS == 3

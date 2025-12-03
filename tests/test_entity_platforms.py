@@ -19,13 +19,13 @@ are skipped if the required modules cannot be imported.
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 from homeassistant.components.lock import LockEntity
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorStateClass
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import PERCENTAGE
 from homeassistant.exceptions import HomeAssistantError
@@ -36,10 +36,11 @@ try:
 except ImportError:
     from homeassistant.helpers.entity import EntityCategory
 
-from custom_components.kwikset.const import DOMAIN, PARALLEL_UPDATES, OPTIMISTIC_TIMEOUT_SECONDS
+from custom_components.kwikset.const import DOMAIN
+from custom_components.kwikset.const import OPTIMISTIC_TIMEOUT_SECONDS
 
-from .conftest import MOCK_DEVICE_ID, MOCK_DEVICE_NAME
-
+from .conftest import MOCK_DEVICE_ID
+from .conftest import MOCK_DEVICE_NAME
 
 # =============================================================================
 # API Compatibility Checks
@@ -68,7 +69,9 @@ def _can_import_switch_module() -> bool:
 
 # Skip reasons for API compatibility
 LOCK_SKIP_REASON = "lock module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
-SWITCH_SKIP_REASON = "switch module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
+SWITCH_SKIP_REASON = (
+    "switch module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
+)
 
 
 # =============================================================================
@@ -128,9 +131,7 @@ class TestKwiksetEntity:
         lock = lock_module.KwiksetLock(mock_coordinator)
         assert lock.unique_id == f"{MOCK_DEVICE_ID}_lock"
 
-    def test_entity_device_info(
-        self, lock_module, mock_coordinator: MagicMock
-    ) -> None:
+    def test_entity_device_info(self, lock_module, mock_coordinator: MagicMock) -> None:
         """Test entity provides correct device_info."""
         lock = lock_module.KwiksetLock(mock_coordinator)
         device_info = lock.device_info
@@ -519,9 +520,7 @@ class TestKwiksetSensor:
         assert isinstance(sensor, SensorEntity)
         assert isinstance(sensor, entity_module.KwiksetEntity)
 
-    def test_sensor_unique_id(
-        self, sensor_module, mock_coordinator: MagicMock
-    ) -> None:
+    def test_sensor_unique_id(self, sensor_module, mock_coordinator: MagicMock) -> None:
         """Test sensor unique_id includes description key."""
         description = sensor_module.SENSOR_DESCRIPTIONS[0]
         sensor = sensor_module.KwiksetSensor(mock_coordinator, description)
@@ -595,9 +594,7 @@ class TestKwiksetSwitch:
         assert isinstance(switch, SwitchEntity)
         assert isinstance(switch, entity_module.KwiksetEntity)
 
-    def test_switch_unique_id(
-        self, switch_module, mock_coordinator: MagicMock
-    ) -> None:
+    def test_switch_unique_id(self, switch_module, mock_coordinator: MagicMock) -> None:
         """Test switch unique_id includes description key."""
         description = switch_module.SWITCH_DESCRIPTIONS[0]
         switch = switch_module.KwiksetSwitch(mock_coordinator, description)
