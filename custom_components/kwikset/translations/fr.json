@@ -4,7 +4,7 @@
         "step": {
             "user": {
                 "title": "Se connecter à Kwikset",
-                "description": "Entrez vos identifiants de compte Kwikset.",
+                "description": "Entrez vos identifiants de compte Kwikset pour connecter vos serrures intelligentes.",
                 "data": {
                     "email": "E-mail",
                     "password": "Mot de passe"
@@ -16,7 +16,7 @@
             },
             "select_home": {
                 "title": "Sélectionner la maison",
-                "description": "Choisissez quelle maison Kwikset configurer.",
+                "description": "Choisissez quelle maison Kwikset configurer. Chaque maison sera configurée comme une entrée d'intégration séparée.",
                 "data": {
                     "conf_home_id": "Maison"
                 },
@@ -34,7 +34,8 @@
             },
             "reconfigure": {
                 "title": "Reconfigurer Kwikset",
-                "description": "Cela rechargera l'intégration et découvrira tous les nouveaux appareils ajoutés à votre maison Kwikset."
+                "description": "Cela rechargera l'intégration et découvrira tous les nouveaux appareils ajoutés à votre maison Kwikset.",
+                "submit": "Recharger l'intégration"
             },
             "mfa": {
                 "title": "Authentification multifacteur",
@@ -67,7 +68,8 @@
         "abort": {
             "already_configured": "L'appareil est déjà configuré",
             "reauth_successful": "La réauthentification a réussi",
-            "no_available_homes": "Aucune maison disponible à configurer"
+            "reconfigure_successful": "Intégration rechargée avec succès. Les nouveaux appareils apparaîtront sous peu.",
+            "no_available_homes": "Aucune maison disponible à configurer. Toutes les maisons sont déjà configurées ou vous n'avez aucune maison dans votre compte Kwikset."
         }
     },
     "options": {
@@ -76,12 +78,10 @@
                 "title": "Options Kwikset",
                 "description": "Configurer les options d'intégration Kwikset.",
                 "data": {
-                    "refresh_interval": "Intervalle d'interrogation (secondes)",
-                    "refresh_devices": "Recharger pour découvrir de nouveaux appareils"
+                    "refresh_interval": "Intervalle d'interrogation (secondes)"
                 },
                 "data_description": {
-                    "refresh_interval": "Fréquence d'interrogation du cloud Kwikset pour l'état de l'appareil (15-60 secondes)",
-                    "refresh_devices": "Activez cette option pour recharger l'intégration et découvrir les appareils nouvellement ajoutés"
+                    "refresh_interval": "Fréquence d'interrogation du cloud Kwikset pour l'état de l'appareil (15-60 secondes). Des valeurs plus basses fournissent des mises à jour plus rapides mais peuvent augmenter la charge de l'API."
                 }
             }
         }
@@ -89,7 +89,14 @@
     "entity": {
         "lock": {
             "lock": {
-                "name": "Serrure"
+                "name": "Serrure",
+                "state": {
+                    "locked": "Verrouillé",
+                    "unlocked": "Déverrouillé",
+                    "locking": "Verrouillage",
+                    "unlocking": "Déverrouillage",
+                    "jammed": "Bloqué"
+                }
             }
         },
         "sensor": {
@@ -118,6 +125,24 @@
         },
         "token_refresh_failed": {
             "message": "Échec du rafraîchissement du jeton d'authentification. Veuillez vous réauthentifier."
+        },
+        "lock_failed": {
+            "message": "Échec du verrouillage de l'appareil. L'appareil peut être hors ligne ou il peut y avoir un problème de connectivité temporaire. Veuillez réessayer."
+        },
+        "unlock_failed": {
+            "message": "Échec du déverrouillage de l'appareil. L'appareil peut être hors ligne ou il peut y avoir un problème de connectivité temporaire. Veuillez réessayer."
+        },
+        "switch_on_failed": {
+            "message": "Échec de l'activation du paramètre. Veuillez réessayer."
+        },
+        "switch_off_failed": {
+            "message": "Échec de la désactivation du paramètre. Veuillez réessayer."
+        },
+        "device_offline": {
+            "message": "L'appareil semble être hors ligne. Veuillez vérifier que la serrure est alimentée et connectée à votre réseau WiFi."
+        },
+        "api_error": {
+            "message": "Une erreur s'est produite lors de la communication avec le service Kwikset. Veuillez réessayer plus tard."
         }
     },
     "issues": {

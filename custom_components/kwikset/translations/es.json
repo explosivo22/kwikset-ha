@@ -4,7 +4,7 @@
         "step": {
             "user": {
                 "title": "Iniciar sesión en Kwikset",
-                "description": "Ingrese las credenciales de su cuenta Kwikset.",
+                "description": "Ingrese las credenciales de su cuenta Kwikset para conectar sus cerraduras inteligentes.",
                 "data": {
                     "email": "Correo electrónico",
                     "password": "Contraseña"
@@ -16,7 +16,7 @@
             },
             "select_home": {
                 "title": "Seleccionar hogar",
-                "description": "Elija qué hogar Kwikset configurar.",
+                "description": "Elija qué hogar Kwikset configurar. Cada hogar se configurará como una entrada de integración separada.",
                 "data": {
                     "conf_home_id": "Hogar"
                 },
@@ -34,7 +34,8 @@
             },
             "reconfigure": {
                 "title": "Reconfigurar Kwikset",
-                "description": "Esto recargará la integración y descubrirá cualquier dispositivo nuevo que se haya agregado a su hogar Kwikset."
+                "description": "Esto recargará la integración y descubrirá cualquier dispositivo nuevo que se haya agregado a su hogar Kwikset.",
+                "submit": "Recargar integración"
             },
             "mfa": {
                 "title": "Autenticación multifactor",
@@ -67,7 +68,8 @@
         "abort": {
             "already_configured": "El dispositivo ya está configurado",
             "reauth_successful": "La reautenticación fue exitosa",
-            "no_available_homes": "No hay hogares disponibles para configurar"
+            "reconfigure_successful": "Integración recargada exitosamente. Los nuevos dispositivos aparecerán en breve.",
+            "no_available_homes": "No hay hogares disponibles para configurar. Todos los hogares ya están configurados o no tiene hogares en su cuenta Kwikset."
         }
     },
     "options": {
@@ -76,12 +78,10 @@
                 "title": "Opciones de Kwikset",
                 "description": "Configure las opciones de integración de Kwikset.",
                 "data": {
-                    "refresh_interval": "Intervalo de sondeo (segundos)",
-                    "refresh_devices": "Recargar para descubrir nuevos dispositivos"
+                    "refresh_interval": "Intervalo de sondeo (segundos)"
                 },
                 "data_description": {
-                    "refresh_interval": "Con qué frecuencia consultar la nube de Kwikset para el estado del dispositivo (15-60 segundos)",
-                    "refresh_devices": "Habilite esta opción para recargar la integración y descubrir dispositivos recién agregados"
+                    "refresh_interval": "Con qué frecuencia consultar la nube de Kwikset para el estado del dispositivo (15-60 segundos). Valores más bajos proporcionan actualizaciones más rápidas pero pueden aumentar la carga de la API."
                 }
             }
         }
@@ -89,7 +89,14 @@
     "entity": {
         "lock": {
             "lock": {
-                "name": "Cerradura"
+                "name": "Cerradura",
+                "state": {
+                    "locked": "Bloqueado",
+                    "unlocked": "Desbloqueado",
+                    "locking": "Bloqueando",
+                    "unlocking": "Desbloqueando",
+                    "jammed": "Atascado"
+                }
             }
         },
         "sensor": {
@@ -114,10 +121,28 @@
             "message": "Autenticación fallida. Por favor verifique sus credenciales e intente de nuevo."
         },
         "connection_error": {
-            "message": "No se puede conectar al servicio en la nube de Kwikset. Por favor intente más tarde."
+            "message": "No se puede conectar al servicio en la nube de Kwikset. Por favor verifique su conexión a internet e intente de nuevo."
         },
         "token_refresh_failed": {
             "message": "Error al actualizar el token de autenticación. Por favor vuelva a autenticarse."
+        },
+        "lock_failed": {
+            "message": "Error al bloquear el dispositivo. El dispositivo puede estar desconectado o puede haber un problema de conectividad temporal. Por favor intente de nuevo."
+        },
+        "unlock_failed": {
+            "message": "Error al desbloquear el dispositivo. El dispositivo puede estar desconectado o puede haber un problema de conectividad temporal. Por favor intente de nuevo."
+        },
+        "switch_on_failed": {
+            "message": "Error al activar la configuración. Por favor intente de nuevo."
+        },
+        "switch_off_failed": {
+            "message": "Error al desactivar la configuración. Por favor intente de nuevo."
+        },
+        "device_offline": {
+            "message": "El dispositivo parece estar desconectado. Por favor verifique que la cerradura tenga energía y esté conectada a su red WiFi."
+        },
+        "api_error": {
+            "message": "Ocurrió un error al comunicarse con el servicio de Kwikset. Por favor intente más tarde."
         }
     },
     "issues": {

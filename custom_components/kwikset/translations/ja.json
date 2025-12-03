@@ -4,7 +4,7 @@
         "step": {
             "user": {
                 "title": "Kwiksetにサインイン",
-                "description": "Kwiksetアカウントの認証情報を入力してください。",
+                "description": "Kwiksetアカウントの認証情報を入力してスマートロックを接続してください。",
                 "data": {
                     "email": "メールアドレス",
                     "password": "パスワード"
@@ -16,7 +16,7 @@
             },
             "select_home": {
                 "title": "ホームを選択",
-                "description": "設定するKwiksetホームを選択してください。",
+                "description": "設定するKwiksetホームを選択してください。各ホームは個別の統合エントリとして設定されます。",
                 "data": {
                     "conf_home_id": "ホーム"
                 },
@@ -34,7 +34,8 @@
             },
             "reconfigure": {
                 "title": "Kwiksetを再設定",
-                "description": "これにより統合が再読み込みされ、Kwiksetホームに追加された新しいデバイスが検出されます。"
+                "description": "これにより統合が再読み込みされ、Kwiksetホームに追加された新しいデバイスが検出されます。",
+                "submit": "統合を再読み込み"
             },
             "mfa": {
                 "title": "多要素認証",
@@ -67,7 +68,8 @@
         "abort": {
             "already_configured": "デバイスは既に設定されています",
             "reauth_successful": "再認証に成功しました",
-            "no_available_homes": "設定可能なホームがありません"
+            "reconfigure_successful": "統合が正常に再読み込みされました。新しいデバイスがまもなく表示されます。",
+            "no_available_homes": "設定可能なホームがありません。すべてのホームがすでに設定されているか、Kwiksetアカウントにホームがありません。"
         }
     },
     "options": {
@@ -76,12 +78,10 @@
                 "title": "Kwiksetオプション",
                 "description": "Kwikset統合オプションを設定します。",
                 "data": {
-                    "refresh_interval": "ポーリング間隔（秒）",
-                    "refresh_devices": "新しいデバイスを検出するために再読み込み"
+                    "refresh_interval": "ポーリング間隔（秒）"
                 },
                 "data_description": {
-                    "refresh_interval": "デバイスステータスのためにKwiksetクラウドをポーリングする頻度（15-60秒）",
-                    "refresh_devices": "このオプションを有効にすると、統合を再読み込みして新しく追加されたデバイスを検出します"
+                    "refresh_interval": "デバイスステータスのためにKwiksetクラウドをポーリングする頻度（15-60秒）。値が低いほど更新が速くなりますが、API負荷が増加する可能性があります。"
                 }
             }
         }
@@ -89,7 +89,14 @@
     "entity": {
         "lock": {
             "lock": {
-                "name": "ロック"
+                "name": "ロック",
+                "state": {
+                    "locked": "施錠",
+                    "unlocked": "解錠",
+                    "locking": "施錠中",
+                    "unlocking": "解錠中",
+                    "jammed": "詰まり"
+                }
             }
         },
         "sensor": {
@@ -118,6 +125,24 @@
         },
         "token_refresh_failed": {
             "message": "認証トークンの更新に失敗しました。再認証してください。"
+        },
+        "lock_failed": {
+            "message": "デバイスのロックに失敗しました。デバイスがオフラインであるか、一時的な接続の問題がある可能性があります。もう一度お試しください。"
+        },
+        "unlock_failed": {
+            "message": "デバイスのロック解除に失敗しました。デバイスがオフラインであるか、一時的な接続の問題がある可能性があります。もう一度お試しください。"
+        },
+        "switch_on_failed": {
+            "message": "設定の有効化に失敗しました。もう一度お試しください。"
+        },
+        "switch_off_failed": {
+            "message": "設定の無効化に失敗しました。もう一度お試しください。"
+        },
+        "device_offline": {
+            "message": "デバイスがオフラインのようです。ロックに電源があり、WiFiネットワークに接続されていることを確認してください。"
+        },
+        "api_error": {
+            "message": "Kwiksetサービスとの通信中にエラーが発生しました。後でもう一度お試しください。"
         }
     },
     "issues": {

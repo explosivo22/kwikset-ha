@@ -4,7 +4,7 @@
         "step": {
             "user": {
                 "title": "Kwikset에 로그인",
-                "description": "Kwikset 계정 자격 증명을 입력하세요.",
+                "description": "Kwikset 계정 자격 증명을 입력하여 스마트 잠금장치를 연결하세요.",
                 "data": {
                     "email": "이메일",
                     "password": "비밀번호"
@@ -16,7 +16,7 @@
             },
             "select_home": {
                 "title": "홈 선택",
-                "description": "구성할 Kwikset 홈을 선택하세요.",
+                "description": "구성할 Kwikset 홈을 선택하세요. 각 홈은 별도의 통합 항목으로 설정됩니다.",
                 "data": {
                     "conf_home_id": "홈"
                 },
@@ -34,7 +34,8 @@
             },
             "reconfigure": {
                 "title": "Kwikset 재구성",
-                "description": "통합을 다시 로드하고 Kwikset 홈에 추가된 새 장치를 검색합니다."
+                "description": "통합을 다시 로드하고 Kwikset 홈에 추가된 새 장치를 검색합니다.",
+                "submit": "통합 다시 로드"
             },
             "mfa": {
                 "title": "다단계 인증",
@@ -67,7 +68,8 @@
         "abort": {
             "already_configured": "장치가 이미 구성되어 있습니다",
             "reauth_successful": "재인증에 성공했습니다",
-            "no_available_homes": "구성할 수 있는 홈이 없습니다"
+            "reconfigure_successful": "통합이 성공적으로 다시 로드되었습니다. 새 장치가 곧 나타납니다.",
+            "no_available_homes": "구성할 수 있는 홈이 없습니다. 모든 홈이 이미 설정되었거나 Kwikset 계정에 홈이 없습니다."
         }
     },
     "options": {
@@ -76,12 +78,10 @@
                 "title": "Kwikset 옵션",
                 "description": "Kwikset 통합 옵션을 구성합니다.",
                 "data": {
-                    "refresh_interval": "폴링 간격(초)",
-                    "refresh_devices": "새 장치를 검색하려면 다시 로드"
+                    "refresh_interval": "폴링 간격(초)"
                 },
                 "data_description": {
-                    "refresh_interval": "장치 상태를 위해 Kwikset 클라우드를 폴링하는 빈도(15-60초)",
-                    "refresh_devices": "이 옵션을 활성화하면 통합을 다시 로드하고 새로 추가된 장치를 검색합니다"
+                    "refresh_interval": "장치 상태를 위해 Kwikset 클라우드를 폴링하는 빈도(15-60초). 낮은 값은 더 빠른 업데이트를 제공하지만 API 부하가 증가할 수 있습니다."
                 }
             }
         }
@@ -89,7 +89,14 @@
     "entity": {
         "lock": {
             "lock": {
-                "name": "잠금"
+                "name": "잠금",
+                "state": {
+                    "locked": "잠김",
+                    "unlocked": "열림",
+                    "locking": "잠금 중",
+                    "unlocking": "열기 중",
+                    "jammed": "걸림"
+                }
             }
         },
         "sensor": {
@@ -118,6 +125,24 @@
         },
         "token_refresh_failed": {
             "message": "인증 토큰 새로 고침에 실패했습니다. 다시 인증하세요."
+        },
+        "lock_failed": {
+            "message": "장치 잠금에 실패했습니다. 장치가 오프라인이거나 일시적인 연결 문제가 있을 수 있습니다. 다시 시도하세요."
+        },
+        "unlock_failed": {
+            "message": "장치 잠금 해제에 실패했습니다. 장치가 오프라인이거나 일시적인 연결 문제가 있을 수 있습니다. 다시 시도하세요."
+        },
+        "switch_on_failed": {
+            "message": "설정 켜기에 실패했습니다. 다시 시도하세요."
+        },
+        "switch_off_failed": {
+            "message": "설정 끄기에 실패했습니다. 다시 시도하세요."
+        },
+        "device_offline": {
+            "message": "장치가 오프라인인 것 같습니다. 잠금장치에 전원이 있고 WiFi 네트워크에 연결되어 있는지 확인하세요."
+        },
+        "api_error": {
+            "message": "Kwikset 서비스와 통신하는 동안 오류가 발생했습니다. 나중에 다시 시도하세요."
         }
     },
     "issues": {

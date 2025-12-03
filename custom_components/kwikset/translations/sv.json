@@ -4,7 +4,7 @@
         "step": {
             "user": {
                 "title": "Logga in på Kwikset",
-                "description": "Ange dina Kwikset-kontouppgifter.",
+                "description": "Ange dina Kwikset-kontouppgifter för att ansluta dina smarta lås.",
                 "data": {
                     "email": "E-post",
                     "password": "Lösenord"
@@ -16,7 +16,7 @@
             },
             "select_home": {
                 "title": "Välj hem",
-                "description": "Välj vilket Kwikset-hem som ska konfigureras.",
+                "description": "Välj vilket Kwikset-hem som ska konfigureras. Varje hem kommer att ställas in som en separat integrationspost.",
                 "data": {
                     "conf_home_id": "Hem"
                 },
@@ -34,7 +34,8 @@
             },
             "reconfigure": {
                 "title": "Konfigurera om Kwikset",
-                "description": "Detta kommer att ladda om integrationen och upptäcka nya enheter som har lagts till i ditt Kwikset-hem."
+                "description": "Detta kommer att ladda om integrationen och upptäcka nya enheter som har lagts till i ditt Kwikset-hem.",
+                "submit": "Ladda om integration"
             },
             "mfa": {
                 "title": "Multifaktorautentisering",
@@ -67,7 +68,8 @@
         "abort": {
             "already_configured": "Enheten är redan konfigurerad",
             "reauth_successful": "Omautentiseringen lyckades",
-            "no_available_homes": "Inga tillgängliga hem att konfigurera"
+            "reconfigure_successful": "Integrationen har laddats om. Nya enheter kommer att visas inom kort.",
+            "no_available_homes": "Inga tillgängliga hem att konfigurera. Alla hem är redan inställda eller du har inga hem i ditt Kwikset-konto."
         }
     },
     "options": {
@@ -76,12 +78,10 @@
                 "title": "Kwikset-alternativ",
                 "description": "Konfigurera Kwikset-integrationsalternativ.",
                 "data": {
-                    "refresh_interval": "Pollningsintervall (sekunder)",
-                    "refresh_devices": "Ladda om för att upptäcka nya enheter"
+                    "refresh_interval": "Pollningsintervall (sekunder)"
                 },
                 "data_description": {
-                    "refresh_interval": "Hur ofta Kwikset-molnet ska pollas för enhetsstatus (15-60 sekunder)",
-                    "refresh_devices": "Aktivera detta alternativ för att ladda om integrationen och upptäcka nyligen tillagda enheter"
+                    "refresh_interval": "Hur ofta Kwikset-molnet ska pollas för enhetsstatus (15-60 sekunder). Lägre värden ger snabbare uppdateringar men kan öka API-belastningen."
                 }
             }
         }
@@ -89,7 +89,14 @@
     "entity": {
         "lock": {
             "lock": {
-                "name": "Lås"
+                "name": "Lås",
+                "state": {
+                    "locked": "Låst",
+                    "unlocked": "Olåst",
+                    "locking": "Låser",
+                    "unlocking": "Låser upp",
+                    "jammed": "Fastnad"
+                }
             }
         },
         "sensor": {
@@ -118,6 +125,24 @@
         },
         "token_refresh_failed": {
             "message": "Kunde inte uppdatera autentiseringstoken. Vänligen autentisera igen."
+        },
+        "lock_failed": {
+            "message": "Kunde inte låsa enheten. Enheten kan vara offline eller det kan finnas ett tillfälligt anslutningsproblem. Vänligen försök igen."
+        },
+        "unlock_failed": {
+            "message": "Kunde inte låsa upp enheten. Enheten kan vara offline eller det kan finnas ett tillfälligt anslutningsproblem. Vänligen försök igen."
+        },
+        "switch_on_failed": {
+            "message": "Kunde inte aktivera inställningen. Vänligen försök igen."
+        },
+        "switch_off_failed": {
+            "message": "Kunde inte inaktivera inställningen. Vänligen försök igen."
+        },
+        "device_offline": {
+            "message": "Enheten verkar vara offline. Kontrollera att låset har ström och är anslutet till ditt WiFi-nätverk."
+        },
+        "api_error": {
+            "message": "Ett fel uppstod vid kommunikation med Kwikset-tjänsten. Vänligen försök igen senare."
         }
     },
     "issues": {

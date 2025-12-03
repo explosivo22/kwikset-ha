@@ -4,7 +4,7 @@
         "step": {
             "user": {
                 "title": "Accedi a Kwikset",
-                "description": "Inserisci le credenziali del tuo account Kwikset.",
+                "description": "Inserisci le credenziali del tuo account Kwikset per collegare le tue serrature intelligenti.",
                 "data": {
                     "email": "Email",
                     "password": "Password"
@@ -16,7 +16,7 @@
             },
             "select_home": {
                 "title": "Seleziona casa",
-                "description": "Scegli quale casa Kwikset configurare.",
+                "description": "Scegli quale casa Kwikset configurare. Ogni casa verrà configurata come una voce di integrazione separata.",
                 "data": {
                     "conf_home_id": "Casa"
                 },
@@ -34,7 +34,8 @@
             },
             "reconfigure": {
                 "title": "Riconfigura Kwikset",
-                "description": "Questo ricaricherà l'integrazione e scoprirà eventuali nuovi dispositivi aggiunti alla tua casa Kwikset."
+                "description": "Questo ricaricherà l'integrazione e scoprirà eventuali nuovi dispositivi aggiunti alla tua casa Kwikset.",
+                "submit": "Ricarica integrazione"
             },
             "mfa": {
                 "title": "Autenticazione a più fattori",
@@ -67,7 +68,8 @@
         "abort": {
             "already_configured": "Il dispositivo è già configurato",
             "reauth_successful": "Riautenticazione riuscita",
-            "no_available_homes": "Nessuna casa disponibile da configurare"
+            "reconfigure_successful": "Integrazione ricaricata con successo. I nuovi dispositivi appariranno a breve.",
+            "no_available_homes": "Nessuna casa disponibile da configurare. Tutte le case sono già configurate o non hai case nel tuo account Kwikset."
         }
     },
     "options": {
@@ -76,12 +78,10 @@
                 "title": "Opzioni Kwikset",
                 "description": "Configura le opzioni di integrazione Kwikset.",
                 "data": {
-                    "refresh_interval": "Intervallo di polling (secondi)",
-                    "refresh_devices": "Ricarica per scoprire nuovi dispositivi"
+                    "refresh_interval": "Intervallo di polling (secondi)"
                 },
                 "data_description": {
-                    "refresh_interval": "Con quale frequenza interrogare il cloud Kwikset per lo stato del dispositivo (15-60 secondi)",
-                    "refresh_devices": "Abilita questa opzione per ricaricare l'integrazione e scoprire i dispositivi appena aggiunti"
+                    "refresh_interval": "Con quale frequenza interrogare il cloud Kwikset per lo stato del dispositivo (15-60 secondi). Valori più bassi forniscono aggiornamenti più rapidi ma possono aumentare il carico dell'API."
                 }
             }
         }
@@ -89,7 +89,14 @@
     "entity": {
         "lock": {
             "lock": {
-                "name": "Serratura"
+                "name": "Serratura",
+                "state": {
+                    "locked": "Bloccato",
+                    "unlocked": "Sbloccato",
+                    "locking": "Bloccaggio in corso",
+                    "unlocking": "Sbloccaggio in corso",
+                    "jammed": "Inceppato"
+                }
             }
         },
         "sensor": {
@@ -118,6 +125,24 @@
         },
         "token_refresh_failed": {
             "message": "Aggiornamento del token di autenticazione fallito. Per favore riautenticati."
+        },
+        "lock_failed": {
+            "message": "Impossibile bloccare il dispositivo. Il dispositivo potrebbe essere offline o potrebbe esserci un problema di connettività temporaneo. Per favore riprova."
+        },
+        "unlock_failed": {
+            "message": "Impossibile sbloccare il dispositivo. Il dispositivo potrebbe essere offline o potrebbe esserci un problema di connettività temporaneo. Per favore riprova."
+        },
+        "switch_on_failed": {
+            "message": "Impossibile attivare l'impostazione. Per favore riprova."
+        },
+        "switch_off_failed": {
+            "message": "Impossibile disattivare l'impostazione. Per favore riprova."
+        },
+        "device_offline": {
+            "message": "Il dispositivo sembra essere offline. Per favore verifica che la serratura sia alimentata e connessa alla tua rete WiFi."
+        },
+        "api_error": {
+            "message": "Si è verificato un errore durante la comunicazione con il servizio Kwikset. Per favore riprova più tardi."
         }
     },
     "issues": {
