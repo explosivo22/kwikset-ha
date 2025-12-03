@@ -673,7 +673,9 @@ class TestKwiksetSwitch:
         switch = switch_module.KwiksetSwitch(mock_coordinator, description)
         # Switch should NOT have assumed_state set, so the frontend shows a toggle
         # instead of lightning bolt buttons
-        assert not hasattr(switch, "_attr_assumed_state") or not switch._attr_assumed_state
+        assert (
+            not hasattr(switch, "_attr_assumed_state") or not switch._attr_assumed_state
+        )
 
     def test_switch_entity_description_stored(
         self, switch_module, mock_coordinator: MagicMock
