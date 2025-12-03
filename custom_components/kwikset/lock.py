@@ -51,12 +51,31 @@ if TYPE_CHECKING:
 # Silver tier: parallel_updates - serialize API calls per platform
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
-# Map coordinator status strings to HA LockState for type safety
-_STATUS_TO_LOCKED: dict[str, bool | None] = {
-    "Locked": True,
-    "Unlocked": False,
-    "Unknown": None,
-}
+# Lock status constants from Kwikset API (lowercase for comparison)
+_STATUS_LOCKED = "locked"
+_STATUS_UNLOCKED = "unlocked"
+_STATUS_JAMMED = "jammed"
+
+
+def _normalize_status(status: str | None) -> str | None:
+    """Normalize status to lowercase for comparison."""
+    return status.lower() if status else None
+
+
+def _get_is_locked(status: str | None) -> bool | None:
+    """Determine is_locked state from status (case-insensitive)."""
+    normalized = _normalize_status(status)
+    if normalized == _STATUS_LOCKED:
+        return True
+    if normalized == _STATUS_UNLOCKED:
+        return False
+    # Jammed, Unknown, or any other value: indeterminate
+    return None
+
+
+def _is_jammed(status: str | None) -> bool:
+    """Check if status indicates jammed (case-insensitive)."""
+    return _normalize_status(status) == _STATUS_JAMMED
 
 
 async def async_setup_entry(
@@ -140,8 +159,26 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         super()._handle_coordinator_update()
 
     def _update_lock_state(self) -> None:
-        """Update the is_locked state from coordinator data."""
-        self._attr_is_locked = _STATUS_TO_LOCKED.get(self.coordinator.status)
+        """Update lock state from coordinator data.
+
+        Sets is_locked and is_jammed based on the API door status:
+        - Locked: is_locked=True, is_jammed=False
+        - Unlocked: is_locked=False, is_jammed=False
+        - Jammed: is_locked=None, is_jammed=True (LockState.JAMMED)
+        - Unknown: is_locked=None, is_jammed=False
+
+        Status comparison is case-insensitive.
+        """
+        status = self.coordinator.status
+        LOGGER.debug("Lock %s status from API: %r", self.entity_id, status)
+        self._attr_is_locked = _get_is_locked(status)
+        self._attr_is_jammed = _is_jammed(status)
+        LOGGER.debug(
+            "Lock %s state: is_locked=%s, is_jammed=%s",
+            self.entity_id,
+            self._attr_is_locked,
+            self._attr_is_jammed,
+        )
 
     @callback
     def _reset_optimistic_state(self, write_state: bool = True) -> None:

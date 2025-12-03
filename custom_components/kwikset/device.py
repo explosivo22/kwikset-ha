@@ -243,7 +243,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
 
     @property
     def status(self) -> str:
-        """Return lock status (Locked/Unlocked/Unknown)."""
+        """Return lock status (Locked/Unlocked/Jammed/Unknown)."""
         return self._get_value("door_status", _KEY_DOOR_STATUS)
 
     @property

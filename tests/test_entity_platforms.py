@@ -203,6 +203,33 @@ class TestKwiksetLock:
         lock = lock_module.KwiksetLock(mock_coordinator)
         assert lock.is_locked is None
 
+    def test_lock_is_jammed_when_jammed(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test is_jammed returns True when coordinator status is Jammed."""
+        mock_coordinator.status = "Jammed"
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        assert lock.is_jammed is True
+        # When jammed, is_locked should be indeterminate (None)
+        assert lock.is_locked is None
+
+    def test_lock_is_not_jammed_when_locked(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test is_jammed returns False when coordinator status is Locked."""
+        mock_coordinator.status = "Locked"
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        assert lock.is_jammed is False
+        assert lock.is_locked is True
+
+    def test_lock_is_not_jammed_when_unlocked(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test is_jammed returns False when coordinator status is Unlocked."""
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        assert lock.is_jammed is False
+        assert lock.is_locked is False
+
     async def test_async_lock_calls_coordinator(
         self, lock_module, mock_coordinator: MagicMock
     ) -> None:
@@ -628,13 +655,25 @@ class TestKwiksetSwitch:
         switch = switch_module.KwiksetSwitch(mock_coordinator, description)
         assert switch.is_on is True
 
-    def test_switch_assumed_state(
+    def test_switch_is_on_returns_false_when_none(
         self, switch_module, mock_coordinator: MagicMock
     ) -> None:
-        """Test switch has assumed_state = True for cloud-based integration."""
+        """Test is_on returns False when coordinator returns None (not unknown state)."""
+        mock_coordinator.led_status = None
         description = switch_module.SWITCH_DESCRIPTIONS[0]
         switch = switch_module.KwiksetSwitch(mock_coordinator, description)
-        assert switch._attr_assumed_state is True
+        # Should return False, not None - this ensures state is "off" not "unknown"
+        assert switch.is_on is False
+
+    def test_switch_no_assumed_state(
+        self, switch_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test switch does NOT have assumed_state to show toggle instead of buttons."""
+        description = switch_module.SWITCH_DESCRIPTIONS[0]
+        switch = switch_module.KwiksetSwitch(mock_coordinator, description)
+        # Switch should NOT have assumed_state set, so the frontend shows a toggle
+        # instead of lightning bolt buttons
+        assert not hasattr(switch, "_attr_assumed_state") or not switch._attr_assumed_state
 
     def test_switch_entity_description_stored(
         self, switch_module, mock_coordinator: MagicMock

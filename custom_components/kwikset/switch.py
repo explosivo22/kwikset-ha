@@ -3,10 +3,6 @@
 Provides switch entities for Kwikset lock settings (LED, audio, secure screen).
 All switches use EntityCategory.CONFIG as they control device settings.
 
-Since this is a cloud-based integration with no local push updates, switches
-set assumed_state = True to indicate the state is based on the last known
-value from the API rather than real-time device state.
-
 Quality Scale: Bronze (has_entity_name, entity_unique_id),
 Silver (parallel_updates, action_exceptions), Gold (dynamic_devices).
 """
@@ -53,6 +49,7 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="led_switch",
         translation_key="led_switch",
+        icon="mdi:led-on",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.led_status,
         turn_on_fn=lambda c: c.set_led(True),
@@ -61,6 +58,7 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="audio_switch",
         translation_key="audio_switch",
+        icon="mdi:volume-high",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.audio_status,
         turn_on_fn=lambda c: c.set_audio(True),
@@ -69,6 +67,7 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="secure_screen_switch",
         translation_key="secure_screen_switch",
+        icon="mdi:shield-lock",
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         value_fn=lambda c: c.secure_screen_status,
@@ -121,15 +120,12 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
     Uses entity descriptions for data-driven entity creation.
     All switches are CONFIG category as they control device settings.
 
-    Since this is a cloud-based integration without real-time push updates,
-    we set assumed_state = True to indicate the displayed state is based on
-    the last API poll rather than confirmed device state.
+    Note: We override is_on as a property (not _attr_is_on) to ensure
+    the value is always fresh and never None, which prevents the
+    "unknown" state that causes lightning bolt buttons in the UI.
     """
 
     entity_description: KwiksetSwitchEntityDescription
-
-    # Cloud-based integration: state is based on last API poll, not real-time
-    _attr_assumed_state = True
 
     def __init__(
         self,
@@ -139,14 +135,20 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
         """Initialize the switch entity."""
         self.entity_description = description
         super().__init__(description.key, coordinator)
-        # Set initial state
-        self._attr_is_on = self.entity_description.value_fn(self.coordinator)
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_is_on = self.entity_description.value_fn(self.coordinator)
-        super()._handle_coordinator_update()
+    @property
+    def is_on(self) -> bool:
+        """Return True if the switch is on.
+
+        Always returns a boolean (never None) to ensure the entity
+        state is always "on" or "off", never "unknown". This prevents
+        the frontend from showing lightning bolt buttons instead of
+        a toggle switch.
+
+        Returns False if the actual state is unknown/None.
+        """
+        value = self.entity_description.value_fn(self.coordinator)
+        return value if value is not None else False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
