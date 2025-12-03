@@ -40,11 +40,10 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True)
 class KwiksetSwitchEntityDescription(SwitchEntityDescription):
     """Describes a Kwikset switch entity with value and control functions."""
 
-    key: str
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], bool | None]
     turn_on_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]
     turn_off_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], Awaitable[None]]

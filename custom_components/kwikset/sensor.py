@@ -76,7 +76,7 @@ if TYPE_CHECKING:
 PARALLEL_UPDATES: int = _PARALLEL_UPDATES
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True)
 class KwiksetSensorEntityDescription(SensorEntityDescription):
     """Describes a Kwikset sensor entity.
 
@@ -88,7 +88,6 @@ class KwiksetSensorEntityDescription(SensorEntityDescription):
             Returns int | None for battery percentage.
 
     The frozen=True ensures immutability (required for hashability).
-    The kw_only=True ensures all arguments are keyword-only for clarity.
 
     Example:
         KwiksetSensorEntityDescription(
@@ -99,7 +98,6 @@ class KwiksetSensorEntityDescription(SensorEntityDescription):
 
     """
 
-    key: str
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None]
 
 
