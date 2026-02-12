@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "De 6-cijferige code die naar uw apparaat is verzonden"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "Ongeldige authenticatie",
             "invalid_mfa": "Ongeldige verificatiecode. Probeer het opnieuw.",
             "unknown": "Onverwachte fout",
-            "token_expired": "Authenticatietoken is verlopen. Log opnieuw in."
+            "token_expired": "Authenticatietoken is verlopen. Log opnieuw in.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "Apparaat is al geconfigureerd",
             "reauth_successful": "Herauthenticatie was succesvol",
             "reconfigure_successful": "Integratie succesvol opnieuw geladen. Nieuwe apparaten verschijnen binnenkort.",
-            "no_available_homes": "Geen beschikbare huizen om te configureren. Alle huizen zijn al ingesteld of u heeft geen huizen in uw Kwikset-account."
+            "no_available_homes": "Geen beschikbare huizen om te configureren. Alle huizen zijn al ingesteld of u heeft geen huizen in uw Kwikset-account.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {

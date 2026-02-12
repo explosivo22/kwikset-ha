@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "发送到您设备的6位数验证码"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "认证无效",
             "invalid_mfa": "验证码无效。请重试。",
             "unknown": "意外错误",
-            "token_expired": "认证令牌已过期。请重新登录。"
+            "token_expired": "认证令牌已过期。请重新登录。",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "设备已配置",
             "reauth_successful": "重新认证成功",
             "reconfigure_successful": "集成已成功重新加载。新设备将很快出现。",
-            "no_available_homes": "没有可配置的家庭。所有家庭都已设置，或者您的 Kwikset 账户中没有家庭。"
+            "no_available_homes": "没有可配置的家庭。所有家庭都已设置，或者您的 Kwikset 账户中没有家庭。",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {

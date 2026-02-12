@@ -12,6 +12,7 @@
         "/^cd /home/bbarbour/repositories/kwikset-ha && python3 -m pytest tests/ -v --tb=short 2>&1 \\| tail -50$/": {
             "approve": true,
             "matchCommandLine": true
-        }
+        },
+        "ruff": true
     }
 }

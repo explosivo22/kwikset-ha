@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "Den 6-siffriga koden som skickades till din enhet"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "Ogiltig autentisering",
             "invalid_mfa": "Ogiltig verifieringskod. Vänligen försök igen.",
             "unknown": "Oväntat fel",
-            "token_expired": "Autentiseringstoken har gått ut. Vänligen logga in igen."
+            "token_expired": "Autentiseringstoken har gått ut. Vänligen logga in igen.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "Enheten är redan konfigurerad",
             "reauth_successful": "Omautentiseringen lyckades",
             "reconfigure_successful": "Integrationen har laddats om. Nya enheter kommer att visas inom kort.",
-            "no_available_homes": "Inga tillgängliga hem att konfigurera. Alla hem är redan inställda eller du har inga hem i ditt Kwikset-konto."
+            "no_available_homes": "Inga tillgängliga hem att konfigurera. Alla hem är redan inställda eller du har inga hem i ditt Kwikset-konto.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {

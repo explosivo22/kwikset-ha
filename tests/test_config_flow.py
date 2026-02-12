@@ -19,6 +19,8 @@ from unittest.mock import patch
 
 from aiokwikset.errors import MFAChallengeRequired
 from aiokwikset.errors import RequestError
+from aiokwikset.errors import UserNotConfirmed
+from aiokwikset.errors import UserNotFound
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL
 from homeassistant.const import CONF_PASSWORD
@@ -126,6 +128,50 @@ class TestUserFlow:
 
         assert result["type"] == FlowResultType.ABORT
         assert result["reason"] == "unknown"
+
+    async def test_user_flow_user_not_found(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test user flow with user not found error."""
+        mock_api_config_flow.async_login.side_effect = UserNotFound(
+            "User does not exist"
+        )
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "user_not_found"
+
+    async def test_user_flow_user_not_confirmed(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test user flow with user not confirmed error."""
+        mock_api_config_flow.async_login.side_effect = UserNotConfirmed(
+            "User not confirmed"
+        )
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "user_not_confirmed"
 
 
 # =============================================================================
@@ -300,6 +346,180 @@ class TestMFAFlow:
         assert result["step_id"] == "mfa"
         assert result["errors"]["base"] == "invalid_mfa"
 
+    async def test_mfa_custom_challenge(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test MFA with custom challenge type (Kwikset email verification)."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="CUSTOM_CHALLENGE",
+            mfa_tokens={"session": "mock_session", "challenge": "custom"},
+        )
+        mock_api_config_flow.async_request_custom_challenge_code.return_value = {
+            "session": "updated_session",
+            "challenge": "custom",
+        }
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        # Should show delivery method selection
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "custom_challenge_delivery"
+
+        # Select email delivery
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"delivery_method": "email"},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa"
+        assert result["description_placeholders"]["mfa_type"] == "email verification"
+        # Verify code request was triggered
+        mock_api_config_flow.async_request_custom_challenge_code.assert_called_once_with(
+            code_type="email",
+            mfa_tokens={"session": "mock_session", "challenge": "custom"},
+        )
+
+    async def test_mfa_custom_challenge_sms_delivery(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test CUSTOM_CHALLENGE with SMS delivery method."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="CUSTOM_CHALLENGE",
+            mfa_tokens={"session": "mock_session"},
+        )
+        mock_api_config_flow.async_request_custom_challenge_code.return_value = {
+            "session": "updated_session",
+        }
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "custom_challenge_delivery"
+
+        # Select SMS delivery
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"delivery_method": "sms"},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa"
+        assert result["description_placeholders"]["mfa_type"] == "SMS verification"
+        mock_api_config_flow.async_request_custom_challenge_code.assert_called_once_with(
+            code_type="sms",
+            mfa_tokens={"session": "mock_session"},
+        )
+
+    async def test_mfa_custom_challenge_full_flow(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test full CUSTOM_CHALLENGE flow: login -> delivery -> code request -> MFA submit."""
+        mock_api_config_flow.async_login.side_effect = [
+            MFAChallengeRequired(
+                mfa_type="CUSTOM_CHALLENGE",
+                mfa_tokens={"session": "initial_session"},
+            ),
+            None,  # Second call succeeds after MFA
+        ]
+        mock_api_config_flow.async_request_custom_challenge_code.return_value = {
+            "session": "updated_session",
+        }
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        # Delivery method selection
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "custom_challenge_delivery"
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"delivery_method": "email"},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa"
+
+        # Submit MFA code
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"mfa_code": "123456"},
+        )
+
+        # Should proceed to home selection
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "select_home"
+
+        # Verify MFA response used the updated tokens from code request
+        mock_api_config_flow.async_respond_to_mfa_challenge.assert_called_once_with(
+            mfa_code="123456",
+            mfa_type="CUSTOM_CHALLENGE",
+            mfa_tokens={"session": "updated_session"},
+        )
+
+    async def test_mfa_custom_challenge_code_request_failure(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test CUSTOM_CHALLENGE proceeds even if code request fails."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="CUSTOM_CHALLENGE",
+            mfa_tokens={"session": "original_session"},
+        )
+        mock_api_config_flow.async_request_custom_challenge_code.side_effect = (
+            Exception("Network error")
+        )
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "custom_challenge_delivery"
+
+        # Select delivery method (code request will fail)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"delivery_method": "email"},
+        )
+
+        # Should still show MFA form with original tokens
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa"
+
 
 # =============================================================================
 # Reauthentication Flow Tests
@@ -384,6 +604,64 @@ class TestReauthFlow:
 
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "mfa_reauth"
+
+    async def test_reauth_with_custom_challenge_mfa(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reauthentication with custom challenge MFA."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="CUSTOM_CHALLENGE",
+            mfa_tokens={"session": "mock_session", "challenge": "custom"},
+        )
+        mock_api_config_flow.async_request_custom_challenge_code.return_value = {
+            "session": "updated_session",
+            "challenge": "custom",
+        }
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: "old_token",
+                CONF_REFRESH_TOKEN: "old_refresh",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_REAUTH,
+                "entry_id": entry.entry_id,
+            },
+            data=entry.data,
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        # Should show delivery method selection for reauth
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "custom_challenge_delivery_reauth"
+
+        # Select delivery method
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"delivery_method": "email"},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa_reauth"
+        # Verify code request was triggered during reauth too
+        mock_api_config_flow.async_request_custom_challenge_code.assert_called_once()
 
 
 # =============================================================================

@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "6-значный код, отправленный на ваше устройство"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "Неверная аутентификация",
             "invalid_mfa": "Неверный код подтверждения. Пожалуйста, попробуйте снова.",
             "unknown": "Неожиданная ошибка",
-            "token_expired": "Токен аутентификации истек. Пожалуйста, войдите снова."
+            "token_expired": "Токен аутентификации истек. Пожалуйста, войдите снова.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "Устройство уже настроено",
             "reauth_successful": "Повторная аутентификация прошла успешно",
             "reconfigure_successful": "Интеграция успешно перезагружена. Новые устройства скоро появятся.",
-            "no_available_homes": "Нет доступных домов для настройки. Все дома уже настроены или у вас нет домов в вашей учетной записи Kwikset."
+            "no_available_homes": "Нет доступных домов для настройки. Все дома уже настроены или у вас нет домов в вашей учетной записи Kwikset.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {

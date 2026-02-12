@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "O código de 6 dígitos enviado para o seu dispositivo"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "Autenticação inválida",
             "invalid_mfa": "Código de verificação inválido. Por favor tente novamente.",
             "unknown": "Erro inesperado",
-            "token_expired": "O token de autenticação expirou. Por favor inicie sessão novamente."
+            "token_expired": "O token de autenticação expirou. Por favor inicie sessão novamente.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "O dispositivo já está configurado",
             "reauth_successful": "A reautenticação foi bem-sucedida",
             "reconfigure_successful": "Integração recarregada com sucesso. Novos dispositivos aparecerão em breve.",
-            "no_available_homes": "Não existem casas disponíveis para configurar. Todas as casas já estão configuradas ou não tem casas na sua conta Kwikset."
+            "no_available_homes": "Não existem casas disponíveis para configurar. Todas as casas já estão configuradas ou não tem casas na sua conta Kwikset.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {
