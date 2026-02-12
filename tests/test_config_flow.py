@@ -326,7 +326,7 @@ class TestReauthFlow:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -364,7 +364,7 @@ class TestReauthFlow:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -411,7 +411,7 @@ class TestReconfigureFlow:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -453,7 +453,7 @@ class TestOptionsFlow:
             options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -481,7 +481,7 @@ class TestOptionsFlow:
             options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -558,7 +558,7 @@ class TestEdgeCases:
 
     async def test_flow_handler_version(self) -> None:
         """Test flow handler has correct version."""
-        assert KwiksetFlowHandler.VERSION == 5
+        assert KwiksetFlowHandler.VERSION == 6
 
 
 # =============================================================================
@@ -586,7 +586,7 @@ class TestReauthSuccess:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -645,7 +645,7 @@ class TestReconfigureFlowExtended:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -695,7 +695,7 @@ class TestReconfigureFlowExtended:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -737,7 +737,7 @@ class TestReconfigureFlowExtended:
             },
             title="Test Home",
             unique_id=MOCK_HOME_ID,
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 

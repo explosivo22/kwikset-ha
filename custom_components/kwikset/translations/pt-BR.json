@@ -85,7 +85,7 @@
                     "refresh_interval": "Intervalo de consulta (segundos)"
                 },
                 "data_description": {
-                    "refresh_interval": "Com que frequência consultar a nuvem Kwikset para o status do dispositivo (15-60 segundos). Valores mais baixos fornecem atualizações mais rápidas, mas podem aumentar a carga da API."
+                    "refresh_interval": "Com que frequência consultar a nuvem Kwikset para o status do dispositivo (30-900 segundos). Valores mais baixos fornecem atualizações mais rápidas, mas podem aumentar a carga da API e reduzir a vida útil da bateria."
                 }
             }
         }

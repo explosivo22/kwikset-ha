@@ -85,7 +85,7 @@
                     "refresh_interval": "Intervalle d'interrogation (secondes)"
                 },
                 "data_description": {
-                    "refresh_interval": "Fréquence d'interrogation du cloud Kwikset pour l'état de l'appareil (15-60 secondes). Des valeurs plus basses fournissent des mises à jour plus rapides mais peuvent augmenter la charge de l'API."
+                    "refresh_interval": "Fréquence d'interrogation du cloud Kwikset pour l'état de l'appareil (30-900 secondes). Des valeurs plus basses fournissent des mises à jour plus rapides mais peuvent augmenter la charge de l'API et réduire la durée de vie de la batterie."
                 }
             }
         }

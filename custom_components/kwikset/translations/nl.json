@@ -85,7 +85,7 @@
                     "refresh_interval": "Poll-interval (seconden)"
                 },
                 "data_description": {
-                    "refresh_interval": "Hoe vaak de Kwikset-cloud wordt gepolld voor apparaatstatus (15-60 seconden). Lagere waarden geven snellere updates maar kunnen de API-belasting verhogen."
+                    "refresh_interval": "Hoe vaak de Kwikset-cloud wordt gepolld voor apparaatstatus (30-900 seconden). Lagere waarden geven snellere updates maar kunnen de API-belasting verhogen en de batterijduur verkorten."
                 }
             }
         }

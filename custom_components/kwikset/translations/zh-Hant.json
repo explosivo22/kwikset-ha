@@ -85,7 +85,7 @@
                     "refresh_interval": "輪詢間隔（秒）"
                 },
                 "data_description": {
-                    "refresh_interval": "向 Kwikset 雲端查詢裝置狀態的頻率（15-60秒）。較低的值可提供更快的更新，但可能會增加 API 負載。"
+                    "refresh_interval": "向 Kwikset 雲端查詢裝置狀態的頻率（30-900秒）。較低的值可提供更快的更新，但可能會增加 API 負載並縮短電池壽命。"
                 }
             }
         }

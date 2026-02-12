@@ -347,10 +347,10 @@ class TestConfigFlowModuleImports:
         assert KwiksetOptionsFlow is not None
 
     def test_config_flow_handler_version(self) -> None:
-        """Test config flow handler has version 5."""
+        """Test config flow handler has version 6."""
         from custom_components.kwikset.config_flow import KwiksetFlowHandler
 
-        assert KwiksetFlowHandler.VERSION == 5
+        assert KwiksetFlowHandler.VERSION == 6
 
 
 # =============================================================================

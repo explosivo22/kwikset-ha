@@ -28,8 +28,10 @@ CONF_REFRESH_TOKEN: Final = "conf_refresh_token"
 # Configuration keys stored in config_entry.options
 CONF_REFRESH_INTERVAL: Final = "refresh_interval"
 
-# Default polling interval in seconds (configurable 15-60s via options flow)
+# Default polling interval in seconds (configurable 30-900s via options flow)
 DEFAULT_REFRESH_INTERVAL: Final = 30
+MIN_REFRESH_INTERVAL: Final = 30
+MAX_REFRESH_INTERVAL: Final = 900
 
 # Retry settings for transient API failures (network issues, rate limits)
 MAX_RETRY_ATTEMPTS: Final = 3

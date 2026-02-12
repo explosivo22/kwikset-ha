@@ -39,6 +39,8 @@ from .const import CONF_REFRESH_TOKEN
 from .const import DEFAULT_REFRESH_INTERVAL
 from .const import DOMAIN
 from .const import LOGGER
+from .const import MAX_REFRESH_INTERVAL
+from .const import MIN_REFRESH_INTERVAL
 from .device import KwiksetDeviceDataUpdateCoordinator
 
 PLATFORMS: list[Platform] = [Platform.LOCK, Platform.SENSOR, Platform.SWITCH]
@@ -76,7 +78,8 @@ __all__ = ["KwiksetConfigEntry", "KwiksetRuntimeData"]
 
 def _get_update_interval(entry: KwiksetConfigEntry) -> int:
     """Get polling interval from entry options with fallback to default."""
-    return entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
+    interval = entry.options.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
+    return max(MIN_REFRESH_INTERVAL, min(interval, MAX_REFRESH_INTERVAL))
 
 
 def _create_auth_issue(hass: HomeAssistant, entry: KwiksetConfigEntry) -> None:
@@ -444,6 +447,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         v2 → v3: Added CONF_ACCESS_TOKEN field.
         v3 → v4: Moved CONF_REFRESH_INTERVAL to options.
         v4 → v5: Added CONF_ID_TOKEN field for new aiokwikset API.
+        v5 → v6: Expanded polling interval range from 15-60s to 30-900s.
     """
     LOGGER.debug("Migrating from version %s", config_entry.version)
 
@@ -470,6 +474,15 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             # Use empty string as placeholder - will be populated on first token refresh
             data[CONF_ID_TOKEN] = ""
         hass.config_entries.async_update_entry(config_entry, data=data, version=5)
+
+    if config_entry.version == 5:
+        # v5 → v6: Increase default polling interval from 30s to 900s
+        # Migrate users on the old default (30) to the new default (900)
+        # Users with custom intervals keep their values
+        options = {**config_entry.options}
+        if options.get(CONF_REFRESH_INTERVAL) == 30:
+            options[CONF_REFRESH_INTERVAL] = DEFAULT_REFRESH_INTERVAL
+        hass.config_entries.async_update_entry(config_entry, options=options, version=6)
 
     LOGGER.info("Migration to version %s successful", config_entry.version)
     return True

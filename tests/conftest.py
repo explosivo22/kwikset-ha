@@ -417,7 +417,7 @@ def mock_config_entry(hass: HomeAssistant) -> MockConfigEntry:
         options=MOCK_ENTRY_OPTIONS.copy(),
         title=MOCK_HOME_NAME,
         unique_id=MOCK_HOME_ID,
-        version=5,
+        version=6,
     )
     entry.add_to_hass(hass)
     # Set state to SETUP_IN_PROGRESS for async_config_entry_first_refresh
@@ -437,7 +437,7 @@ def mock_config_entry_not_setup(hass: HomeAssistant) -> MockConfigEntry:
         options=MOCK_ENTRY_OPTIONS.copy(),
         title=MOCK_HOME_NAME,
         unique_id=MOCK_HOME_ID,
-        version=5,
+        version=6,
     )
     entry.add_to_hass(hass)
     return entry

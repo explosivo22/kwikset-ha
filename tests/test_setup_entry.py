@@ -374,7 +374,7 @@ class TestSetupErrorHandling:
                 CONF_ACCESS_TOKEN: "old_access_token",
             },
             options=MOCK_ENTRY_OPTIONS.copy(),
-            version=5,
+            version=6,
         )
         entry.add_to_hass(hass)
 
@@ -541,7 +541,7 @@ class TestAsyncUnloadEntry:
 class TestAsyncMigrateEntry:
     """Tests for async_migrate_entry function."""
 
-    async def test_migrate_from_v1_to_v5(
+    async def test_migrate_from_v1_to_v6(
         self,
         hass: HomeAssistant,
     ) -> None:
@@ -558,6 +558,7 @@ class TestAsyncMigrateEntry:
             CONF_HOME_ID: MOCK_HOME_ID,
             CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
         }
+        entry.options = {}
         entry.entry_id = "mock_entry_id"
 
         # Create a mock that actually updates the entry version
@@ -566,6 +567,8 @@ class TestAsyncMigrateEntry:
                 config_entry.version = kwargs["version"]
             if "data" in kwargs:
                 config_entry.data = kwargs["data"]
+            if "options" in kwargs:
+                config_entry.options = kwargs["options"]
 
         # Mock async_update_entry since MagicMock isn't a real entry
         with patch.object(
@@ -576,7 +579,7 @@ class TestAsyncMigrateEntry:
             result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        assert entry.version == 5
+        assert entry.version == 6
 
     async def test_migrate_from_v2_adds_access_token(
         self,
@@ -633,7 +636,7 @@ class TestAsyncMigrateEntry:
         entry = MockConfigEntry(
             domain=DOMAIN,
             entry_id="test_entry_id",
-            version=5,
+            version=6,
             data=MOCK_ENTRY_DATA.copy(),
         )
         entry.add_to_hass(hass)
@@ -807,13 +810,14 @@ class TestMigrateV4ToV5:
                 CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
                 CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
             },
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
         )
         entry.add_to_hass(hass)
 
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        assert entry.version == 5
+        assert entry.version == 6
         assert CONF_ID_TOKEN in entry.data
         assert entry.data[CONF_ID_TOKEN] == ""
 
@@ -833,14 +837,84 @@ class TestMigrateV4ToV5:
                 CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
                 CONF_ID_TOKEN: "existing_id_token",
             },
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
         )
         entry.add_to_hass(hass)
 
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        assert entry.version == 5
+        assert entry.version == 6
         assert entry.data[CONF_ID_TOKEN] == "existing_id_token"
+
+
+# =============================================================================
+# V5 to V6 Migration Tests
+# =============================================================================
+
+
+class TestMigrateV5ToV6:
+    """Tests for v5 to v6 migration."""
+
+    async def test_migrate_from_v5_updates_default_interval(
+        self,
+        hass: HomeAssistant,
+    ) -> None:
+        """Test migration from v5 to v6 just bumps version without changing interval."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            version=5,
+            data=MOCK_ENTRY_DATA.copy(),
+            options={CONF_REFRESH_INTERVAL: 30},
+        )
+        entry.add_to_hass(hass)
+
+        result = await async_migrate_entry(hass, entry)
+
+        assert result is True
+        assert entry.version == 6
+        assert entry.options[CONF_REFRESH_INTERVAL] == 30
+
+    async def test_migrate_from_v5_preserves_custom_interval(
+        self,
+        hass: HomeAssistant,
+    ) -> None:
+        """Test migration from v5 preserves custom intervals that aren't the old default."""
+        custom_interval = 45
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            version=5,
+            data=MOCK_ENTRY_DATA.copy(),
+            options={CONF_REFRESH_INTERVAL: custom_interval},
+        )
+        entry.add_to_hass(hass)
+
+        result = await async_migrate_entry(hass, entry)
+
+        assert result is True
+        assert entry.version == 6
+        assert entry.options[CONF_REFRESH_INTERVAL] == custom_interval
+
+    async def test_migrate_from_v5_handles_missing_interval(
+        self,
+        hass: HomeAssistant,
+    ) -> None:
+        """Test migration from v5 handles entries without refresh_interval in options."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            version=5,
+            data=MOCK_ENTRY_DATA.copy(),
+            options={},
+        )
+        entry.add_to_hass(hass)
+
+        result = await async_migrate_entry(hass, entry)
+
+        assert result is True
+        assert entry.version == 6
 
 
 # =============================================================================
