@@ -30,6 +30,10 @@
                 "data": {
                     "email": "이메일",
                     "password": "비밀번호"
+                },
+                "data_description": {
+                    "email": "Kwikset 계정에 사용되는 이메일 주소",
+                    "password": "Kwikset 계정 비밀번호"
                 }
             },
             "reconfigure": {

@@ -49,7 +49,6 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="led_switch",
         translation_key="led_switch",
-        icon="mdi:led-on",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.led_status,
         turn_on_fn=lambda c: c.set_led(True),
@@ -58,7 +57,6 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="audio_switch",
         translation_key="audio_switch",
-        icon="mdi:volume-high",
         entity_category=EntityCategory.CONFIG,
         value_fn=lambda c: c.audio_status,
         turn_on_fn=lambda c: c.set_audio(True),
@@ -67,7 +65,6 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
     KwiksetSwitchEntityDescription(
         key="secure_screen_switch",
         translation_key="secure_screen_switch",
-        icon="mdi:shield-lock",
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         value_fn=lambda c: c.secure_screen_status,
@@ -124,6 +121,8 @@ class KwiksetSwitch(KwiksetEntity, SwitchEntity):
     the value is always fresh and never None, which prevents the
     "unknown" state that causes lightning bolt buttons in the UI.
     """
+
+    __slots__ = ()
 
     entity_description: KwiksetSwitchEntityDescription
 

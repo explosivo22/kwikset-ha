@@ -30,6 +30,10 @@
                 "data": {
                     "email": "E-Mail",
                     "password": "Passwort"
+                },
+                "data_description": {
+                    "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
+                    "password": "Ihr Kwikset-Kontopasswort"
                 }
             },
             "reconfigure": {

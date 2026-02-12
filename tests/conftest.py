@@ -159,11 +159,6 @@ def generate_expired_jwt() -> str:
     return generate_mock_jwt(expiry_seconds=-100)
 
 
-def generate_expiring_soon_jwt() -> str:
-    """Generate a JWT token expiring within the refresh buffer (5 min)."""
-    return generate_mock_jwt(expiry_seconds=60)  # Expires in 60 seconds
-
-
 MOCK_ACCESS_TOKEN = generate_mock_jwt()
 MOCK_ID_TOKEN = generate_mock_jwt()
 MOCK_REFRESH_TOKEN = "mock_refresh_token_abc123"
@@ -240,36 +235,41 @@ def mock_api() -> Generator[MagicMock, None, None]:
 def mock_api_config_flow() -> Generator[MagicMock, None, None]:
     """Create a mock aiokwikset API client for config_flow.py tests.
 
-    Patches the API class in the config_flow module.
+    Patches the API class and async_get_clientsession in the config_flow module.
     """
     with patch("custom_components.kwikset.config_flow.API") as mock_api_class:
-        api = MagicMock()
+        with patch(
+            "custom_components.kwikset.config_flow.async_get_clientsession"
+        ) as mock_session:
+            mock_session.return_value = MagicMock()
 
-        # Token properties
-        api.id_token = MOCK_ID_TOKEN
-        api.access_token = MOCK_ACCESS_TOKEN
-        api.refresh_token = MOCK_REFRESH_TOKEN
-        api.is_authenticated = True
+            api = MagicMock()
 
-        # Async authentication methods
-        api.async_login = AsyncMock()
-        api.async_authenticate_with_tokens = AsyncMock()
-        api.async_renew_access_token = AsyncMock()
-        api.async_respond_to_mfa_challenge = AsyncMock()
-        api.async_close = AsyncMock()
+            # Token properties
+            api.id_token = MOCK_ID_TOKEN
+            api.access_token = MOCK_ACCESS_TOKEN
+            api.refresh_token = MOCK_REFRESH_TOKEN
+            api.is_authenticated = True
 
-        # User namespace
-        api.user = MagicMock()
-        api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
-        api.user.get_homes = AsyncMock(return_value=MOCK_HOMES)
+            # Async authentication methods
+            api.async_login = AsyncMock()
+            api.async_authenticate_with_tokens = AsyncMock()
+            api.async_renew_access_token = AsyncMock()
+            api.async_respond_to_mfa_challenge = AsyncMock()
+            api.async_close = AsyncMock()
 
-        # Device namespace
-        api.device = MagicMock()
-        api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
-        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+            # User namespace
+            api.user = MagicMock()
+            api.user.get_info = AsyncMock(return_value=MOCK_USER_INFO)
+            api.user.get_homes = AsyncMock(return_value=MOCK_HOMES)
 
-        mock_api_class.return_value = api
-        yield api
+            # Device namespace
+            api.device = MagicMock()
+            api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
+            api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+
+            mock_api_class.return_value = api
+            yield api
 
 
 @pytest.fixture

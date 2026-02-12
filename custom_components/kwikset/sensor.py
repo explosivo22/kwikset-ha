@@ -201,6 +201,8 @@ class KwiksetSensor(KwiksetEntity, SensorEntity):
     """
 
     # Type hint for entity_description enables IDE autocompletion
+    __slots__ = ()
+
     entity_description: KwiksetSensorEntityDescription
 
     def __init__(

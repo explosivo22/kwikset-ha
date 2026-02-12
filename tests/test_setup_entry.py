@@ -36,6 +36,7 @@ from custom_components.kwikset import async_setup_entry
 from custom_components.kwikset import async_unload_entry
 from custom_components.kwikset.const import CONF_ACCESS_TOKEN
 from custom_components.kwikset.const import CONF_HOME_ID
+from custom_components.kwikset.const import CONF_ID_TOKEN
 from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
 from custom_components.kwikset.const import CONF_REFRESH_TOKEN
 from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
@@ -781,3 +782,127 @@ class TestCoordinatorInterval:
 
         for coordinator in entry.runtime_data.devices.values():
             assert coordinator.update_interval == timedelta(seconds=custom_interval)
+
+
+# =============================================================================
+# V4 to V5 Migration Test
+# =============================================================================
+
+
+class TestMigrateV4ToV5:
+    """Tests for v4 to v5 migration."""
+
+    async def test_migrate_from_v4_adds_id_token(
+        self,
+        hass: HomeAssistant,
+    ) -> None:
+        """Test migration from v4 adds CONF_ID_TOKEN."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            version=4,
+            data={
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+                CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
+            },
+        )
+        entry.add_to_hass(hass)
+
+        result = await async_migrate_entry(hass, entry)
+
+        assert result is True
+        assert entry.version == 5
+        assert CONF_ID_TOKEN in entry.data
+        assert entry.data[CONF_ID_TOKEN] == ""
+
+    async def test_migrate_from_v4_preserves_existing_id_token(
+        self,
+        hass: HomeAssistant,
+    ) -> None:
+        """Test migration from v4 preserves existing CONF_ID_TOKEN if present."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            version=4,
+            data={
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+                CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
+                CONF_ID_TOKEN: "existing_id_token",
+            },
+        )
+        entry.add_to_hass(hass)
+
+        result = await async_migrate_entry(hass, entry)
+
+        assert result is True
+        assert entry.version == 5
+        assert entry.data[CONF_ID_TOKEN] == "existing_id_token"
+
+
+# =============================================================================
+# Options Update Callback Tests
+# =============================================================================
+
+
+class TestOptionsUpdateCallback:
+    """Tests for _async_options_updated callback."""
+
+    async def test_options_update_changes_coordinator_interval(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test _async_options_updated changes coordinator update intervals."""
+        from custom_components.kwikset import _async_options_updated
+
+        entry = MagicMock()
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Verify initial interval
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
+
+        # Change options to new interval
+        new_interval = 45
+        entry.options = {CONF_REFRESH_INTERVAL: new_interval}
+
+        await _async_options_updated(hass, entry)
+
+        # Verify interval was updated
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(seconds=new_interval)
+
+    async def test_options_update_no_devices_does_nothing(
+        self,
+        hass: HomeAssistant,
+    ) -> None:
+        """Test _async_options_updated with no devices returns without error."""
+        from custom_components.kwikset import _async_options_updated
+
+        entry = MagicMock()
+        entry.runtime_data = KwiksetRuntimeData(client=MagicMock())
+
+        # Should not raise
+        await _async_options_updated(hass, entry)

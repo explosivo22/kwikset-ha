@@ -30,6 +30,10 @@
                 "data": {
                     "email": "E-post",
                     "password": "Lösenord"
+                },
+                "data_description": {
+                    "email": "E-postadressen som används för ditt Kwikset-konto",
+                    "password": "Ditt Kwikset-kontolösenord"
                 }
             },
             "reconfigure": {

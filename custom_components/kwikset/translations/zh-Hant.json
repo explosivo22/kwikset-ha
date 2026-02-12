@@ -30,6 +30,10 @@
                 "data": {
                     "email": "電子郵件",
                     "password": "密碼"
+                },
+                "data_description": {
+                    "email": "用於您 Kwikset 帳戶的電子郵件地址",
+                    "password": "您的 Kwikset 帳戶密碼"
                 }
             },
             "reconfigure": {

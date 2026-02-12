@@ -9,7 +9,6 @@ Data Flow:
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
@@ -39,9 +38,8 @@ from .const import CONF_REFRESH_INTERVAL
 from .const import CONF_REFRESH_TOKEN
 from .const import DEFAULT_REFRESH_INTERVAL
 from .const import DOMAIN
+from .const import LOGGER
 from .device import KwiksetDeviceDataUpdateCoordinator
-
-_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.LOCK, Platform.SENSOR, Platform.SWITCH]
 DEVICE_DISCOVERY_INTERVAL = timedelta(minutes=5)
@@ -123,7 +121,7 @@ async def _async_update_tokens(
             CONF_REFRESH_TOKEN: refresh_token,
         },
     )
-    _LOGGER.debug("Tokens refreshed and saved to config entry")
+    LOGGER.debug("Tokens refreshed and saved to config entry")
 
 
 def _create_coordinator(
@@ -340,7 +338,7 @@ async def _async_remove_stale_devices(
                 device_id=device.id,
                 remove_config_entry_id=entry.entry_id,
             )
-            _LOGGER.debug("Removed device %s from registry", device_id)
+            LOGGER.debug("Removed device %s from registry", device_id)
 
         # Cleanup runtime data
         runtime_data.devices.pop(device_id, None)
@@ -364,7 +362,7 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
         # Handle new devices
         new_device_ids = current_device_ids - runtime_data.known_devices
         if new_device_ids:
-            _LOGGER.info(
+            LOGGER.info(
                 "Discovered %d new device(s): %s", len(new_device_ids), new_device_ids
             )
             await _async_add_new_devices(hass, entry, new_device_ids, api_devices)
@@ -372,7 +370,7 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
         # Handle removed devices
         removed_device_ids = runtime_data.known_devices - current_device_ids
         if removed_device_ids:
-            _LOGGER.info(
+            LOGGER.info(
                 "Detected %d removed device(s): %s",
                 len(removed_device_ids),
                 removed_device_ids,
@@ -385,7 +383,7 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
         RequestError,
         KwiksetConnectionError,
     ):
-        _LOGGER.exception("Error checking for device changes")
+        LOGGER.exception("Error checking for device changes")
 
 
 # =============================================================================
@@ -412,7 +410,7 @@ async def _async_options_updated(
                 else None
             )
             coordinator.set_update_interval(new_interval_td)
-            _LOGGER.debug(
+            LOGGER.debug(
                 "Updated refresh interval for %s from %s to %s seconds",
                 coordinator.device_name,
                 old_seconds,
@@ -447,7 +445,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         v3 → v4: Moved CONF_REFRESH_INTERVAL to options.
         v4 → v5: Added CONF_ID_TOKEN field for new aiokwikset API.
     """
-    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    LOGGER.debug("Migrating from version %s", config_entry.version)
 
     if config_entry.version == 1:
         # v1 → v2: Just a version bump
@@ -473,5 +471,5 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             data[CONF_ID_TOKEN] = ""
         hass.config_entries.async_update_entry(config_entry, data=data, version=5)
 
-    _LOGGER.info("Migration to version %s successful", config_entry.version)
+    LOGGER.info("Migration to version %s successful", config_entry.version)
     return True

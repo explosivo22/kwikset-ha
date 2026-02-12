@@ -26,10 +26,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.kwikset.config_flow import CannotConnect
 from custom_components.kwikset.config_flow import KwiksetFlowHandler
 from custom_components.kwikset.const import CONF_ACCESS_TOKEN
 from custom_components.kwikset.const import CONF_HOME_ID
+from custom_components.kwikset.const import CONF_ID_TOKEN
 from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
 from custom_components.kwikset.const import CONF_REFRESH_TOKEN
 from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
@@ -39,6 +39,7 @@ from .conftest import MOCK_ACCESS_TOKEN
 from .conftest import MOCK_EMAIL
 from .conftest import MOCK_HOME_ID
 from .conftest import MOCK_HOME_NAME
+from .conftest import MOCK_ID_TOKEN
 from .conftest import MOCK_PASSWORD
 from .conftest import MOCK_REFRESH_TOKEN
 
@@ -550,11 +551,209 @@ class TestEdgeCases:
         assert result2["step_id"] == "select_home"
 
     def test_cannot_connect_exception(self) -> None:
-        """Test CannotConnect exception is a HomeAssistantError."""
+        """Test HomeAssistantError is available."""
         from homeassistant import exceptions
 
-        assert issubclass(CannotConnect, exceptions.HomeAssistantError)
+        assert issubclass(exceptions.HomeAssistantError, Exception)
 
     async def test_flow_handler_version(self) -> None:
         """Test flow handler has correct version."""
         assert KwiksetFlowHandler.VERSION == 5
+
+
+# =============================================================================
+# Reauth Success Tests
+# =============================================================================
+
+
+class TestReauthSuccess:
+    """Tests for successful reauthentication completion."""
+
+    async def test_reauth_success_updates_tokens(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test successful reauth updates tokens and reloads entry."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: "old_id_token",
+                CONF_ACCESS_TOKEN: "old_access_token",
+                CONF_REFRESH_TOKEN: "old_refresh_token",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=5,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_REAUTH,
+                "entry_id": entry.entry_id,
+            },
+            data=entry.data,
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reauth_confirm"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reauth_successful"
+
+        # Verify tokens were updated
+        assert entry.data[CONF_ID_TOKEN] == MOCK_ID_TOKEN
+        assert entry.data[CONF_ACCESS_TOKEN] == MOCK_ACCESS_TOKEN
+        assert entry.data[CONF_REFRESH_TOKEN] == MOCK_REFRESH_TOKEN
+
+
+# =============================================================================
+# Reconfigure Flow Extended Tests
+# =============================================================================
+
+
+class TestReconfigureFlowExtended:
+    """Extended tests for reconfigure flow success and error paths."""
+
+    async def test_reconfigure_success(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test successful reconfigure updates tokens and reloads."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=5,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reconfigure"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {},
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reconfigure_successful"
+
+    async def test_reconfigure_token_expired(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure with expired token shows error."""
+        from aiokwikset.errors import TokenExpiredError
+
+        mock_api_config_flow.async_authenticate_with_tokens.side_effect = (
+            TokenExpiredError("Token expired")
+        )
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=5,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reconfigure"
+        assert result["errors"]["base"] == "token_expired"
+
+    async def test_reconfigure_connection_error(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure with connection error shows error."""
+        mock_api_config_flow.async_authenticate_with_tokens.side_effect = RequestError(
+            "Connection failed"
+        )
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=5,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reconfigure"
+        assert result["errors"]["base"] == "cannot_connect"

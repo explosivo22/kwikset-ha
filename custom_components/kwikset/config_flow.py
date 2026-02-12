@@ -31,12 +31,12 @@ from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
 from homeassistant import config_entries
-from homeassistant import exceptions
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_EMAIL
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import NumberSelector
 from homeassistant.helpers.selector import NumberSelectorConfig
 from homeassistant.helpers.selector import NumberSelectorMode
@@ -103,7 +103,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if not self.username or not self.password:
             return "invalid_auth"
         try:
-            self.api = API()
+            self.api = API(websession=async_get_clientsession(self.hass))
             await self.api.async_login(self.username, self.password)
             return None  # Success
         except MFAChallengeRequired as mfa_error:
@@ -242,7 +242,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             entry = self._get_reconfigure_entry()
             try:
-                self.api = API()
+                self.api = API(websession=async_get_clientsession(self.hass))
                 await self.api.async_authenticate_with_tokens(
                     id_token=entry.data.get(CONF_ID_TOKEN, ""),
                     access_token=entry.data[CONF_ACCESS_TOKEN],
@@ -424,7 +424,3 @@ class KwiksetOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
         )
-
-
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""
