@@ -1,0 +1,173 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Kwiksetにサインイン",
+                "description": "Kwiksetアカウントの認証情報を入力してスマートロックを接続してください。",
+                "data": {
+                    "email": "メールアドレス",
+                    "password": "パスワード"
+                },
+                "data_description": {
+                    "email": "Kwiksetアカウントに使用するメールアドレス",
+                    "password": "Kwiksetアカウントのパスワード"
+                }
+            },
+            "select_home": {
+                "title": "ホームを選択",
+                "description": "設定するKwiksetホームを選択してください。各ホームは個別の統合エントリとして設定されます。",
+                "data": {
+                    "conf_home_id": "ホーム"
+                },
+                "data_description": {
+                    "conf_home_id": "スマートロックが含まれるKwiksetホームを選択"
+                }
+            },
+            "reauth_confirm": {
+                "title": "再認証が必要です",
+                "description": "Kwikset統合でアカウントの再認証が必要です。認証情報を入力してください。",
+                "data": {
+                    "email": "メールアドレス",
+                    "password": "パスワード"
+                },
+                "data_description": {
+                    "email": "Kwiksetアカウントに使用するメールアドレス",
+                    "password": "Kwiksetアカウントのパスワード"
+                }
+            },
+            "reconfigure": {
+                "title": "Kwiksetを再設定",
+                "description": "これにより統合が再読み込みされ、Kwiksetホームに追加された新しいデバイスが検出されます。",
+                "submit": "統合を再読み込み"
+            },
+            "mfa": {
+                "title": "多要素認証",
+                "description": "{mfa_type}から確認コードを入力してください。",
+                "data": {
+                    "mfa_code": "確認コード"
+                },
+                "data_description": {
+                    "mfa_code": "デバイスに送信された6桁のコード"
+                }
+            },
+            "mfa_reauth": {
+                "title": "多要素認証",
+                "description": "再認証を完了するために{mfa_type}から確認コードを入力してください。",
+                "data": {
+                    "mfa_code": "確認コード"
+                },
+                "data_description": {
+                    "mfa_code": "デバイスに送信された6桁のコード"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "接続に失敗しました",
+            "invalid_auth": "認証が無効です",
+            "invalid_mfa": "確認コードが無効です。もう一度お試しください。",
+            "unknown": "予期しないエラー",
+            "token_expired": "認証トークンの有効期限が切れました。再度サインインしてください。"
+        },
+        "abort": {
+            "already_configured": "デバイスは既に設定されています",
+            "reauth_successful": "再認証に成功しました",
+            "reconfigure_successful": "統合が正常に再読み込みされました。新しいデバイスがまもなく表示されます。",
+            "no_available_homes": "設定可能なホームがありません。すべてのホームがすでに設定されているか、Kwiksetアカウントにホームがありません。"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kwiksetオプション",
+                "description": "Kwikset統合オプションを設定します。",
+                "data": {
+                    "refresh_interval": "ポーリング間隔（秒）"
+                },
+                "data_description": {
+                    "refresh_interval": "デバイスステータスのためにKwiksetクラウドをポーリングする頻度（15-60秒）。値が低いほど更新が速くなりますが、API負荷が増加する可能性があります。"
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "ロック",
+                "state": {
+                    "locked": "施錠",
+                    "unlocked": "解錠",
+                    "locking": "施錠中",
+                    "unlocking": "解錠中",
+                    "jammed": "詰まり"
+                }
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "バッテリー"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "オーディオ"
+            },
+            "secure_screen_switch": {
+                "name": "セキュアスクリーン"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "認証に失敗しました。認証情報を確認してもう一度お試しください。"
+        },
+        "connection_error": {
+            "message": "Kwiksetクラウドサービスに接続できません。後でもう一度お試しください。"
+        },
+        "token_refresh_failed": {
+            "message": "認証トークンの更新に失敗しました。再認証してください。"
+        },
+        "lock_failed": {
+            "message": "デバイスのロックに失敗しました。デバイスがオフラインであるか、一時的な接続の問題がある可能性があります。もう一度お試しください。"
+        },
+        "unlock_failed": {
+            "message": "デバイスのロック解除に失敗しました。デバイスがオフラインであるか、一時的な接続の問題がある可能性があります。もう一度お試しください。"
+        },
+        "switch_on_failed": {
+            "message": "設定の有効化に失敗しました。もう一度お試しください。"
+        },
+        "switch_off_failed": {
+            "message": "設定の無効化に失敗しました。もう一度お試しください。"
+        },
+        "device_offline": {
+            "message": "デバイスがオフラインのようです。ロックに電源があり、WiFiネットワークに接続されていることを確認してください。"
+        },
+        "api_error": {
+            "message": "Kwiksetサービスとの通信中にエラーが発生しました。後でもう一度お試しください。"
+        }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "デバイスオフライン: {device_name}",
+            "description": "ロック **{device_name}** がオフラインのようです。原因として考えられるもの：\n\n- バッテリー残量低下\n- WiFi接続の問題\n- デバイスが範囲外\n\nデバイスを確認し、電源とWiFi接続があることを確認してください。"
+        },
+        "auth_failed": {
+            "title": "認証が必要です",
+            "description": "Kwikset統合の再認証が必要です。**設定 → デバイスとサービス → Kwikset** に移動し、**再設定** をクリックして認証情報を更新してください。"
+        },
+        "auth_expired": {
+            "title": "認証期限切れ: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Kwiksetを再認証",
+                        "description": "Kwikset統合（**{entry_title}**）の認証トークンが期限切れになり、更新が必要です。\n\nこれは通常、以下の場合に発生します：\n- トークンが長期間後に自然に期限切れになった\n- Kwiksetアプリでパスワードが変更された\n- 別のデバイスからアカウントがログアウトされた\n\n以下の **修正** ボタンをクリックして、Kwikset認証情報を再入力してください。"
+                    }
+                }
+            }
+        }
+    }
+}

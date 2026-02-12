@@ -1,0 +1,173 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Zaloguj się do Kwikset",
+                "description": "Wprowadź dane logowania do konta Kwikset, aby połączyć swoje inteligentne zamki.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Hasło"
+                },
+                "data_description": {
+                    "email": "Adres e-mail używany do konta Kwikset",
+                    "password": "Hasło do konta Kwikset"
+                }
+            },
+            "select_home": {
+                "title": "Wybierz dom",
+                "description": "Wybierz dom Kwikset do skonfigurowania. Każdy dom zostanie skonfigurowany jako oddzielny wpis integracji.",
+                "data": {
+                    "conf_home_id": "Dom"
+                },
+                "data_description": {
+                    "conf_home_id": "Wybierz dom Kwikset zawierający inteligentne zamki"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Wymagane ponowne uwierzytelnienie",
+                "description": "Integracja Kwikset musi ponownie uwierzytelnić Twoje konto. Wprowadź dane logowania.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Hasło"
+                },
+                "data_description": {
+                    "email": "Adres e-mail używany do konta Kwikset",
+                    "password": "Hasło do konta Kwikset"
+                }
+            },
+            "reconfigure": {
+                "title": "Przekonfiguruj Kwikset",
+                "description": "Spowoduje to ponowne załadowanie integracji i wykrycie nowych urządzeń dodanych do domu Kwikset.",
+                "submit": "Załaduj ponownie integrację"
+            },
+            "mfa": {
+                "title": "Uwierzytelnianie wieloskładnikowe",
+                "description": "Wprowadź kod weryfikacyjny z {mfa_type}.",
+                "data": {
+                    "mfa_code": "Kod weryfikacyjny"
+                },
+                "data_description": {
+                    "mfa_code": "6-cyfrowy kod wysłany na urządzenie"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Uwierzytelnianie wieloskładnikowe",
+                "description": "Wprowadź kod weryfikacyjny z {mfa_type}, aby zakończyć ponowne uwierzytelnianie.",
+                "data": {
+                    "mfa_code": "Kod weryfikacyjny"
+                },
+                "data_description": {
+                    "mfa_code": "6-cyfrowy kod wysłany na urządzenie"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Nie udało się połączyć",
+            "invalid_auth": "Nieprawidłowe uwierzytelnienie",
+            "invalid_mfa": "Nieprawidłowy kod weryfikacyjny. Spróbuj ponownie.",
+            "unknown": "Nieoczekiwany błąd",
+            "token_expired": "Token uwierzytelniający wygasł. Zaloguj się ponownie."
+        },
+        "abort": {
+            "already_configured": "Urządzenie jest już skonfigurowane",
+            "reauth_successful": "Ponowne uwierzytelnienie zakończyło się sukcesem",
+            "reconfigure_successful": "Integracja została pomyślnie ponownie załadowana. Nowe urządzenia pojawią się wkrótce.",
+            "no_available_homes": "Brak dostępnych domów do skonfigurowania. Wszystkie domy są już skonfigurowane lub nie masz żadnych domów na swoim koncie Kwikset."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Opcje Kwikset",
+                "description": "Skonfiguruj opcje integracji Kwikset.",
+                "data": {
+                    "refresh_interval": "Interwał odpytywania (sekundy)"
+                },
+                "data_description": {
+                    "refresh_interval": "Jak często odpytywać chmurę Kwikset o stan urządzenia (15-60 sekund). Niższe wartości zapewniają szybsze aktualizacje, ale mogą zwiększyć obciążenie API."
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Zamek",
+                "state": {
+                    "locked": "Zablokowany",
+                    "unlocked": "Odblokowany",
+                    "locking": "Blokowanie",
+                    "unlocking": "Odblokowywanie",
+                    "jammed": "Zacięty"
+                }
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Bateria"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Dźwięk"
+            },
+            "secure_screen_switch": {
+                "name": "Bezpieczny ekran"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Uwierzytelnianie nie powiodło się. Sprawdź dane logowania i spróbuj ponownie."
+        },
+        "connection_error": {
+            "message": "Nie można połączyć się z usługą chmury Kwikset. Spróbuj ponownie później."
+        },
+        "token_refresh_failed": {
+            "message": "Nie udało się odświeżyć tokenu uwierzytelniającego. Uwierzytelnij się ponownie."
+        },
+        "lock_failed": {
+            "message": "Nie udało się zablokować urządzenia. Urządzenie może być offline lub może występować tymczasowy problem z połączeniem. Spróbuj ponownie."
+        },
+        "unlock_failed": {
+            "message": "Nie udało się odblokować urządzenia. Urządzenie może być offline lub może występować tymczasowy problem z połączeniem. Spróbuj ponownie."
+        },
+        "switch_on_failed": {
+            "message": "Nie udało się włączyć ustawienia. Spróbuj ponownie."
+        },
+        "switch_off_failed": {
+            "message": "Nie udało się wyłączyć ustawienia. Spróbuj ponownie."
+        },
+        "device_offline": {
+            "message": "Urządzenie wydaje się być offline. Sprawdź, czy zamek ma zasilanie i jest połączony z siecią WiFi."
+        },
+        "api_error": {
+            "message": "Wystąpił błąd podczas komunikacji z usługą Kwikset. Spróbuj ponownie później."
+        }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Urządzenie offline: {device_name}",
+            "description": "Zamek **{device_name}** wydaje się być offline. Może to być spowodowane:\n\n- Niskim poziomem baterii\n- Problemami z połączeniem WiFi\n- Urządzeniem poza zasięgiem\n\nSprawdź urządzenie i upewnij się, że ma zasilanie i połączenie WiFi."
+        },
+        "auth_failed": {
+            "title": "Wymagane uwierzytelnienie",
+            "description": "Integracja Kwikset musi się ponownie uwierzytelnić. Przejdź do **Ustawienia → Urządzenia i usługi → Kwikset** i kliknij **Przekonfiguruj**, aby zaktualizować dane logowania."
+        },
+        "auth_expired": {
+            "title": "Uwierzytelnienie wygasło: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Ponowne uwierzytelnienie Kwikset",
+                        "description": "Tokeny uwierzytelniające dla integracji Kwikset (**{entry_title}**) wygasły i wymagają odświeżenia.\n\nZwykle dzieje się tak, gdy:\n- Tokeny naturalnie wygasły po długim okresie\n- Hasło zostało zmienione w aplikacji Kwikset\n- Konto zostało wylogowane z innego urządzenia\n\nKliknij przycisk **Napraw** poniżej, aby ponownie wprowadzić dane logowania Kwikset."
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,173 @@
+{
+    "title": "Kwikset Smart Locks",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Iniciar sessão no Kwikset",
+                "description": "Introduza as credenciais da sua conta Kwikset para ligar as suas fechaduras inteligentes.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Palavra-passe"
+                },
+                "data_description": {
+                    "email": "O endereço de e-mail utilizado para a sua conta Kwikset",
+                    "password": "A palavra-passe da sua conta Kwikset"
+                }
+            },
+            "select_home": {
+                "title": "Selecionar casa",
+                "description": "Escolha qual casa Kwikset configurar. Cada casa será configurada como uma entrada de integração separada.",
+                "data": {
+                    "conf_home_id": "Casa"
+                },
+                "data_description": {
+                    "conf_home_id": "Selecione a casa Kwikset que contém as suas fechaduras inteligentes"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Reautenticação necessária",
+                "description": "A integração Kwikset precisa de reautenticar a sua conta. Por favor introduza as suas credenciais.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Palavra-passe"
+                },
+                "data_description": {
+                    "email": "O endereço de e-mail utilizado para a sua conta Kwikset",
+                    "password": "A palavra-passe da sua conta Kwikset"
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigurar Kwikset",
+                "description": "Isto irá recarregar a integração e descobrir quaisquer novos dispositivos que tenham sido adicionados à sua casa Kwikset.",
+                "submit": "Recarregar integração"
+            },
+            "mfa": {
+                "title": "Autenticação multifator",
+                "description": "Introduza o código de verificação do seu {mfa_type}.",
+                "data": {
+                    "mfa_code": "Código de verificação"
+                },
+                "data_description": {
+                    "mfa_code": "O código de 6 dígitos enviado para o seu dispositivo"
+                }
+            },
+            "mfa_reauth": {
+                "title": "Autenticação multifator",
+                "description": "Introduza o código de verificação do seu {mfa_type} para completar a reautenticação.",
+                "data": {
+                    "mfa_code": "Código de verificação"
+                },
+                "data_description": {
+                    "mfa_code": "O código de 6 dígitos enviado para o seu dispositivo"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Falha na ligação",
+            "invalid_auth": "Autenticação inválida",
+            "invalid_mfa": "Código de verificação inválido. Por favor tente novamente.",
+            "unknown": "Erro inesperado",
+            "token_expired": "O token de autenticação expirou. Por favor inicie sessão novamente."
+        },
+        "abort": {
+            "already_configured": "O dispositivo já está configurado",
+            "reauth_successful": "A reautenticação foi bem-sucedida",
+            "reconfigure_successful": "Integração recarregada com sucesso. Novos dispositivos aparecerão em breve.",
+            "no_available_homes": "Não existem casas disponíveis para configurar. Todas as casas já estão configuradas ou não tem casas na sua conta Kwikset."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Opções do Kwikset",
+                "description": "Configure as opções de integração do Kwikset.",
+                "data": {
+                    "refresh_interval": "Intervalo de consulta (segundos)"
+                },
+                "data_description": {
+                    "refresh_interval": "Com que frequência consultar a nuvem Kwikset para o estado do dispositivo (15-60 segundos). Valores mais baixos fornecem atualizações mais rápidas, mas podem aumentar a carga da API."
+                }
+            }
+        }
+    },
+    "entity": {
+        "lock": {
+            "lock": {
+                "name": "Fechadura",
+                "state": {
+                    "locked": "Trancado",
+                    "unlocked": "Destrancado",
+                    "locking": "A trancar",
+                    "unlocking": "A destrancar",
+                    "jammed": "Encravado"
+                }
+            }
+        },
+        "sensor": {
+            "battery": {
+                "name": "Bateria"
+            }
+        },
+        "switch": {
+            "led_switch": {
+                "name": "LED"
+            },
+            "audio_switch": {
+                "name": "Áudio"
+            },
+            "secure_screen_switch": {
+                "name": "Ecrã seguro"
+            }
+        }
+    },
+    "exceptions": {
+        "auth_failed": {
+            "message": "Autenticação falhou. Por favor verifique as suas credenciais e tente novamente."
+        },
+        "connection_error": {
+            "message": "Não é possível ligar ao serviço na nuvem Kwikset. Por favor tente mais tarde."
+        },
+        "token_refresh_failed": {
+            "message": "Falha ao atualizar o token de autenticação. Por favor reautentique-se."
+        },
+        "lock_failed": {
+            "message": "Falha ao trancar o dispositivo. O dispositivo pode estar offline ou pode haver um problema de conectividade temporário. Por favor tente novamente."
+        },
+        "unlock_failed": {
+            "message": "Falha ao destrancar o dispositivo. O dispositivo pode estar offline ou pode haver um problema de conectividade temporário. Por favor tente novamente."
+        },
+        "switch_on_failed": {
+            "message": "Falha ao ativar a definição. Por favor tente novamente."
+        },
+        "switch_off_failed": {
+            "message": "Falha ao desativar a definição. Por favor tente novamente."
+        },
+        "device_offline": {
+            "message": "O dispositivo parece estar offline. Por favor verifique se a fechadura tem alimentação e está ligada à sua rede WiFi."
+        },
+        "api_error": {
+            "message": "Ocorreu um erro ao comunicar com o serviço Kwikset. Por favor tente novamente mais tarde."
+        }
+    },
+    "issues": {
+        "device_offline": {
+            "title": "Dispositivo offline: {device_name}",
+            "description": "A fechadura **{device_name}** parece estar offline. Isto pode dever-se a:\n\n- Bateria fraca\n- Problemas de conectividade WiFi\n- Dispositivo fora de alcance\n\nPor favor verifique o dispositivo e certifique-se de que tem alimentação e conectividade WiFi."
+        },
+        "auth_failed": {
+            "title": "Autenticação necessária",
+            "description": "A integração Kwikset precisa de se reautenticar. Vá a **Definições → Dispositivos e serviços → Kwikset** e clique em **Reconfigurar** para atualizar as suas credenciais."
+        },
+        "auth_expired": {
+            "title": "Autenticação expirada: {entry_title}",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Reautenticar Kwikset",
+                        "description": "Os tokens de autenticação para a integração Kwikset (**{entry_title}**) expiraram e precisam de ser atualizados.\n\nIsto geralmente acontece quando:\n- Os tokens expiraram naturalmente após um longo período\n- A palavra-passe foi alterada na aplicação Kwikset\n- A conta foi terminada noutro dispositivo\n\nClique no botão **Reparar** abaixo para reintroduzir as suas credenciais Kwikset."
+                    }
+                }
+            }
+        }
+    }
+}

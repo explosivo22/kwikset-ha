@@ -1,0 +1,359 @@
+# =============================================================================
+# Quality Scale tracking for Kwikset Smart Locks integration
+# =============================================================================
+# https://developers.home-assistant.io/docs/core/integration-quality-scale
+#
+# This integration targets PLATINUM tier compliance.
+# Current Status: PLATINUM (4/4 complete)
+#
+# Last updated: 2026-02-12
+# Maintainer: @explosivo22
+# =============================================================================
+
+rules:
+  # =============================================================================
+  # BRONZE TIER REQUIREMENTS (11/11 complete) ✅
+  # =============================================================================
+
+  config_flow:
+    status: done
+    comment: |
+      Full UI-based setup via config_flow.py with:
+      - Credential collection (email/password) in async_step_user
+      - MFA challenge handling (SMS and authenticator app) in async_step_mfa
+      - Home selection for multi-home accounts in async_step_select_home
+      - Reauthentication flow in async_step_reauth_confirm
+      - Reconfigure flow in async_step_reconfigure for device discovery
+      - Options flow for polling interval (15-60 seconds)
+      Location: custom_components/kwikset/config_flow.py
+
+  config_flow_test_coverage:
+    status: done
+    comment: |
+      Comprehensive config flow test coverage in tests/test_config_flow.py:
+      - User flow (success, connection error, unknown error)
+      - Home selection (success, no available homes)
+      - MFA challenge (required, success, invalid code)
+      - Reauthentication (form shown, MFA step, success completion)
+      - Reconfigure (form shown, success, auth error, connection error)
+      - Options flow (init, save interval)
+      - Edge cases (duplicate prevention, flow handler version)
+      Location: tests/test_config_flow.py
+
+  test_before_setup:
+    status: done
+    comment: |
+      async_setup_entry in __init__.py validates before platform setup:
+      1. Calls async_authenticate_with_tokens() to validate/refresh tokens
+      2. Fetches user info via client.user.get_info() to verify auth
+      3. Raises ConfigEntryAuthFailed on auth errors
+      4. Raises ConfigEntryNotReady on transient network errors
+      Only proceeds to platform setup if all validation passes.
+      Location: custom_components/kwikset/__init__.py:async_setup_entry
+
+  test_before_configure:
+    status: done
+    comment: |
+      Config flow validates API connection before creating entries:
+      - _async_authenticate() calls API.async_login() to test credentials
+      - Connection errors caught and shown to user
+      - Auth errors caught and shown to user
+      - Only proceeds to home selection if auth succeeds
+      Location: custom_components/kwikset/config_flow.py:_async_authenticate
+
+  unique_config_entry:
+    status: done
+    comment: |
+      Uses async_set_unique_id(home_id) in config_flow.py to prevent
+      duplicate entries per Kwikset home. Each home is a separate config
+      entry with unique_id = home_id from the Kwikset API.
+      Location: custom_components/kwikset/config_flow.py:async_step_select_home
+
+  has_entity_name:
+    status: done
+    comment: |
+      KwiksetEntity base class sets _attr_has_entity_name = True.
+      All entities use translation_key for names (Lock, Battery, LED, Audio, Secure Screen).
+      HA auto-prefixes device name to create full entity name.
+      Location: custom_components/kwikset/entity.py:KwiksetEntity
+
+  entity_unique_id:
+    status: done
+    comment: |
+      Format: {device_id}_{entity_type}
+      Examples: "device_123_lock", "device_123_battery", "device_123_led_switch"
+      Set in KwiksetEntity.__init__() via self._attr_unique_id
+      Location: custom_components/kwikset/entity.py:KwiksetEntity.__init__
+
+  docs_high_level_description:
+    status: done
+    comment: |
+      README.md provides comprehensive overview:
+      - Integration purpose and features
+      - Supported devices and product lines
+      - Connection mode (cloud polling)
+      - Key capabilities (lock/unlock, battery, settings)
+      Location: README.md
+
+  docs_installation_instructions:
+    status: done
+    comment: |
+      README.md includes detailed installation steps:
+      - HACS installation (recommended) with My Home Assistant button
+      - Manual installation with directory structure
+      - Configuration steps with My Home Assistant button
+      Location: README.md
+
+  appropriate_polling:
+    status: done
+    comment: |
+      Polling interval is user-configurable via options flow:
+      - Default: 30 seconds (DEFAULT_REFRESH_INTERVAL in const.py)
+      - Range: 15-60 seconds via NumberSelector slider
+      - Each coordinator uses update_interval from entry.options
+      - Can be changed without reloading integration
+      Location: custom_components/kwikset/const.py, config_flow.py:KwiksetOptionsFlow
+
+  brands:
+    status: exempt
+    comment: |
+      Custom component not included in Home Assistant core.
+      Brand registration is only required for core integrations.
+
+  # =============================================================================
+  # SILVER TIER REQUIREMENTS (8/8 complete) ✅
+  # =============================================================================
+
+  config_entry_unloading:
+    status: done
+    comment: |
+      async_unload_entry in __init__.py properly unloads:
+      - All platforms via async_unload_platforms(entry, PLATFORMS)
+      - Update listeners registered via entry.async_on_unload()
+      - Periodic device discovery timer
+      - API client via async_close()
+      Returns True on successful unload.
+      Location: custom_components/kwikset/__init__.py:async_unload_entry
+
+  reauthentication_flow:
+    status: done
+    comment: |
+      Complete reauth flow in config_flow.py:
+      - async_step_reauth: Entry point triggered by ConfigEntryAuthFailed
+      - async_step_reauth_confirm: Credential re-entry with MFA support
+      - async_step_mfa_reauth: MFA verification during reauth
+      - Uses async_update_reload_and_abort for seamless token update
+      - Clears auth_expired repair issues on success
+      Location: custom_components/kwikset/config_flow.py
+
+  log_when_unavailable:
+    status: done
+    comment: |
+      Error logging via DataUpdateCoordinator pattern:
+      - Coordinator raises HomeAssistantError on API failures after retries
+      - Auth errors raise ConfigEntryAuthFailed (triggers reauth flow)
+      - LOGGER.debug/info/warning/error used at appropriate levels
+      - Entity availability reflects coordinator.last_update_success
+      Location: custom_components/kwikset/device.py:_api_call_with_retry
+
+  parallel_updates:
+    status: done
+    comment: |
+      PARALLEL_UPDATES = 1 defined in const.py and imported in all platforms.
+      This limits concurrent API calls per platform to prevent rate limiting.
+      Location: custom_components/kwikset/const.py, lock.py, sensor.py, switch.py
+
+  stale_devices:
+    status: done
+    comment: |
+      Complete stale device tracking in __init__.py:
+      - KwiksetRuntimeData.known_devices tracks discovered device IDs
+      - _async_update_devices() runs every 5 minutes via async_track_time_interval
+      - Compares current API devices vs known_devices
+      - Removed devices cleaned up via device_registry.async_update_device(remove_config_entry_id=...)
+      - Coordinators also removed from runtime_data.devices
+      Location: custom_components/kwikset/__init__.py:_async_update_devices
+
+  entity_unavailable:
+    status: done
+    comment: |
+      KwiksetEntity inherits from CoordinatorEntity which provides
+      automatic availability based on coordinator.last_update_success.
+      Entities show as unavailable when API calls fail.
+      Location: custom_components/kwikset/entity.py (via CoordinatorEntity)
+
+  action_exceptions:
+    status: done
+    comment: |
+      All actions raise HomeAssistantError with translation_key:
+      - Lock: "lock_failed", "unlock_failed" (lock.py)
+      - Switch: "switch_on_failed", "switch_off_failed" (switch.py)
+      - Coordinator: "api_error" for retry exhaustion (device.py)
+      - Auth errors: ConfigEntryAuthFailed triggers reauth
+      Location: custom_components/kwikset/lock.py, switch.py, device.py
+
+  common_modules:
+    status: exempt
+    comment: |
+      No shared modules with other integrations.
+
+  # =============================================================================
+  # GOLD TIER REQUIREMENTS (9/9 complete) ✅
+  # =============================================================================
+
+  discovery:
+    status: exempt
+    comment: |
+      Cloud-based integration - devices cannot be discovered locally.
+      Kwikset locks require cloud authentication and don't expose
+      local network APIs.
+
+  reconfiguration_flow:
+    status: done
+    comment: |
+      async_step_reconfigure in config_flow.py allows users to:
+      - Trigger device discovery without re-entering credentials
+      - Refresh tokens and reload the integration
+      - Pick up newly added devices
+      Location: custom_components/kwikset/config_flow.py:async_step_reconfigure
+
+  dynamic_devices:
+    status: done
+    comment: |
+      Full dynamic device discovery implementation:
+      - 5-minute periodic polling via async_track_time_interval
+      - _async_update_devices() checks for new/removed devices
+      - New devices get coordinators created and first_refresh called
+      - Bus event "{DOMAIN}_new_device" notifies platforms
+      - Platforms listen for event and call _async_add_new_devices()
+      - No integration reload required for new devices
+      Location: custom_components/kwikset/__init__.py:_async_update_devices
+
+  integration_owner:
+    status: done
+    comment: |
+      Maintainer: @explosivo22
+      Location: custom_components/kwikset/manifest.json codeowners
+
+  docs_use_cases:
+    status: done
+    comment: |
+      README.md includes automation examples with YAML.
+      Location: README.md
+
+  docs_supported_devices:
+    status: done
+    comment: |
+      README.md lists Kwikset product lines (Halo, Aura, Obsidian, Premis, SmartCode).
+      Location: README.md
+
+  docs_troubleshooting:
+    status: done
+    comment: |
+      README.md includes troubleshooting section with common issues and solutions.
+      Location: README.md
+
+  diagnostics:
+    status: done
+    comment: |
+      diagnostics.py implements async_get_config_entry_diagnostics:
+      - Collects entry data, options, and device information
+      - Uses async_redact_data for sensitive info (tokens, IDs, PII)
+      - Includes device state, model, firmware, battery, settings
+      Location: custom_components/kwikset/diagnostics.py
+
+  test_coverage:
+    status: done
+    comment: |
+      Comprehensive pytest suite in tests/ directory:
+      - tests/test_config_flow.py: Config flow steps and error paths
+      - tests/test_device_coordinator.py: Coordinator, retry logic, auth errors
+      - tests/test_e2e_config_entry.py: End-to-end entry lifecycle
+      - tests/test_entity_platforms.py: Entity values, descriptions, actions
+      - tests/test_platforms_imports.py: Module import verification
+      - tests/test_setup_entry.py: Setup, unload, migrations, runtime data
+      - tests/test_diagnostics.py: Diagnostic data and redaction
+      - tests/conftest.py: Shared fixtures and mock data
+      Location: tests/
+
+  # =============================================================================
+  # PLATINUM TIER REQUIREMENTS (4/4 complete) ✅
+  # =============================================================================
+
+  async_dependency:
+    status: done
+    comment: |
+      aiokwikset library (requirement in manifest.json) is fully async:
+      - All API methods use async/await
+      - Uses aiohttp for HTTP requests
+      - No blocking I/O operations
+      Location: manifest.json requirements
+
+  inject_websession:
+    status: done
+    comment: |
+      Home Assistant's shared aiohttp session is injected via async_get_clientsession(hass):
+      - __init__.py: async_setup_entry passes websession to API(websession=websession)
+      - config_flow.py: _async_authenticate passes websession to API(websession=...)
+      - config_flow.py: async_step_reconfigure passes websession to API(websession=...)
+      Benefits: shared connection pool, proper SSL handling, automatic cleanup.
+      Location: custom_components/kwikset/__init__.py, config_flow.py
+
+  strict_typing:
+    status: done
+    comment: |
+      Full strict typing implementation:
+      - py.typed marker in package directory
+      - Type annotations on all public APIs
+      - TypedDict for coordinator data (KwiksetDeviceData)
+      - Final types in const.py for immutable constants
+      - ConfigFlowResult return types on all flow methods
+      - TYPE_CHECKING blocks for import-only types
+      - __slots__ on all entity classes for memory efficiency
+      Location: All Python files, custom_components/kwikset/py.typed
+
+  runtime_data:
+    status: done
+    comment: |
+      Modern runtime_data pattern fully implemented:
+      - KwiksetRuntimeData dataclass holds all runtime state
+      - Fields: client (API), devices (dict), known_devices (set), cancel_device_discovery
+      - Type alias: type KwiksetConfigEntry = ConfigEntry[KwiksetRuntimeData]
+      - Access via entry.runtime_data instead of hass.data[DOMAIN]
+      Location: custom_components/kwikset/__init__.py
+
+  # =============================================================================
+  # ADDITIONAL QUALITY IMPROVEMENTS (beyond standard tiers) ⭐
+  # =============================================================================
+
+  retry_logic:
+    status: done
+    comment: |
+      All API operations have retry logic for transient failures:
+      - MAX_RETRY_ATTEMPTS = 3 (const.py)
+      - RETRY_DELAY_SECONDS = 2 between retries (const.py)
+      - _api_call_with_retry() wrapper handles retries
+      - Auth errors raise immediately (no retry)
+      - Transient errors retry with backoff
+      Location: custom_components/kwikset/device.py:_api_call_with_retry
+
+  token_persistence:
+    status: done
+    comment: |
+      Tokens survive Home Assistant restarts:
+      - Stored in config_entry.data (CONF_ID_TOKEN, CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN)
+      - Updated via hass.config_entries.async_update_entry()
+      - Token refresh handled by aiokwikset library via token_update_callback
+      - Callback persists new tokens to config entry automatically
+      Location: custom_components/kwikset/__init__.py:_async_update_tokens
+
+  comprehensive_documentation:
+    status: done
+    comment: |
+      Extensive documentation throughout the codebase:
+      - Module docstrings explaining purpose and patterns
+      - Class docstrings with usage examples
+      - Method docstrings with Args/Returns/Raises
+      - README.md with complete user documentation
+      - CHANGELOG.md with version history
+      Location: All files, README.md, CHANGELOG.md

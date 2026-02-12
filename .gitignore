@@ -104,6 +104,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv-wsl/
 env/
 venv/
 ENV/
@@ -127,3 +128,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Project-specific exclusions
+.github/copilot-instructions.md
+.github/docs/
+.github/instructions/
+.github/prompts/
