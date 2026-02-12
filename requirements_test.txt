@@ -4,7 +4,7 @@ pytest-asyncio>=0.23.0
 pytest-homeassistant-custom-component>=0.13.0
 
 # Integration dependencies
-aiokwikset==0.4.0
+aiokwikset==0.4.1
 
 # Lint and type checking (matches CI workflow)
 ruff>=0.8.0
