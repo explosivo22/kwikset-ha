@@ -30,6 +30,8 @@ from aiokwikset.errors import MFAChallengeRequired
 from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
+from aiokwikset.errors import UserNotConfirmed
+from aiokwikset.errors import UserNotFound
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_EMAIL
@@ -40,6 +42,10 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import NumberSelector
 from homeassistant.helpers.selector import NumberSelectorConfig
 from homeassistant.helpers.selector import NumberSelectorMode
+from homeassistant.helpers.selector import SelectOptionDict
+from homeassistant.helpers.selector import SelectSelector
+from homeassistant.helpers.selector import SelectSelectorConfig
+from homeassistant.helpers.selector import SelectSelectorMode
 
 from .const import CONF_ACCESS_TOKEN
 from .const import CONF_HOME_ID
@@ -61,6 +67,20 @@ CREDENTIALS_SCHEMA = vol.Schema(
 )
 
 MFA_SCHEMA = vol.Schema({vol.Required("mfa_code"): str})
+
+DELIVERY_METHOD_SCHEMA = vol.Schema(
+    {
+        vol.Required("delivery_method", default="email"): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(value="email", label="Email"),
+                    SelectOptionDict(value="sms", label="SMS"),
+                ],
+                mode=SelectSelectorMode.LIST,
+            )
+        ),
+    }
+)
 
 
 class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -85,6 +105,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.home_id: str | None = None
         self.mfa_type: str | None = None
         self.mfa_tokens: dict[str, Any] | None = None
+        self.delivery_method: str | None = None
 
     # -------------------------------------------------------------------------
     # Helper methods
@@ -92,7 +113,13 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     def _get_mfa_type_display(self) -> str:
         """Get human-readable MFA type for display."""
-        return "authenticator app" if self.mfa_type == "SOFTWARE_TOKEN_MFA" else "SMS"
+        if self.mfa_type == "SOFTWARE_TOKEN_MFA":
+            return "authenticator app"
+        if self.mfa_type == "CUSTOM_CHALLENGE":
+            if self.delivery_method == "sms":
+                return "SMS verification"
+            return "email verification"
+        return "SMS"
 
     async def _async_authenticate(self) -> str | None:
         """Authenticate with the API.
@@ -116,12 +143,38 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         except Unauthenticated:
             LOGGER.error("Invalid credentials")
             return "invalid_auth"
+        except UserNotFound:
+            LOGGER.error("User account not found in Kwikset")
+            return "user_not_found"
+        except UserNotConfirmed:
+            LOGGER.error("User account not confirmed")
+            return "user_not_confirmed"
         except (RequestError, KwiksetConnectionError) as err:
             LOGGER.error("API connection error: %s", err)
             return "cannot_connect"
         except Exception:
             LOGGER.exception("Unexpected authentication error")
             return "unknown"
+
+    async def _async_request_custom_challenge_code(self) -> None:
+        """Request custom challenge code delivery.
+
+        Called after the user selects a delivery method (email or SMS)
+        for CUSTOM_CHALLENGE MFA. Triggers Cognito to send the
+        verification code, and updates mfa_tokens with the refreshed session.
+        """
+        assert self.api is not None  # Set during authentication
+        code_type = self.delivery_method or "email"
+        try:
+            updated_tokens = await self.api.async_request_custom_challenge_code(
+                code_type=code_type,
+                mfa_tokens=self.mfa_tokens,
+            )
+            self.mfa_tokens = updated_tokens
+            LOGGER.debug("Custom challenge code requested via %s", code_type)
+        except Exception:
+            LOGGER.exception("Failed to request custom challenge code")
+            # Continue with existing tokens; user may still complete MFA
 
     async def _async_complete_mfa(self, mfa_code: str) -> str | None:
         """Complete MFA verification. Returns error key or None on success."""
@@ -180,6 +233,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if error:
                 errors["base"] = error
             elif self.mfa_type:
+                if self.mfa_type == "CUSTOM_CHALLENGE":
+                    return await self.async_step_custom_challenge_delivery_reauth()
                 return await self.async_step_mfa_reauth()
             else:
                 # Clear any auth expired issue since reauth was successful
@@ -304,6 +359,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if error:
                 return self.async_abort(reason=error)
             if self.mfa_type:
+                if self.mfa_type == "CUSTOM_CHALLENGE":
+                    return await self.async_step_custom_challenge_delivery()
                 return await self.async_step_mfa()
 
             # Get available homes (excluding already configured ones)
@@ -333,6 +390,34 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(str(self.home_id))
         self._abort_if_unique_id_configured()
         return await self.async_step_install()
+
+    async def async_step_custom_challenge_delivery(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle delivery method selection for custom challenge MFA."""
+        if user_input is not None:
+            self.delivery_method = user_input["delivery_method"]
+            await self._async_request_custom_challenge_code()
+            return await self.async_step_mfa()
+
+        return self.async_show_form(
+            step_id="custom_challenge_delivery",
+            data_schema=DELIVERY_METHOD_SCHEMA,
+        )
+
+    async def async_step_custom_challenge_delivery_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle delivery method selection for custom challenge during reauth."""
+        if user_input is not None:
+            self.delivery_method = user_input["delivery_method"]
+            await self._async_request_custom_challenge_code()
+            return await self.async_step_mfa_reauth()
+
+        return self.async_show_form(
+            step_id="custom_challenge_delivery_reauth",
+            data_schema=DELIVERY_METHOD_SCHEMA,
+        )
 
     async def async_step_mfa(
         self, user_input: dict[str, Any] | None = None

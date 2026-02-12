@@ -256,6 +256,9 @@ def mock_api_config_flow() -> Generator[MagicMock, None, None]:
             api.async_authenticate_with_tokens = AsyncMock()
             api.async_renew_access_token = AsyncMock()
             api.async_respond_to_mfa_challenge = AsyncMock()
+            api.async_request_custom_challenge_code = AsyncMock(
+                return_value={"session": "updated_session", "challenge": "custom"}
+            )
             api.async_close = AsyncMock()
 
             # User namespace

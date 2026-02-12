@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "장치로 전송된 6자리 코드"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "잘못된 인증",
             "invalid_mfa": "잘못된 인증 코드입니다. 다시 시도하세요.",
             "unknown": "예기치 않은 오류",
-            "token_expired": "인증 토큰이 만료되었습니다. 다시 로그인하세요."
+            "token_expired": "인증 토큰이 만료되었습니다. 다시 로그인하세요.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "장치가 이미 구성되어 있습니다",
             "reauth_successful": "재인증에 성공했습니다",
             "reconfigure_successful": "통합이 성공적으로 다시 로드되었습니다. 새 장치가 곧 나타납니다.",
-            "no_available_homes": "구성할 수 있는 홈이 없습니다. 모든 홈이 이미 설정되었거나 Kwikset 계정에 홈이 없습니다."
+            "no_available_homes": "구성할 수 있는 홈이 없습니다. 모든 홈이 이미 설정되었거나 Kwikset 계정에 홈이 없습니다.",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {

@@ -60,6 +60,26 @@
                 "data_description": {
                     "mfa_code": "デバイスに送信された6桁のコード"
                 }
+            },
+            "custom_challenge_delivery": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
             }
         },
         "error": {
@@ -67,13 +87,17 @@
             "invalid_auth": "認証が無効です",
             "invalid_mfa": "確認コードが無効です。もう一度お試しください。",
             "unknown": "予期しないエラー",
-            "token_expired": "認証トークンの有効期限が切れました。再度サインインしてください。"
+            "token_expired": "認証トークンの有効期限が切れました。再度サインインしてください。",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         },
         "abort": {
             "already_configured": "デバイスは既に設定されています",
             "reauth_successful": "再認証に成功しました",
             "reconfigure_successful": "統合が正常に再読み込みされました。新しいデバイスがまもなく表示されます。",
-            "no_available_homes": "設定可能なホームがありません。すべてのホームがすでに設定されているか、Kwiksetアカウントにホームがありません。"
+            "no_available_homes": "設定可能なホームがありません。すべてのホームがすでに設定されているか、Kwiksetアカウントにホームがありません。",
+            "user_not_found": "Account not found. Please verify your email address is correct and that you have an active Kwikset account.",
+            "user_not_confirmed": "Your account has not been confirmed. Please check your email for a confirmation link from Kwikset."
         }
     },
     "options": {
