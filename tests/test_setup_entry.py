@@ -888,6 +888,10 @@ class TestOptionsUpdateCallback:
         new_interval = 45
         entry.options = {CONF_REFRESH_INTERVAL: new_interval}
 
+        # Mock async_request_refresh to prevent lingering debouncer timers
+        for coordinator in entry.runtime_data.devices.values():
+            coordinator.async_request_refresh = AsyncMock()
+
         await _async_options_updated(hass, entry)
 
         # Verify interval was updated
