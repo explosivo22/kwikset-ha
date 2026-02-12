@@ -24,7 +24,7 @@ rules:
       - Home selection for multi-home accounts in async_step_select_home
       - Reauthentication flow in async_step_reauth_confirm
       - Reconfigure flow in async_step_reconfigure for device discovery
-      - Options flow for polling interval (15-60 seconds)
+      - Options flow for polling interval (30-900 seconds)
       Location: custom_components/kwikset/config_flow.py
 
   config_flow_test_coverage:
@@ -109,7 +109,7 @@ rules:
     comment: |
       Polling interval is user-configurable via options flow:
       - Default: 30 seconds (DEFAULT_REFRESH_INTERVAL in const.py)
-      - Range: 15-60 seconds via NumberSelector slider
+      - Range: 30-900 seconds via NumberSelector slider
       - Each coordinator uses update_interval from entry.options
       - Can be changed without reloading integration
       Location: custom_components/kwikset/const.py, config_flow.py:KwiksetOptionsFlow

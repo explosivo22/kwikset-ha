@@ -318,11 +318,11 @@ class TestEntryUnload:
 class TestMigration:
     """Tests for config entry migration."""
 
-    async def test_migrate_v1_to_v5(
+    async def test_migrate_v1_to_v6(
         self,
         hass: HomeAssistant,
     ) -> None:
-        """Test migration from version 1 to 5."""
+        """Test migration from version 1 to 6."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
 
         entry = MockConfigEntry(
@@ -340,13 +340,13 @@ class TestMigration:
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        assert entry.version == 5
+        assert entry.version == 6
 
-    async def test_migrate_v2_to_v5(
+    async def test_migrate_v2_to_v6(
         self,
         hass: HomeAssistant,
     ) -> None:
-        """Test migration from version 2 to 5."""
+        """Test migration from version 2 to 6."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
 
         entry = MockConfigEntry(
@@ -364,14 +364,14 @@ class TestMigration:
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        # Should have migrated to v5
-        assert entry.version == 5
+        # Should have migrated to v6
+        assert entry.version == 6
 
-    async def test_migrate_v3_to_v5(
+    async def test_migrate_v3_to_v6(
         self,
         hass: HomeAssistant,
     ) -> None:
-        """Test migration from version 3 to 5."""
+        """Test migration from version 3 to 6."""
         from pytest_homeassistant_custom_component.common import MockConfigEntry
 
         entry = MockConfigEntry(
@@ -390,8 +390,8 @@ class TestMigration:
         result = await async_migrate_entry(hass, entry)
 
         assert result is True
-        # Should have migrated to v5
-        assert entry.version == 5
+        # Should have migrated to v6
+        assert entry.version == 6
 
 
 # =============================================================================

@@ -49,6 +49,8 @@ from .const import CONF_REFRESH_TOKEN
 from .const import DEFAULT_REFRESH_INTERVAL
 from .const import DOMAIN
 from .const import LOGGER
+from .const import MAX_REFRESH_INTERVAL
+from .const import MIN_REFRESH_INTERVAL
 
 # Schema definitions
 CREDENTIALS_SCHEMA = vol.Schema(
@@ -73,7 +75,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     Also handles reauthentication when tokens expire.
     """
 
-    VERSION = 5
+    VERSION = 6
 
     def __init__(self) -> None:
         """Initialize the flow handler."""
@@ -395,7 +397,7 @@ class KwiksetOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Kwikset integration.
 
     Allows configuration of:
-        - Refresh interval: How often to poll the Kwikset cloud (15-60 seconds)
+        - Refresh interval: How often to poll the Kwikset cloud (30-900 seconds)
     """
 
     async def async_step_init(
@@ -417,8 +419,9 @@ class KwiksetOptionsFlow(config_entries.OptionsFlow):
                     ): NumberSelector(
                         NumberSelectorConfig(
                             mode=NumberSelectorMode.SLIDER,
-                            min=15,
-                            max=60,
+                            min=MIN_REFRESH_INTERVAL,
+                            max=MAX_REFRESH_INTERVAL,
+                            unit_of_measurement="seconds",
                         )
                     ),
                 }

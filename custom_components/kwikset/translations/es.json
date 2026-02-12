@@ -85,7 +85,7 @@
                     "refresh_interval": "Intervalo de sondeo (segundos)"
                 },
                 "data_description": {
-                    "refresh_interval": "Con qué frecuencia consultar la nube de Kwikset para el estado del dispositivo (15-60 segundos). Valores más bajos proporcionan actualizaciones más rápidas pero pueden aumentar la carga de la API."
+                    "refresh_interval": "Con qué frecuencia consultar la nube de Kwikset para el estado del dispositivo (30-900 segundos). Valores más bajos proporcionan actualizaciones más rápidas pero pueden aumentar la carga de la API y reducir la vida útil de la batería."
                 }
             }
         }

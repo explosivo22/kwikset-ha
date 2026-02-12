@@ -85,7 +85,7 @@
                     "refresh_interval": "Polling interval (seconds)"
                 },
                 "data_description": {
-                    "refresh_interval": "How often to poll the Kwikset cloud for device status (15-60 seconds). Lower values provide faster updates but may increase API load."
+                    "refresh_interval": "How often to poll the Kwikset cloud for device status (30-900 seconds). Lower values provide faster updates but may increase API load and reduce battery life."
                 }
             }
         }

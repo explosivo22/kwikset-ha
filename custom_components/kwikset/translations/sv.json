@@ -85,7 +85,7 @@
                     "refresh_interval": "Pollningsintervall (sekunder)"
                 },
                 "data_description": {
-                    "refresh_interval": "Hur ofta Kwikset-molnet ska pollas för enhetsstatus (15-60 sekunder). Lägre värden ger snabbare uppdateringar men kan öka API-belastningen."
+                    "refresh_interval": "Hur ofta Kwikset-molnet ska pollas för enhetsstatus (30-900 sekunder). Lägre värden ger snabbare uppdateringar men kan öka API-belastningen och minska batteritiden."
                 }
             }
         }

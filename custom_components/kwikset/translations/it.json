@@ -85,7 +85,7 @@
                     "refresh_interval": "Intervallo di polling (secondi)"
                 },
                 "data_description": {
-                    "refresh_interval": "Con quale frequenza interrogare il cloud Kwikset per lo stato del dispositivo (15-60 secondi). Valori più bassi forniscono aggiornamenti più rapidi ma possono aumentare il carico dell'API."
+                    "refresh_interval": "Con quale frequenza interrogare il cloud Kwikset per lo stato del dispositivo (30-900 secondi). Valori più bassi forniscono aggiornamenti più rapidi ma possono aumentare il carico dell'API e ridurre la durata della batteria."
                 }
             }
         }

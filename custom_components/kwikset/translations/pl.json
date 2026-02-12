@@ -85,7 +85,7 @@
                     "refresh_interval": "Interwał odpytywania (sekundy)"
                 },
                 "data_description": {
-                    "refresh_interval": "Jak często odpytywać chmurę Kwikset o stan urządzenia (15-60 sekund). Niższe wartości zapewniają szybsze aktualizacje, ale mogą zwiększyć obciążenie API."
+                    "refresh_interval": "Jak często odpytywać chmurę Kwikset o stan urządzenia (30-900 sekund). Niższe wartości zapewniają szybsze aktualizacje, ale mogą zwiększyć obciążenie API i skrócić żywotność baterii."
                 }
             }
         }

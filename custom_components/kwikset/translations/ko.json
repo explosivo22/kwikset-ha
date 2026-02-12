@@ -85,7 +85,7 @@
                     "refresh_interval": "폴링 간격(초)"
                 },
                 "data_description": {
-                    "refresh_interval": "장치 상태를 위해 Kwikset 클라우드를 폴링하는 빈도(15-60초). 낮은 값은 더 빠른 업데이트를 제공하지만 API 부하가 증가할 수 있습니다."
+                    "refresh_interval": "장치 상태를 위해 Kwikset 클라우드를 폴링하는 빈도(30-900초). 낮은 값은 더 빠른 업데이트를 제공하지만 API 부하가 증가하고 배터리 수명이 줄어들 수 있습니다."
                 }
             }
         }

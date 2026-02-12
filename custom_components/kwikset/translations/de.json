@@ -85,7 +85,7 @@
                     "refresh_interval": "Abfrageintervall (Sekunden)"
                 },
                 "data_description": {
-                    "refresh_interval": "Wie oft der Gerätestatus von der Kwikset-Cloud abgefragt wird (15-60 Sekunden). Niedrigere Werte bieten schnellere Aktualisierungen, können aber die API-Last erhöhen."
+                    "refresh_interval": "Wie oft der Gerätestatus von der Kwikset-Cloud abgefragt wird (30-900 Sekunden). Niedrigere Werte bieten schnellere Aktualisierungen, können aber die API-Last erhöhen und die Batterielebensdauer verkürzen."
                 }
             }
         }

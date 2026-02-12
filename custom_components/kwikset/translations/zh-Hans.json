@@ -85,7 +85,7 @@
                     "refresh_interval": "轮询间隔（秒）"
                 },
                 "data_description": {
-                    "refresh_interval": "向 Kwikset 云查询设备状态的频率（15-60秒）。较低的值可提供更快的更新，但可能会增加 API 负载。"
+                    "refresh_interval": "向 Kwikset 云查询设备状态的频率（30-900秒）。较低的值可提供更快的更新，但可能会增加 API 负载并缩短电池寿命。"
                 }
             }
         }

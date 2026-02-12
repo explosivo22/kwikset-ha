@@ -1,0 +1,17 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /home/bbarbour/repositories/kwikset-ha && python -m pytest tests/ -v 2>&1$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        ".venv/bin/python": true,
+        "/^cd /home/bbarbour/repositories/kwikset-ha && python -m pytest tests/ -v --tb=short 2>&1 \\| tail -40$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd /home/bbarbour/repositories/kwikset-ha && python3 -m pytest tests/ -v --tb=short 2>&1 \\| tail -50$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
