@@ -133,6 +133,39 @@ MOCK_HOMES = [
     },
 ]
 
+MOCK_DEVICE_HISTORY = {
+    "data": [
+        {
+            "id": 2640374935,
+            "lse": "61",
+            "user": "John Doe",
+            "timestamp": 1770928208,
+            "eventtype": "Mobile ( WiFi, LTE, ETC)",
+            "event": "Locked",
+            "eventcategory": "Lock Mechanism",
+            "devicename": "Front Door",
+            "homeid": "home_001",
+            "timezone": "GMT-6:00",
+            "isissue": 0,
+        },
+        {
+            "id": 2640374934,
+            "lse": "60",
+            "user": "Jane Doe",
+            "timestamp": 1770924608,
+            "eventtype": "Keypad",
+            "event": "Unlocked",
+            "eventcategory": "Lock Mechanism",
+            "devicename": "Front Door",
+            "homeid": "home_001",
+            "timezone": "GMT-6:00",
+            "isissue": 0,
+        },
+    ],
+    "total": 2,
+    "issues": [],
+}
+
 
 def generate_mock_jwt(expiry_seconds: int = 3600) -> str:
     """Generate a mock JWT token with configurable expiry.
@@ -226,6 +259,7 @@ def mock_api() -> Generator[MagicMock, None, None]:
             api.device.set_ledstatus = AsyncMock()
             api.device.set_audiostatus = AsyncMock()
             api.device.set_securescreenstatus = AsyncMock()
+            api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
 
             mock_api_class.return_value = api
             yield api
@@ -270,6 +304,7 @@ def mock_api_config_flow() -> Generator[MagicMock, None, None]:
             api.device = MagicMock()
             api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
             api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+            api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
 
             mock_api_class.return_value = api
             yield api
@@ -307,6 +342,7 @@ def mock_api_device() -> Generator[MagicMock, None, None]:
         api.device.set_ledstatus = AsyncMock()
         api.device.set_audiostatus = AsyncMock()
         api.device.set_securescreenstatus = AsyncMock()
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
 
         mock_api_class.return_value = api
         yield api
@@ -335,6 +371,13 @@ def mock_coordinator() -> MagicMock:
     coordinator.led_status = True
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
+    coordinator.history_events = MOCK_DEVICE_HISTORY["data"]
+    coordinator.last_event = "Locked"
+    coordinator.last_event_user = "John Doe"
+    coordinator.last_event_type = "Mobile ( WiFi, LTE, ETC)"
+    coordinator.last_event_timestamp = 1770928208
+    coordinator.last_event_category = "Lock Mechanism"
+    coordinator.total_events = 2
     coordinator.last_update_success = True
 
     # Data dict for coordinator entity pattern
@@ -348,6 +391,7 @@ def mock_coordinator() -> MagicMock:
         "led_status": True,
         "audio_status": True,
         "secure_screen_status": False,
+        "history_events": MOCK_DEVICE_HISTORY["data"],
     }
 
     # Async action methods
@@ -377,6 +421,13 @@ def mock_coordinator_unlocked() -> MagicMock:
     coordinator.led_status = True
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
+    coordinator.history_events = MOCK_DEVICE_HISTORY["data"]
+    coordinator.last_event = "Locked"
+    coordinator.last_event_user = "John Doe"
+    coordinator.last_event_type = "Mobile ( WiFi, LTE, ETC)"
+    coordinator.last_event_timestamp = 1770928208
+    coordinator.last_event_category = "Lock Mechanism"
+    coordinator.total_events = 2
     coordinator.last_update_success = True
 
     coordinator.data = {
@@ -389,6 +440,7 @@ def mock_coordinator_unlocked() -> MagicMock:
         "led_status": True,
         "audio_status": True,
         "secure_screen_status": False,
+        "history_events": MOCK_DEVICE_HISTORY["data"],
     }
 
     coordinator.lock = AsyncMock()

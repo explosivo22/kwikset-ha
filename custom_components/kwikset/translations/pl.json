@@ -7,11 +7,13 @@
                 "description": "Wprowadź dane logowania do konta Kwikset, aby połączyć swoje inteligentne zamki.",
                 "data": {
                     "email": "E-mail",
-                    "password": "Hasło"
+                    "password": "Hasło",
+                    "save_password": "Zapisz hasło do automatycznej ponownej autoryzacji"
                 },
                 "data_description": {
                     "email": "Adres e-mail używany do konta Kwikset",
-                    "password": "Hasło do konta Kwikset"
+                    "password": "Hasło do konta Kwikset",
+                    "save_password": "Jeśli włączone, hasło zostanie zapisane, aby automatycznie ponownie się uwierzytelnić po wygaśnięciu sesji. W przeciwnym razie konieczne będzie ręczne uwierzytelnienie."
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "Integracja Kwikset musi ponownie uwierzytelnić Twoje konto. Wprowadź dane logowania.",
                 "data": {
                     "email": "E-mail",
-                    "password": "Hasło"
+                    "password": "Hasło",
+                    "save_password": "Zapisz hasło do automatycznej ponownej autoryzacji"
                 },
                 "data_description": {
                     "email": "Adres e-mail używany do konta Kwikset",
-                    "password": "Hasło do konta Kwikset"
+                    "password": "Hasło do konta Kwikset",
+                    "save_password": "Jeśli włączone, hasło zostanie zapisane, aby automatycznie ponownie się uwierzytelnić po wygaśnięciu sesji. W przeciwnym razie konieczne będzie ręczne uwierzytelnienie."
                 }
             },
             "reconfigure": {
                 "title": "Przekonfiguruj Kwikset",
-                "description": "Spowoduje to ponowne załadowanie integracji i wykrycie nowych urządzeń dodanych do domu Kwikset.",
-                "submit": "Załaduj ponownie integrację"
+                "description": "Wprowadź dane logowania do konta Kwikset, aby odświeżyć uwierzytelnianie i wykryć nowe urządzenia.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Hasło",
+                    "save_password": "Zapisz hasło do automatycznej ponownej autoryzacji"
+                },
+                "data_description": {
+                    "email": "Adres e-mail używany do konta Kwikset",
+                    "password": "Hasło do konta Kwikset",
+                    "save_password": "Jeśli włączone, hasło zostanie zapisane, aby automatycznie ponownie się uwierzytelnić po wygaśnięciu sesji. W przeciwnym razie konieczne będzie ręczne uwierzytelnienie."
+                }
             },
             "mfa": {
                 "title": "Uwierzytelnianie wieloskładnikowe",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "Uwierzytelnianie wieloskładnikowe",
+                "description": "Wprowadź kod weryfikacyjny z {mfa_type}, aby zakończyć ponowną konfigurację.",
+                "data": {
+                    "mfa_code": "Kod weryfikacyjny"
+                },
+                "data_description": {
+                    "mfa_code": "6-cyfrowy kod wysłany na urządzenie"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "Bateria"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {

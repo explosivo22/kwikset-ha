@@ -7,11 +7,13 @@
                 "description": "Ange dina Kwikset-kontouppgifter för att ansluta dina smarta lås.",
                 "data": {
                     "email": "E-post",
-                    "password": "Lösenord"
+                    "password": "Lösenord",
+                    "save_password": "Spara lösenord för automatisk omautentisering"
                 },
                 "data_description": {
                     "email": "E-postadressen som används för ditt Kwikset-konto",
-                    "password": "Ditt Kwikset-kontolösenord"
+                    "password": "Ditt Kwikset-kontolösenord",
+                    "save_password": "Om aktiverat sparas ditt lösenord för att automatiskt autentisera igen när din session går ut. Annars måste du autentisera manuellt."
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "Kwikset-integrationen behöver autentisera ditt konto igen. Vänligen ange dina uppgifter.",
                 "data": {
                     "email": "E-post",
-                    "password": "Lösenord"
+                    "password": "Lösenord",
+                    "save_password": "Spara lösenord för automatisk omautentisering"
                 },
                 "data_description": {
                     "email": "E-postadressen som används för ditt Kwikset-konto",
-                    "password": "Ditt Kwikset-kontolösenord"
+                    "password": "Ditt Kwikset-kontolösenord",
+                    "save_password": "Om aktiverat sparas ditt lösenord för att automatiskt autentisera igen när din session går ut. Annars måste du autentisera manuellt."
                 }
             },
             "reconfigure": {
                 "title": "Konfigurera om Kwikset",
-                "description": "Detta kommer att ladda om integrationen och upptäcka nya enheter som har lagts till i ditt Kwikset-hem.",
-                "submit": "Ladda om integration"
+                "description": "Ange dina Kwikset-kontouppgifter för att uppdatera autentiseringen och upptäcka nya enheter.",
+                "data": {
+                    "email": "E-post",
+                    "password": "Lösenord",
+                    "save_password": "Spara lösenord för automatisk omautentisering"
+                },
+                "data_description": {
+                    "email": "E-postadressen som används för ditt Kwikset-konto",
+                    "password": "Ditt Kwikset-kontolösenord",
+                    "save_password": "Om aktiverat sparas ditt lösenord för att automatiskt autentisera igen när din session går ut. Annars måste du autentisera manuellt."
+                }
             },
             "mfa": {
                 "title": "Multifaktorautentisering",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "Multifaktorautentisering",
+                "description": "Ange verifieringskoden från din {mfa_type} för att slutföra omkonfigureringen.",
+                "data": {
+                    "mfa_code": "Verifieringskod"
+                },
+                "data_description": {
+                    "mfa_code": "Den 6-siffriga koden som skickades till din enhet"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "Batteri"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {

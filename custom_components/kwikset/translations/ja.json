@@ -7,11 +7,13 @@
                 "description": "Kwiksetアカウントの認証情報を入力してスマートロックを接続してください。",
                 "data": {
                     "email": "メールアドレス",
-                    "password": "パスワード"
+                    "password": "パスワード",
+                    "save_password": "自動再認証のためにパスワードを保存"
                 },
                 "data_description": {
                     "email": "Kwiksetアカウントに使用するメールアドレス",
-                    "password": "Kwiksetアカウントのパスワード"
+                    "password": "Kwiksetアカウントのパスワード",
+                    "save_password": "有効にすると、セッションが期限切れになったときに自動的に再認証するためにパスワードが保存されます。無効の場合は、手動で再認証する必要があります。"
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "Kwikset統合でアカウントの再認証が必要です。認証情報を入力してください。",
                 "data": {
                     "email": "メールアドレス",
-                    "password": "パスワード"
+                    "password": "パスワード",
+                    "save_password": "自動再認証のためにパスワードを保存"
                 },
                 "data_description": {
                     "email": "Kwiksetアカウントに使用するメールアドレス",
-                    "password": "Kwiksetアカウントのパスワード"
+                    "password": "Kwiksetアカウントのパスワード",
+                    "save_password": "有効にすると、セッションが期限切れになったときに自動的に再認証するためにパスワードが保存されます。無効の場合は、手動で再認証する必要があります。"
                 }
             },
             "reconfigure": {
                 "title": "Kwiksetを再設定",
-                "description": "これにより統合が再読み込みされ、Kwiksetホームに追加された新しいデバイスが検出されます。",
-                "submit": "統合を再読み込み"
+                "description": "Kwiksetアカウントの認証情報を入力して認証を更新し、新しいデバイスを検出してください。",
+                "data": {
+                    "email": "メールアドレス",
+                    "password": "パスワード",
+                    "save_password": "自動再認証のためにパスワードを保存"
+                },
+                "data_description": {
+                    "email": "Kwiksetアカウントに使用するメールアドレス",
+                    "password": "Kwiksetアカウントのパスワード",
+                    "save_password": "有効にすると、セッションが期限切れになったときに自動的に再認証するためにパスワードが保存されます。無効の場合は、手動で再認証する必要があります。"
+                }
             },
             "mfa": {
                 "title": "多要素認証",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "多要素認証",
+                "description": "再設定を完了するために{mfa_type}から確認コードを入力してください。",
+                "data": {
+                    "mfa_code": "確認コード"
+                },
+                "data_description": {
+                    "mfa_code": "デバイスに送信された6桁のコード"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "バッテリー"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {

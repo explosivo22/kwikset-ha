@@ -161,3 +161,29 @@ class TestDiagnostics:
 
         assert result["device_count"] == 2
         assert len(result["devices"]) == 2
+
+    async def test_diagnostics_redacts_stored_password(
+        self,
+        hass: HomeAssistant,
+        mock_coordinator: MagicMock,
+    ) -> None:
+        """Test diagnostics redacts stored_password from output."""
+        entry = MagicMock()
+        entry.title = "Test Home"
+        entry.version = 6
+        entry.data = {
+            "email": "user@example.com",
+            "conf_home_id": "home_001",
+            "conf_id_token": "secret_id_token",
+            "conf_access_token": "secret_access_token",
+            "conf_refresh_token": "secret_refresh_token",
+            "stored_password": "my_secret_password",
+        }
+        entry.options = {"refresh_interval": 30}
+        entry.runtime_data = MagicMock()
+        entry.runtime_data.devices = {MOCK_DEVICE_ID: mock_coordinator}
+
+        result = await async_get_config_entry_diagnostics(hass, entry)
+
+        entry_data = result["entry"]["data"]
+        assert entry_data.get("stored_password") == "**REDACTED**"

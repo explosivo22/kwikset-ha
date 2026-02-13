@@ -27,6 +27,7 @@ from homeassistant.exceptions import HomeAssistantError
 from custom_components.kwikset.const import MAX_RETRY_ATTEMPTS
 from custom_components.kwikset.device import KwiksetDeviceDataUpdateCoordinator
 
+from .conftest import MOCK_DEVICE_HISTORY
 from .conftest import MOCK_DEVICE_ID
 from .conftest import MOCK_DEVICE_INFO
 from .conftest import MOCK_DEVICE_NAME
@@ -576,3 +577,268 @@ class TestDataUpdate:
         assert data["door_status"] == "Unknown"
         assert data["battery_percentage"] is None
         assert data["led_status"] is None
+
+
+# =============================================================================
+# History Property Tests
+# =============================================================================
+
+
+class TestHistoryProperties:
+    """Tests for coordinator history properties."""
+
+    async def test_history_events_property_returns_events(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test history_events property returns the list of events."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert len(coordinator.history_events) == 2
+        assert coordinator.history_events[0]["event"] == "Locked"
+
+    async def test_last_event_property(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test last_event returns the most recent event description."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.last_event == "Locked"
+
+    async def test_last_event_user_property(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test last_event_user returns the user of the most recent event."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.last_event_user == "John Doe"
+
+    async def test_last_event_type_property(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test last_event_type returns the event type."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.last_event_type == "Mobile ( WiFi, LTE, ETC)"
+
+    async def test_last_event_timestamp_property(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test last_event_timestamp returns the unix epoch timestamp."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.last_event_timestamp == 1770928208
+
+    async def test_last_event_category_property(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test last_event_category returns the event category."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.last_event_category == "Lock Mechanism"
+
+    async def test_total_events_property(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test total_events returns the count of fetched events."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.total_events == 2
+
+    async def test_history_properties_empty_when_no_history(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test all history properties return None/0/[] when no history."""
+        empty_history = {"data": [], "total": 0, "issues": []}
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=empty_history)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.history_events == []
+        assert coordinator.last_event is None
+        assert coordinator.last_event_user is None
+        assert coordinator.last_event_type is None
+        assert coordinator.last_event_timestamp is None
+        assert coordinator.last_event_category is None
+        assert coordinator.total_events == 0
+
+    async def test_history_fetch_failure_does_not_break_update(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test that history fetch failure doesn't break the main data update."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(
+            side_effect=Exception("History API error")
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        # Should NOT raise — history failure is caught
+        await coordinator.async_config_entry_first_refresh()
+
+        # Core device data should still be available
+        assert coordinator.data["door_status"] == "Locked"
+        assert coordinator.data["battery_percentage"] == 85
+        # History should be empty
+        assert coordinator.history_events == []
+
+    async def test_data_update_includes_history_events(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test coordinator data dict includes history_events field."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert "history_events" in coordinator.data
+        assert len(coordinator.data["history_events"]) == 2

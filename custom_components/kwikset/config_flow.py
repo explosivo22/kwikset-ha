@@ -28,7 +28,6 @@ from aiokwikset import API
 from aiokwikset.errors import ConnectionError as KwiksetConnectionError
 from aiokwikset.errors import MFAChallengeRequired
 from aiokwikset.errors import RequestError
-from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
 from aiokwikset.errors import UserNotConfirmed
 from aiokwikset.errors import UserNotFound
@@ -52,19 +51,42 @@ from .const import CONF_HOME_ID
 from .const import CONF_ID_TOKEN
 from .const import CONF_REFRESH_INTERVAL
 from .const import CONF_REFRESH_TOKEN
+from .const import CONF_SAVE_PASSWORD
+from .const import CONF_STORED_PASSWORD
 from .const import DEFAULT_REFRESH_INTERVAL
+from .const import DEFAULT_SAVE_PASSWORD
 from .const import DOMAIN
 from .const import LOGGER
 from .const import MAX_REFRESH_INTERVAL
 from .const import MIN_REFRESH_INTERVAL
 
 # Schema definitions
-CREDENTIALS_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_EMAIL): str,
-        vol.Required(CONF_PASSWORD): str,
-    }
-)
+
+
+def _get_credentials_schema(
+    default_email: str = "",
+    default_save_password: bool = DEFAULT_SAVE_PASSWORD,
+) -> vol.Schema:
+    """Get the credentials schema with optional save password checkbox.
+
+    Args:
+        default_email: Pre-filled email address.
+        default_save_password: Default value for save password checkbox.
+
+    Returns:
+        Schema for credentials form.
+
+    """
+    return vol.Schema(
+        {
+            vol.Required(CONF_EMAIL, default=default_email): str,
+            vol.Required(CONF_PASSWORD): str,
+            vol.Optional(CONF_SAVE_PASSWORD, default=default_save_password): bool,
+        }
+    )
+
+
+CREDENTIALS_SCHEMA = _get_credentials_schema()
 
 MFA_SCHEMA = vol.Schema({vol.Required("mfa_code"): str})
 
@@ -106,6 +128,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.mfa_type: str | None = None
         self.mfa_tokens: dict[str, Any] | None = None
         self.delivery_method: str | None = None
+        self.save_password: bool = False
 
     # -------------------------------------------------------------------------
     # Helper methods
@@ -200,12 +223,22 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     def _create_token_data(self) -> dict[str, Any]:
         """Create token data dict for config entry."""
         assert self.api is not None  # Set during authentication
-        return {
+        data: dict[str, Any] = {
             CONF_EMAIL: self.username,
             CONF_ID_TOKEN: self.api.id_token,
             CONF_ACCESS_TOKEN: self.api.access_token,
             CONF_REFRESH_TOKEN: self.api.refresh_token,
         }
+
+        # Store password for automatic re-authentication if user opted in
+        if self.save_password and self.password:
+            data[CONF_STORED_PASSWORD] = self.password
+            LOGGER.debug("Password will be stored for auto re-auth")
+        else:
+            # Explicitly clear stored password so data_updates merge removes it
+            data[CONF_STORED_PASSWORD] = ""
+
+        return data
 
     # -------------------------------------------------------------------------
     # Reauth flow
@@ -225,9 +258,14 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle reauthentication credentials."""
         errors: dict[str, str] = {}
 
+        # Get existing save_password preference from entry
+        reauth_entry = self._get_reauth_entry()
+        default_save_password = bool(reauth_entry.data.get(CONF_STORED_PASSWORD))
+
         if user_input is not None:
             self.username = user_input[CONF_EMAIL]
             self.password = user_input[CONF_PASSWORD]
+            self.save_password = user_input.get(CONF_SAVE_PASSWORD, False)
 
             error = await self._async_authenticate()
             if error:
@@ -238,7 +276,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_mfa_reauth()
             else:
                 # Clear any auth expired issue since reauth was successful
-                reauth_entry = self._get_reauth_entry()
                 ir.async_delete_issue(
                     self.hass, DOMAIN, f"auth_expired_{reauth_entry.entry_id}"
                 )
@@ -249,11 +286,9 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_EMAIL, default=self.username or ""): str,
-                    vol.Required(CONF_PASSWORD): str,
-                }
+            data_schema=_get_credentials_schema(
+                default_email=self.username or "",
+                default_save_password=default_save_password,
             ),
             errors=errors,
         )
@@ -293,41 +328,42 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle reconfiguration to discover new devices."""
+        """Handle reconfiguration to refresh credentials and discover new devices.
+
+        Always prompts for credentials to ensure they're valid.
+        This handles both new device discovery and expired token scenarios.
+        """
         errors: dict[str, str] = {}
+        entry = self._get_reconfigure_entry()
+
+        # Pre-fill from existing entry
+        default_email = entry.data.get(CONF_EMAIL, "")
+        default_save_password = bool(entry.data.get(CONF_STORED_PASSWORD))
 
         if user_input is not None:
-            entry = self._get_reconfigure_entry()
-            try:
-                self.api = API(websession=async_get_clientsession(self.hass))
-                await self.api.async_authenticate_with_tokens(
-                    id_token=entry.data.get(CONF_ID_TOKEN, ""),
-                    access_token=entry.data[CONF_ACCESS_TOKEN],
-                    refresh_token=entry.data[CONF_REFRESH_TOKEN],
-                )
+            self.username = user_input[CONF_EMAIL]
+            self.password = user_input[CONF_PASSWORD]
+            self.save_password = user_input.get(CONF_SAVE_PASSWORD, False)
+
+            error = await self._async_authenticate()
+            if error:
+                errors["base"] = error
+            elif self.mfa_type:
+                if self.mfa_type == "CUSTOM_CHALLENGE":
+                    return await self.async_step_custom_challenge_delivery_reconfigure()
+                return await self.async_step_mfa_reconfigure()
+            else:
                 return self.async_update_reload_and_abort(
                     entry,
-                    data_updates={
-                        CONF_ID_TOKEN: self.api.id_token,
-                        CONF_ACCESS_TOKEN: self.api.access_token,
-                        CONF_REFRESH_TOKEN: self.api.refresh_token,
-                    },
+                    data_updates=self._create_token_data(),
                 )
-            except (TokenExpiredError, Unauthenticated) as err:
-                LOGGER.error("Reconfigure auth error: %s", err)
-                errors["base"] = "token_expired"
-            except (RequestError, KwiksetConnectionError) as err:
-                LOGGER.error("Reconfigure connection error: %s", err)
-                errors["base"] = "cannot_connect"
-            except Exception:
-                LOGGER.exception("Unexpected reconfigure error")
-                errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="reconfigure",
-            description_placeholders={
-                "info": "This will reload the integration and discover any new devices."
-            },
+            data_schema=_get_credentials_schema(
+                default_email=default_email,
+                default_save_password=default_save_password,
+            ),
             errors=errors,
         )
 
@@ -348,6 +384,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         self.username = user_input[CONF_EMAIL]
         self.password = user_input[CONF_PASSWORD]
+        self.save_password = user_input.get(CONF_SAVE_PASSWORD, False)
         return await self.async_step_select_home()
 
     async def async_step_select_home(
@@ -419,6 +456,44 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=DELIVERY_METHOD_SCHEMA,
         )
 
+    async def async_step_custom_challenge_delivery_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle delivery method selection for custom challenge during reconfigure."""
+        if user_input is not None:
+            self.delivery_method = user_input["delivery_method"]
+            await self._async_request_custom_challenge_code()
+            return await self.async_step_mfa_reconfigure()
+
+        return self.async_show_form(
+            step_id="custom_challenge_delivery_reconfigure",
+            data_schema=DELIVERY_METHOD_SCHEMA,
+        )
+
+    async def async_step_mfa_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle MFA during reconfiguration."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            error = await self._async_complete_mfa(user_input["mfa_code"])
+            if error:
+                errors["base"] = error
+            else:
+                entry = self._get_reconfigure_entry()
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data_updates=self._create_token_data(),
+                )
+
+        return self.async_show_form(
+            step_id="mfa_reconfigure",
+            data_schema=MFA_SCHEMA,
+            description_placeholders={"mfa_type": self._get_mfa_type_display()},
+            errors=errors,
+        )
+
     async def async_step_mfa(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -445,13 +520,18 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Create config entry at completion of flow."""
         assert self.api is not None  # Set during authentication
         assert self.api.user is not None  # Set after successful authentication
-        entry_data = {
+        entry_data: dict[str, Any] = {
             CONF_EMAIL: self.username,
             CONF_HOME_ID: self.home_id,
             CONF_ID_TOKEN: self.api.id_token,
             CONF_ACCESS_TOKEN: self.api.access_token,
             CONF_REFRESH_TOKEN: self.api.refresh_token,
         }
+
+        # Store password for automatic re-authentication if user opted in
+        if self.save_password and self.password:
+            entry_data[CONF_STORED_PASSWORD] = self.password
+            LOGGER.debug("Password will be stored for auto re-auth")
 
         homes = await self.api.user.get_homes()
         home_name = next(

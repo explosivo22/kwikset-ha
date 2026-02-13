@@ -39,6 +39,7 @@ from custom_components.kwikset.const import CONF_HOME_ID
 from custom_components.kwikset.const import CONF_ID_TOKEN
 from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
 from custom_components.kwikset.const import CONF_REFRESH_TOKEN
+from custom_components.kwikset.const import CONF_STORED_PASSWORD
 from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
 from custom_components.kwikset.const import DOMAIN
 
@@ -48,9 +49,11 @@ from .conftest import MOCK_DEVICE_ID_2
 from .conftest import MOCK_DEVICE_INFO
 from .conftest import MOCK_DEVICE_INFO_2
 from .conftest import MOCK_DEVICES
+from .conftest import MOCK_EMAIL
 from .conftest import MOCK_ENTRY_DATA
 from .conftest import MOCK_ENTRY_OPTIONS
 from .conftest import MOCK_HOME_ID
+from .conftest import MOCK_PASSWORD
 from .conftest import MOCK_REFRESH_TOKEN
 
 # =============================================================================
@@ -984,3 +987,140 @@ class TestOptionsUpdateCallback:
 
         # Should not raise
         await _async_options_updated(hass, entry)
+
+
+# =============================================================================
+# Auto-Relogin with Stored Password Tests
+# =============================================================================
+
+
+class TestAutoReloginWithStoredPassword:
+    """Tests for automatic re-login when tokens expire and password is stored."""
+
+    async def test_auto_relogin_succeeds_with_stored_password(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup succeeds via auto-relogin when tokens expire and password is stored."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            data={
+                **MOCK_ENTRY_DATA,
+                CONF_STORED_PASSWORD: MOCK_PASSWORD,
+            },
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        # First call (authenticate_with_tokens) fails, second call (async_login) succeeds
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+        mock_api.async_login = AsyncMock()  # succeeds
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await async_setup_entry(hass, entry)
+
+        assert result is True
+        mock_api.async_login.assert_called_once_with(MOCK_EMAIL, MOCK_PASSWORD)
+
+    async def test_auto_relogin_fails_raises_auth_failed(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup raises ConfigEntryAuthFailed when auto-relogin fails."""
+        entry = MagicMock()
+        entry.entry_id = "test_entry_id"
+        entry.data = {
+            **MOCK_ENTRY_DATA,
+            CONF_STORED_PASSWORD: MOCK_PASSWORD,
+        }
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.title = "Test Entry"
+
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+        mock_api.async_login.side_effect = Exception("Login failed")
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await async_setup_entry(hass, entry)
+
+    async def test_no_stored_password_raises_auth_failed(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup raises ConfigEntryAuthFailed when no stored password exists."""
+        entry = MagicMock()
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()  # No CONF_STORED_PASSWORD
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.title = "Test Entry"
+
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await async_setup_entry(hass, entry)
+
+    async def test_auto_relogin_updates_tokens_on_success(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test auto-relogin persists new tokens after successful re-login."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            data={
+                **MOCK_ENTRY_DATA,
+                CONF_STORED_PASSWORD: MOCK_PASSWORD,
+            },
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+        mock_api.async_login = AsyncMock()
+
+        # Set new token values after re-login
+        mock_api.id_token = "new_id_token"
+        mock_api.access_token = "new_access_token"
+        mock_api.refresh_token = "new_refresh_token"
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await async_setup_entry(hass, entry)
+
+        assert result is True
+        assert entry.data[CONF_ID_TOKEN] == "new_id_token"
+        assert entry.data[CONF_ACCESS_TOKEN] == "new_access_token"
+        assert entry.data[CONF_REFRESH_TOKEN] == "new_refresh_token"

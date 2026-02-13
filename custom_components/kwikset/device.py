@@ -67,6 +67,7 @@ class KwiksetDeviceData(TypedDict, total=False):
     led_status: bool | None
     audio_status: bool | None
     secure_screen_status: bool | None
+    history_events: list[dict[str, Any]]
 
 
 class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData]):
@@ -178,6 +179,19 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         info = result if result is not None else {}
         self._device_info = info
 
+        # Fetch device history (supplemental diagnostic data)
+        history_events: list[dict[str, Any]] = []
+        try:
+            history_response = await self._api_call_with_retry(
+                self.api_client.device.get_device_history,
+                self.device_id,
+                top=10,
+            )
+            if history_response and isinstance(history_response.get("data"), list):
+                history_events = history_response["data"]
+        except Exception:
+            LOGGER.debug("Failed to fetch device history for %s", self.device_id)
+
         return KwiksetDeviceData(
             device_info=info,
             door_status=info.get(_KEY_DOOR_STATUS, "Unknown"),
@@ -188,6 +202,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             led_status=self._parse_bool(info.get(_KEY_LED)),
             audio_status=self._parse_bool(info.get(_KEY_AUDIO)),
             secure_screen_status=self._parse_bool(info.get(_KEY_SECURE_SCREEN)),
+            history_events=history_events,
         )
 
     @staticmethod
@@ -266,6 +281,62 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         if self.data:
             return self.data.get("secure_screen_status")
         return self._parse_bool(self._device_info.get(_KEY_SECURE_SCREEN))
+
+    # -------------------------------------------------------------------------
+    # History Properties (for history sensor entity)
+    # -------------------------------------------------------------------------
+
+    @property
+    def history_events(self) -> list[dict[str, Any]]:
+        """Return the list of recent history events."""
+        if self.data:
+            return self.data.get("history_events", [])
+        return []
+
+    @property
+    def last_event(self) -> str | None:
+        """Return the last event description (e.g., 'Locked', 'Unlocked')."""
+        events = self.history_events
+        if events:
+            return events[0].get("event")
+        return None
+
+    @property
+    def last_event_user(self) -> str | None:
+        """Return the user who triggered the last event."""
+        events = self.history_events
+        if events:
+            return events[0].get("user")
+        return None
+
+    @property
+    def last_event_type(self) -> str | None:
+        """Return the type of the last event."""
+        events = self.history_events
+        if events:
+            return events[0].get("eventtype")
+        return None
+
+    @property
+    def last_event_timestamp(self) -> int | None:
+        """Return the unix timestamp of the last event."""
+        events = self.history_events
+        if events:
+            return events[0].get("timestamp")
+        return None
+
+    @property
+    def last_event_category(self) -> str | None:
+        """Return the category of the last event."""
+        events = self.history_events
+        if events:
+            return events[0].get("eventcategory")
+        return None
+
+    @property
+    def total_events(self) -> int:
+        """Return the total number of fetched history events."""
+        return len(self.history_events)
 
     # -------------------------------------------------------------------------
     # Device Actions (called by entity platforms)

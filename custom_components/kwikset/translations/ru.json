@@ -7,11 +7,13 @@
                 "description": "Введите учетные данные вашей учетной записи Kwikset для подключения умных замков.",
                 "data": {
                     "email": "Электронная почта",
-                    "password": "Пароль"
+                    "password": "Пароль",
+                    "save_password": "Сохранить пароль для автоматической повторной аутентификации"
                 },
                 "data_description": {
                     "email": "Адрес электронной почты, используемый для вашей учетной записи Kwikset",
-                    "password": "Пароль вашей учетной записи Kwikset"
+                    "password": "Пароль вашей учетной записи Kwikset",
+                    "save_password": "Если включено, ваш пароль будет сохранен для автоматической повторной аутентификации при истечении сессии. В противном случае потребуется ручная аутентификация."
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "Интеграции Kwikset необходимо повторно аутентифицировать вашу учетную запись. Пожалуйста, введите ваши учетные данные.",
                 "data": {
                     "email": "Электронная почта",
-                    "password": "Пароль"
+                    "password": "Пароль",
+                    "save_password": "Сохранить пароль для автоматической повторной аутентификации"
                 },
                 "data_description": {
                     "email": "Адрес электронной почты, используемый для вашей учетной записи Kwikset",
-                    "password": "Пароль вашей учетной записи Kwikset"
+                    "password": "Пароль вашей учетной записи Kwikset",
+                    "save_password": "Если включено, ваш пароль будет сохранен для автоматической повторной аутентификации при истечении сессии. В противном случае потребуется ручная аутентификация."
                 }
             },
             "reconfigure": {
                 "title": "Перенастроить Kwikset",
-                "description": "Это перезагрузит интеграцию и обнаружит любые новые устройства, добавленные в ваш дом Kwikset.",
-                "submit": "Перезагрузить интеграцию"
+                "description": "Введите учетные данные вашей учетной записи Kwikset для обновления аутентификации и обнаружения новых устройств.",
+                "data": {
+                    "email": "Электронная почта",
+                    "password": "Пароль",
+                    "save_password": "Сохранить пароль для автоматической повторной аутентификации"
+                },
+                "data_description": {
+                    "email": "Адрес электронной почты, используемый для вашей учетной записи Kwikset",
+                    "password": "Пароль вашей учетной записи Kwikset",
+                    "save_password": "Если включено, ваш пароль будет сохранен для автоматической повторной аутентификации при истечении сессии. В противном случае потребуется ручная аутентификация."
+                }
             },
             "mfa": {
                 "title": "Многофакторная аутентификация",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "Многофакторная аутентификация",
+                "description": "Введите код подтверждения из вашего {mfa_type} для завершения перенастройки.",
+                "data": {
+                    "mfa_code": "Код подтверждения"
+                },
+                "data_description": {
+                    "mfa_code": "6-значный код, отправленный на ваше устройство"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "Батарея"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {

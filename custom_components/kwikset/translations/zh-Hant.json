@@ -7,11 +7,13 @@
                 "description": "輸入您的 Kwikset 帳戶憑證以連接您的智慧鎖。",
                 "data": {
                     "email": "電子郵件",
-                    "password": "密碼"
+                    "password": "密碼",
+                    "save_password": "儲存密碼以自動重新驗證"
                 },
                 "data_description": {
                     "email": "用於您 Kwikset 帳戶的電子郵件地址",
-                    "password": "您的 Kwikset 帳戶密碼"
+                    "password": "您的 Kwikset 帳戶密碼",
+                    "save_password": "如果啟用，您的密碼將被儲存，以便在工作階段過期時自動重新驗證。如果停用，您需要手動重新驗證。"
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "Kwikset 整合需要重新驗證您的帳戶。請輸入您的憑證。",
                 "data": {
                     "email": "電子郵件",
-                    "password": "密碼"
+                    "password": "密碼",
+                    "save_password": "儲存密碼以自動重新驗證"
                 },
                 "data_description": {
                     "email": "用於您 Kwikset 帳戶的電子郵件地址",
-                    "password": "您的 Kwikset 帳戶密碼"
+                    "password": "您的 Kwikset 帳戶密碼",
+                    "save_password": "如果啟用，您的密碼將被儲存，以便在工作階段過期時自動重新驗證。如果停用，您需要手動重新驗證。"
                 }
             },
             "reconfigure": {
                 "title": "重新設定 Kwikset",
-                "description": "這將重新載入整合並發現已新增到您 Kwikset 家庭的任何新裝置。",
-                "submit": "重新載入整合"
+                "description": "輸入您的 Kwikset 帳戶憑證以重新整理驗證並發現新裝置。",
+                "data": {
+                    "email": "電子郵件",
+                    "password": "密碼",
+                    "save_password": "儲存密碼以自動重新驗證"
+                },
+                "data_description": {
+                    "email": "用於您 Kwikset 帳戶的電子郵件地址",
+                    "password": "您的 Kwikset 帳戶密碼",
+                    "save_password": "如果啟用，您的密碼將被儲存，以便在工作階段過期時自動重新驗證。如果停用，您需要手動重新驗證。"
+                }
             },
             "mfa": {
                 "title": "多因素驗證",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "多因素驗證",
+                "description": "輸入來自您 {mfa_type} 的驗證碼以完成重新設定。",
+                "data": {
+                    "mfa_code": "驗證碼"
+                },
+                "data_description": {
+                    "mfa_code": "傳送到您裝置的6位數驗證碼"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "電池"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {

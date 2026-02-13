@@ -7,11 +7,13 @@
                 "description": "Voer uw Kwikset-accountgegevens in om uw slimme sloten te verbinden.",
                 "data": {
                     "email": "E-mail",
-                    "password": "Wachtwoord"
+                    "password": "Wachtwoord",
+                    "save_password": "Wachtwoord opslaan voor automatische herauthenticatie"
                 },
                 "data_description": {
                     "email": "Het e-mailadres dat wordt gebruikt voor uw Kwikset-account",
-                    "password": "Uw Kwikset-accountwachtwoord"
+                    "password": "Uw Kwikset-accountwachtwoord",
+                    "save_password": "Indien ingeschakeld, wordt uw wachtwoord opgeslagen om automatisch opnieuw te authenticeren wanneer uw sessie verloopt. Anders moet u handmatig opnieuw authenticeren."
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "De Kwikset-integratie moet uw account opnieuw verifiëren. Voer uw inloggegevens in.",
                 "data": {
                     "email": "E-mail",
-                    "password": "Wachtwoord"
+                    "password": "Wachtwoord",
+                    "save_password": "Wachtwoord opslaan voor automatische herauthenticatie"
                 },
                 "data_description": {
                     "email": "Het e-mailadres dat wordt gebruikt voor uw Kwikset-account",
-                    "password": "Uw Kwikset-accountwachtwoord"
+                    "password": "Uw Kwikset-accountwachtwoord",
+                    "save_password": "Indien ingeschakeld, wordt uw wachtwoord opgeslagen om automatisch opnieuw te authenticeren wanneer uw sessie verloopt. Anders moet u handmatig opnieuw authenticeren."
                 }
             },
             "reconfigure": {
                 "title": "Kwikset opnieuw configureren",
-                "description": "Dit zal de integratie opnieuw laden en eventuele nieuwe apparaten ontdekken die aan uw Kwikset-huis zijn toegevoegd.",
-                "submit": "Integratie opnieuw laden"
+                "description": "Voer uw Kwikset-accountgegevens in om de authenticatie te vernieuwen en nieuwe apparaten te ontdekken.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Wachtwoord",
+                    "save_password": "Wachtwoord opslaan voor automatische herauthenticatie"
+                },
+                "data_description": {
+                    "email": "Het e-mailadres dat wordt gebruikt voor uw Kwikset-account",
+                    "password": "Uw Kwikset-accountwachtwoord",
+                    "save_password": "Indien ingeschakeld, wordt uw wachtwoord opgeslagen om automatisch opnieuw te authenticeren wanneer uw sessie verloopt. Anders moet u handmatig opnieuw authenticeren."
+                }
             },
             "mfa": {
                 "title": "Multi-factor authenticatie",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "Multi-factor authenticatie",
+                "description": "Voer de verificatiecode van uw {mfa_type} in om de herconfiguratie te voltooien.",
+                "data": {
+                    "mfa_code": "Verificatiecode"
+                },
+                "data_description": {
+                    "mfa_code": "De 6-cijferige code die naar uw apparaat is verzonden"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "Batterij"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {

@@ -21,6 +21,7 @@ from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_EMAIL
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -36,6 +37,7 @@ from .const import CONF_HOME_ID
 from .const import CONF_ID_TOKEN
 from .const import CONF_REFRESH_INTERVAL
 from .const import CONF_REFRESH_TOKEN
+from .const import CONF_STORED_PASSWORD
 from .const import DEFAULT_REFRESH_INTERVAL
 from .const import DOMAIN
 from .const import LOGGER
@@ -228,8 +230,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         assert client.user is not None  # Set after authentication
         await client.user.get_info()
     except (TokenExpiredError, Unauthenticated) as err:
-        _create_auth_issue(hass, entry)
-        raise ConfigEntryAuthFailed(err) from err
+        LOGGER.warning("Token refresh failed: %s", err)
+
+        # Attempt automatic re-login if password is stored
+        stored_password = entry.data.get(CONF_STORED_PASSWORD)
+        if stored_password:
+            LOGGER.info("Attempting automatic re-login with stored password")
+            try:
+                await client.async_login(entry.data[CONF_EMAIL], stored_password)
+                assert client.user is not None
+                await client.user.get_info()
+                LOGGER.info("Automatic re-login successful")
+
+                # Persist the new tokens
+                await _async_update_tokens(
+                    hass,
+                    entry,
+                    client.id_token,
+                    client.access_token,
+                    client.refresh_token,
+                )
+            except Exception as login_err:
+                LOGGER.error("Automatic re-login failed: %s", login_err)
+                _create_auth_issue(hass, entry)
+                raise ConfigEntryAuthFailed(login_err) from login_err
+        else:
+            _create_auth_issue(hass, entry)
+            raise ConfigEntryAuthFailed(err) from err
     except (RequestError, KwiksetConnectionError) as err:
         raise ConfigEntryNotReady from err
 

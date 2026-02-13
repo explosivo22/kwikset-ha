@@ -13,6 +13,8 @@
             "approve": true,
             "matchCommandLine": true
         },
-        "ruff": true
+        "ruff": true,
+        ".venv/bin/ruff": true,
+        ".venv/bin/pytest": true
     }
 }

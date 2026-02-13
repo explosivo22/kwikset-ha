@@ -49,6 +49,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING
+from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.components.sensor import SensorEntity
@@ -99,6 +100,24 @@ class KwiksetSensorEntityDescription(
     value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int | None]
 
 
+class KwiksetHistorySensorEntityDescription(
+    SensorEntityDescription, frozen_or_thawed=True, kw_only=True
+):
+    """Describes a Kwikset history sensor entity with extra state attributes.
+
+    Extends SensorEntityDescription with both value_fn for state and
+    attrs_fn for extra state attributes (user, timestamp, event type, etc.).
+
+    Attributes:
+        value_fn: Callable that returns the sensor state value.
+        attrs_fn: Callable that returns extra state attributes dict.
+
+    """
+
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], str | None]
+    attrs_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], dict[str, Any]]
+
+
 # Sensor descriptions tuple - immutable collection of all sensor definitions
 # Using tuple for immutability as recommended by HA best practices
 SENSOR_DESCRIPTIONS: tuple[KwiksetSensorEntityDescription, ...] = (
@@ -110,6 +129,24 @@ SENSOR_DESCRIPTIONS: tuple[KwiksetSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda coordinator: coordinator.battery_percentage,
+    ),
+)
+
+
+HISTORY_SENSOR_DESCRIPTIONS: tuple[KwiksetHistorySensorEntityDescription, ...] = (
+    KwiksetHistorySensorEntityDescription(
+        key="last_lock_event",
+        translation_key="last_lock_event",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda coordinator: coordinator.last_event,
+        attrs_fn=lambda coordinator: {
+            "user": coordinator.last_event_user,
+            "event_type": coordinator.last_event_type,
+            "timestamp": coordinator.last_event_timestamp,
+            "event_category": coordinator.last_event_category,
+            "device_name": coordinator.device_name,
+            "total_events": coordinator.total_events,
+        },
     ),
 )
 
@@ -151,12 +188,15 @@ async def async_setup_entry(
         if not new_ids:
             return
 
-        # Create a sensor entity for each description for each new device
-        async_add_entities(
-            KwiksetSensor(devices[device_id], description)
-            for device_id in new_ids
-            for description in SENSOR_DESCRIPTIONS
-        )
+        # Create sensor entities for each new device
+        entities: list[SensorEntity] = []
+        for device_id in new_ids:
+            coordinator = devices[device_id]
+            for description in SENSOR_DESCRIPTIONS:
+                entities.append(KwiksetSensor(coordinator, description))
+            for description in HISTORY_SENSOR_DESCRIPTIONS:
+                entities.append(KwiksetHistorySensor(coordinator, description))
+        async_add_entities(entities)
         known_ids.update(new_ids)
         LOGGER.debug("Added sensor entities for devices: %s", new_ids)
 
@@ -233,5 +273,52 @@ class KwiksetSensor(KwiksetEntity, SensorEntity):
         from the coordinator. This pattern allows flexible value extraction
         without subclassing.
         """
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        super()._handle_coordinator_update()
+
+
+class KwiksetHistorySensor(KwiksetEntity, SensorEntity):
+    """History sensor entity for Kwikset smart locks.
+
+    Shows the last lock event (e.g., "Locked", "Unlocked", "Jammed") as
+    its state with extra attributes for event details.
+
+    Extra State Attributes:
+        user: Name of user who triggered the event
+        event_type: How the event was triggered (e.g., "Mobile", "Keypad")
+        timestamp: Unix epoch timestamp of the event
+        event_category: Category of the event (e.g., "Lock Mechanism")
+        device_name: Name of the lock device
+        total_events: Number of events fetched in the last poll
+    """
+
+    __slots__ = ()
+
+    entity_description: KwiksetHistorySensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: KwiksetDeviceDataUpdateCoordinator,
+        description: KwiksetHistorySensorEntityDescription,
+    ) -> None:
+        """Initialize the history sensor entity.
+
+        Args:
+            coordinator: Device coordinator for this lock
+            description: Entity description defining sensor behavior
+
+        """
+        self.entity_description = description
+        super().__init__(description.key, coordinator)
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes for the history sensor."""
+        return self.entity_description.attrs_fn(self.coordinator)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
         self._attr_native_value = self.entity_description.value_fn(self.coordinator)
         super()._handle_coordinator_update()

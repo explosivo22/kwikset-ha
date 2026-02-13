@@ -793,6 +793,145 @@ class TestSwitchDescriptions:
 
 
 # =============================================================================
+# History Sensor Entity Tests
+# =============================================================================
+
+
+class TestKwiksetHistorySensor:
+    """Tests for the KwiksetHistorySensor entity."""
+
+    def test_history_sensor_is_sensor_entity(
+        self, sensor_module, entity_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test KwiksetHistorySensor inherits from SensorEntity."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert isinstance(sensor, SensorEntity)
+        assert isinstance(sensor, entity_module.KwiksetEntity)
+
+    def test_history_sensor_unique_id(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor unique_id includes description key."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_event"
+
+    def test_history_sensor_native_value(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns correct native_value."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "Locked"
+
+    def test_history_sensor_native_value_none(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns None when no history."""
+        mock_coordinator.last_event = None
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value is None
+
+    def test_history_sensor_entity_category(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor has DIAGNOSTIC entity category."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        assert description.entity_category == EntityCategory.DIAGNOSTIC
+
+    def test_history_sensor_extra_state_attributes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns correct extra state attributes."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+
+        assert attrs["user"] == "John Doe"
+        assert attrs["event_type"] == "Mobile ( WiFi, LTE, ETC)"
+        assert attrs["timestamp"] == 1770928208
+        assert attrs["event_category"] == "Lock Mechanism"
+        assert attrs["device_name"] == MOCK_DEVICE_NAME
+        assert attrs["total_events"] == 2
+
+    def test_history_sensor_extra_state_attributes_empty(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns None values when no history."""
+        mock_coordinator.last_event_user = None
+        mock_coordinator.last_event_type = None
+        mock_coordinator.last_event_timestamp = None
+        mock_coordinator.last_event_category = None
+        mock_coordinator.total_events = 0
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+
+        assert attrs["user"] is None
+        assert attrs["event_type"] is None
+        assert attrs["timestamp"] is None
+        assert attrs["event_category"] is None
+        assert attrs["total_events"] == 0
+
+    def test_history_sensor_entity_description_stored(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test entity_description is stored correctly."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.entity_description == description
+
+
+class TestHistorySensorDescriptions:
+    """Tests for history sensor entity descriptions."""
+
+    def test_last_lock_event_description(self, sensor_module) -> None:
+        """Test last_lock_event sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        assert desc.key == "last_lock_event"
+        assert desc.translation_key == "last_lock_event"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+
+    def test_history_sensor_descriptions_are_frozen(self, sensor_module) -> None:
+        """Test history sensor descriptions are frozen dataclasses."""
+        for desc in sensor_module.HISTORY_SENSOR_DESCRIPTIONS:
+            with pytest.raises(AttributeError):
+                desc.key = "modified"
+
+    def test_history_sensor_value_fn_callable(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn is callable and returns correct value."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        value = desc.value_fn(mock_coordinator)
+        assert value == "Locked"
+
+    def test_history_sensor_attrs_fn_callable(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test attrs_fn is callable and returns correct dict."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        attrs = desc.attrs_fn(mock_coordinator)
+        assert isinstance(attrs, dict)
+        assert "user" in attrs
+        assert "event_type" in attrs
+        assert "timestamp" in attrs
+        assert "event_category" in attrs
+        assert "device_name" in attrs
+        assert "total_events" in attrs
+
+    def test_history_descriptions_tuple_is_immutable(self, sensor_module) -> None:
+        """Test HISTORY_SENSOR_DESCRIPTIONS is a tuple (immutable)."""
+        assert isinstance(sensor_module.HISTORY_SENSOR_DESCRIPTIONS, tuple)
+        with pytest.raises(TypeError):
+            sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0] = (
+                sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+            )
+
+
+# =============================================================================
 # Coordinator Update Tests
 # =============================================================================
 

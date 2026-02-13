@@ -25,6 +25,11 @@ CONF_ID_TOKEN: Final = "conf_id_token"
 CONF_ACCESS_TOKEN: Final = "conf_access_token"
 CONF_REFRESH_TOKEN: Final = "conf_refresh_token"
 
+# Password storage (optional - for automatic re-authentication)
+CONF_SAVE_PASSWORD: Final = "save_password"
+CONF_STORED_PASSWORD: Final = "stored_password"
+DEFAULT_SAVE_PASSWORD: Final = False
+
 # Configuration keys stored in config_entry.options
 CONF_REFRESH_INTERVAL: Final = "refresh_interval"
 

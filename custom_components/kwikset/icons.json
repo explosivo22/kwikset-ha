@@ -28,6 +28,9 @@
                     "90": "mdi:battery-90",
                     "100": "mdi:battery"
                 }
+            },
+            "last_lock_event": {
+                "default": "mdi:history"
             }
         },
         "switch": {

@@ -7,11 +7,13 @@
                 "description": "Geben Sie Ihre Kwikset-Kontodaten ein, um Ihre Smart Locks zu verbinden.",
                 "data": {
                     "email": "E-Mail",
-                    "password": "Passwort"
+                    "password": "Passwort",
+                    "save_password": "Passwort für automatische Reauthentifizierung speichern"
                 },
                 "data_description": {
                     "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
-                    "password": "Ihr Kwikset-Kontopasswort"
+                    "password": "Ihr Kwikset-Kontopasswort",
+                    "save_password": "Wenn aktiviert, wird Ihr Passwort gespeichert, um sich automatisch erneut zu authentifizieren, wenn Ihre Sitzung abläuft. Andernfalls müssen Sie sich manuell erneut authentifizieren."
                 }
             },
             "select_home": {
@@ -29,17 +31,28 @@
                 "description": "Die Kwikset-Integration muss Ihr Konto erneut authentifizieren. Bitte geben Sie Ihre Anmeldedaten ein.",
                 "data": {
                     "email": "E-Mail",
-                    "password": "Passwort"
+                    "password": "Passwort",
+                    "save_password": "Passwort für automatische Reauthentifizierung speichern"
                 },
                 "data_description": {
                     "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
-                    "password": "Ihr Kwikset-Kontopasswort"
+                    "password": "Ihr Kwikset-Kontopasswort",
+                    "save_password": "Wenn aktiviert, wird Ihr Passwort gespeichert, um sich automatisch erneut zu authentifizieren, wenn Ihre Sitzung abläuft. Andernfalls müssen Sie sich manuell erneut authentifizieren."
                 }
             },
             "reconfigure": {
                 "title": "Kwikset neu konfigurieren",
-                "description": "Dadurch wird die Integration neu geladen und alle neuen Geräte entdeckt, die zu Ihrem Kwikset-Zuhause hinzugefügt wurden.",
-                "submit": "Integration neu laden"
+                "description": "Geben Sie Ihre Kwikset-Kontodaten ein, um die Authentifizierung zu aktualisieren und neue Geräte zu entdecken.",
+                "data": {
+                    "email": "E-Mail",
+                    "password": "Passwort",
+                    "save_password": "Passwort für automatische Reauthentifizierung speichern"
+                },
+                "data_description": {
+                    "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
+                    "password": "Ihr Kwikset-Kontopasswort",
+                    "save_password": "Wenn aktiviert, wird Ihr Passwort gespeichert, um sich automatisch erneut zu authentifizieren, wenn Ihre Sitzung abläuft. Andernfalls müssen Sie sich manuell erneut authentifizieren."
+                }
             },
             "mfa": {
                 "title": "Multi-Faktor-Authentifizierung",
@@ -72,6 +85,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "Multi-Faktor-Authentifizierung",
+                "description": "Geben Sie den Bestätigungscode von Ihrer {mfa_type} ein, um die Neukonfiguration abzuschließen.",
+                "data": {
+                    "mfa_code": "Bestätigungscode"
+                },
+                "data_description": {
+                    "mfa_code": "Der 6-stellige Code, der an Ihr Gerät gesendet wurde"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -130,6 +163,9 @@
         "sensor": {
             "battery": {
                 "name": "Batterie"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
             }
         },
         "switch": {
