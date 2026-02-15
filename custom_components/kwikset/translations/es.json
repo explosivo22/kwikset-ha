@@ -1,5 +1,225 @@
 {
     "title": "Kwikset Smart Locks",
+    "services": {
+        "create_access_code": {
+            "name": "Create access code",
+            "description": "Create a new access code on a Kwikset smart lock.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device to create the access code on."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "A 4 to 8 digit numeric access code."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "A friendly name for the access code (e.g., 'Dog Walker')."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "Slot index on the lock (0 = auto-assign next available). Range: 0-255."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "When the code is active: all_day (always), date_range, weekly, one_time_unlimited, one_time_24_hour."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time for date_range or weekly schedules (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time for date_range or weekly schedules (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date for date_range schedule (YYYY-MM-DD format)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date for date_range schedule (YYYY-MM-DD format)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days for weekly schedule (e.g., monday, wednesday, friday)."
+                }
+            }
+        },
+        "edit_access_code": {
+            "name": "Edit access code",
+            "description": "Edit an existing access code on a Kwikset smart lock.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "The updated numeric access code (4-8 digits)."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "The updated friendly name for the access code."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "The slot index the code occupies on the lock (0-255)."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "The updated schedule type for the access code."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date (YYYY-MM-DD)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days for weekly schedule."
+                }
+            }
+        },
+        "disable_access_code": {
+            "name": "Disable access code",
+            "description": "Disable an existing access code on a Kwikset smart lock by slot number. If the code was created through Home Assistant, stored details are used automatically. For codes created outside HA, provide code, name, and schedule_type.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "The slot index the code occupies on the lock (0-255)."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "Optional. The numeric access code. Required only if the code was not created through Home Assistant."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "Optional. Override the stored friendly name."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "Optional. Override the stored schedule type."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date (YYYY-MM-DD)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days for weekly schedule."
+                }
+            }
+        },
+        "enable_access_code": {
+            "name": "Enable access code",
+            "description": "Re-enable a previously disabled access code on a Kwikset smart lock by slot number. If the code was created through Home Assistant, stored details are used automatically. For codes created outside HA, provide code, name, and schedule_type.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "Slot index (0-255)."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "Optional. The numeric access code. Required only if the code was not created through Home Assistant."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "Optional. Override the stored friendly name."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "Optional. Override the stored schedule type."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date (YYYY-MM-DD)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days."
+                }
+            }
+        },
+        "delete_access_code": {
+            "name": "Delete access code",
+            "description": "Delete a specific access code from a Kwikset smart lock by its slot number.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "Slot index of the access code to delete (0-255)."
+                }
+            }
+        },
+        "delete_all_access_codes": {
+            "name": "Delete all access codes",
+            "description": "Delete all access codes from a Kwikset smart lock. This action cannot be undone.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                }
+            }
+        },
+        "list_access_codes": {
+            "name": "List access codes",
+            "description": "List all known access codes on a Kwikset smart lock, including codes managed through Home Assistant and codes detected from the lock.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                }
+            }
+        }
+    },
     "config": {
         "step": {
             "user": {
@@ -148,6 +368,20 @@
         }
     },
     "entity": {
+        "event": {
+            "lock_event": {
+                "name": "Evento de Cerradura",
+                "state_attributes": {
+                    "event_type": {
+                        "state": {
+                            "locked": "Bloqueado",
+                            "unlocked": "Desbloqueado",
+                            "jammed": "Atascado"
+                        }
+                    }
+                }
+            }
+        },
         "lock": {
             "lock": {
                 "name": "Cerradura",
@@ -166,6 +400,9 @@
             },
             "last_lock_event": {
                 "name": "Last Lock Event"
+            },
+            "access_code_count": {
+                "name": "Access Code Count"
             }
         },
         "switch": {
@@ -207,6 +444,42 @@
         },
         "api_error": {
             "message": "Ocurrió un error al comunicarse con el servicio de Kwikset. Por favor intente más tarde."
+        },
+        "websocket_subscription_failed": {
+            "message": "Real-time event subscription failed for {email}. Falling back to polling."
+        },
+        "edit_access_code_failed": {
+            "message": "Failed to edit access code on the lock. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "create_access_code_failed": {
+            "message": "Failed to create access code on the lock. The device may be offline or the code may be invalid. Please try again."
+        },
+        "disable_access_code_failed": {
+            "message": "Failed to disable access code. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "enable_access_code_failed": {
+            "message": "Failed to enable access code. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "delete_access_code_failed": {
+            "message": "Failed to delete access code. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "delete_all_access_codes_failed": {
+            "message": "Failed to delete all access codes. The device may be offline. Please try again."
+        },
+        "device_not_found": {
+            "message": "Device not found: {device_id}. Please verify the device ID is correct."
+        },
+        "device_not_kwikset": {
+            "message": "Device {device_id} is not a Kwikset lock device."
+        },
+        "device_not_loaded": {
+            "message": "Device {device_id} is not currently loaded. The integration may need to be reloaded."
+        },
+        "invalid_schedule_params": {
+            "message": "Invalid schedule parameters. Date range schedules require start_date and end_date. Weekly schedules require days_of_week."
+        },
+        "access_code_not_tracked": {
+            "message": "Access code at slot {slot} was not created through Home Assistant and no code was provided. Provide the code, name, and schedule_type fields to disable or enable codes not managed by HA."
         }
     },
     "issues": {

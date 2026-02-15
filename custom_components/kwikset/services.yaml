@@ -1,0 +1,335 @@
+create_access_code:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+    code:
+      required: true
+      example: "1234"
+      selector:
+        text:
+    name:
+      required: true
+      example: "Guest Code"
+      selector:
+        text:
+    schedule_type:
+      required: true
+      selector:
+        select:
+          options:
+            - value: "all_day"
+              label: "All Day"
+            - value: "date_range"
+              label: "Date Range"
+            - value: "weekly"
+              label: "Weekly"
+            - value: "one_time_unlimited"
+              label: "One Time Unlimited"
+            - value: "one_time_24_hour"
+              label: "One Time 24 Hour"
+    slot:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    start_time:
+      required: false
+      selector:
+        time:
+    end_time:
+      required: false
+      selector:
+        time:
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: false
+      selector:
+        date:
+    days_of_week:
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: "sunday"
+              label: "Sunday"
+            - value: "monday"
+              label: "Monday"
+            - value: "tuesday"
+              label: "Tuesday"
+            - value: "wednesday"
+              label: "Wednesday"
+            - value: "thursday"
+              label: "Thursday"
+            - value: "friday"
+              label: "Friday"
+            - value: "saturday"
+              label: "Saturday"
+
+edit_access_code:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+    code:
+      required: true
+      example: "1234"
+      selector:
+        text:
+    name:
+      required: true
+      example: "Guest Code"
+      selector:
+        text:
+    schedule_type:
+      required: true
+      selector:
+        select:
+          options:
+            - value: "all_day"
+              label: "All Day"
+            - value: "date_range"
+              label: "Date Range"
+            - value: "weekly"
+              label: "Weekly"
+            - value: "one_time_unlimited"
+              label: "One Time Unlimited"
+            - value: "one_time_24_hour"
+              label: "One Time 24 Hour"
+    slot:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    start_time:
+      required: false
+      selector:
+        time:
+    end_time:
+      required: false
+      selector:
+        time:
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: false
+      selector:
+        date:
+    days_of_week:
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: "sunday"
+              label: "Sunday"
+            - value: "monday"
+              label: "Monday"
+            - value: "tuesday"
+              label: "Tuesday"
+            - value: "wednesday"
+              label: "Wednesday"
+            - value: "thursday"
+              label: "Thursday"
+            - value: "friday"
+              label: "Friday"
+            - value: "saturday"
+              label: "Saturday"
+
+disable_access_code:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+    slot:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    code:
+      required: false
+      example: "1234"
+      selector:
+        text:
+    name:
+      required: false
+      example: "Guest Code"
+      selector:
+        text:
+    schedule_type:
+      required: false
+      selector:
+        select:
+          options:
+            - value: "all_day"
+              label: "All Day"
+            - value: "date_range"
+              label: "Date Range"
+            - value: "weekly"
+              label: "Weekly"
+            - value: "one_time_unlimited"
+              label: "One Time Unlimited"
+            - value: "one_time_24_hour"
+              label: "One Time 24 Hour"
+    start_time:
+      required: false
+      selector:
+        time:
+    end_time:
+      required: false
+      selector:
+        time:
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: false
+      selector:
+        date:
+    days_of_week:
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: "sunday"
+              label: "Sunday"
+            - value: "monday"
+              label: "Monday"
+            - value: "tuesday"
+              label: "Tuesday"
+            - value: "wednesday"
+              label: "Wednesday"
+            - value: "thursday"
+              label: "Thursday"
+            - value: "friday"
+              label: "Friday"
+            - value: "saturday"
+              label: "Saturday"
+
+enable_access_code:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+    slot:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    code:
+      required: false
+      example: "1234"
+      selector:
+        text:
+    name:
+      required: false
+      example: "Guest Code"
+      selector:
+        text:
+    schedule_type:
+      required: false
+      selector:
+        select:
+          options:
+            - value: "all_day"
+              label: "All Day"
+            - value: "date_range"
+              label: "Date Range"
+            - value: "weekly"
+              label: "Weekly"
+            - value: "one_time_unlimited"
+              label: "One Time Unlimited"
+            - value: "one_time_24_hour"
+              label: "One Time 24 Hour"
+    start_time:
+      required: false
+      selector:
+        time:
+    end_time:
+      required: false
+      selector:
+        time:
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: false
+      selector:
+        date:
+    days_of_week:
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: "sunday"
+              label: "Sunday"
+            - value: "monday"
+              label: "Monday"
+            - value: "tuesday"
+              label: "Tuesday"
+            - value: "wednesday"
+              label: "Wednesday"
+            - value: "thursday"
+              label: "Thursday"
+            - value: "friday"
+              label: "Friday"
+            - value: "saturday"
+              label: "Saturday"
+
+delete_access_code:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+    slot:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+
+delete_all_access_codes:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+
+list_access_codes:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: kwikset

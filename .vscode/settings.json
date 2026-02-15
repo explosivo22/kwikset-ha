@@ -15,6 +15,14 @@
         },
         "ruff": true,
         ".venv/bin/ruff": true,
-        ".venv/bin/pytest": true
+        ".venv/bin/pytest": true,
+        "/^cd /home/bbarbour/repositories/kwikset-ha && python -m pytest tests/ -v --tb=short 2>&1 \\| tail -80$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd /home/bbarbour/repositories/kwikset-ha && python -m pytest tests/ --tb=short -q 2>&1 \\| tail -30$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

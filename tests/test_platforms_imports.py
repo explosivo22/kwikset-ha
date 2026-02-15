@@ -41,11 +41,22 @@ def _can_import_switch_module() -> bool:
         return False
 
 
+def _can_import_event_module() -> bool:
+    """Check if event module can be imported."""
+    try:
+        from custom_components.kwikset import event  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 # Skip reasons for API compatibility
 LOCK_SKIP_REASON = "lock module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
 SWITCH_SKIP_REASON = (
     "switch module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
 )
+EVENT_SKIP_REASON = "event module requires EventEntity (HA 2023.8+)"
 
 
 # =============================================================================
@@ -205,6 +216,58 @@ class TestSwitchPlatformImports:
         from custom_components.kwikset.switch import KwiksetSwitchEntityDescription
 
         assert KwiksetSwitchEntityDescription is not None
+
+
+# =============================================================================
+# Event Platform Import Tests
+# =============================================================================
+
+
+@pytest.mark.skipif(not _can_import_event_module(), reason=EVENT_SKIP_REASON)
+class TestEventPlatformImports:
+    """Tests for event platform module structure."""
+
+    def test_event_module_imports(self) -> None:
+        """Test event module can be imported without errors."""
+        from custom_components.kwikset import event
+
+        assert event is not None
+
+    def test_event_has_async_setup_entry(self) -> None:
+        """Test event module exports async_setup_entry."""
+        from custom_components.kwikset import event
+
+        assert hasattr(event, "async_setup_entry")
+        assert callable(event.async_setup_entry)
+
+    def test_event_parallel_updates_value(self) -> None:
+        """Test event module has PARALLEL_UPDATES = 1."""
+        from custom_components.kwikset import event
+
+        assert hasattr(event, "PARALLEL_UPDATES")
+        assert event.PARALLEL_UPDATES == 1
+
+    def test_event_has_kwikset_lock_event_class(self) -> None:
+        """Test event module exports KwiksetLockEvent class."""
+        from custom_components.kwikset import event
+
+        assert hasattr(event, "KwiksetLockEvent")
+
+    def test_event_inherits_from_event_entity(self) -> None:
+        """Test KwiksetLockEvent inherits from EventEntity."""
+        from homeassistant.components.event import EventEntity
+
+        from custom_components.kwikset.event import KwiksetLockEvent
+
+        assert issubclass(KwiksetLockEvent, EventEntity)
+
+    def test_event_has_event_type_constants(self) -> None:
+        """Test event module exports event type constants."""
+        from custom_components.kwikset import event
+
+        assert event.EVENT_LOCKED == "locked"
+        assert event.EVENT_UNLOCKED == "unlocked"
+        assert event.EVENT_JAMMED == "jammed"
 
 
 # =============================================================================
@@ -399,7 +462,7 @@ class TestInitModuleImports:
         from custom_components.kwikset import PLATFORMS
 
         assert PLATFORMS is not None
-        assert len(PLATFORMS) == 3
+        assert len(PLATFORMS) == 4
 
 
 # =============================================================================
@@ -411,31 +474,39 @@ class TestCrossModuleConsistency:
     """Tests for consistency across modules."""
 
     @pytest.mark.skipif(
-        not _can_import_lock_module() or not _can_import_switch_module(),
-        reason="Requires lock and switch modules (HA 2025.2+)",
+        not _can_import_lock_module()
+        or not _can_import_switch_module()
+        or not _can_import_event_module(),
+        reason="Requires lock, switch, and event modules (HA 2025.2+)",
     )
     def test_all_platforms_use_same_parallel_updates(self) -> None:
         """Test all platform modules use the same PARALLEL_UPDATES value."""
         from custom_components.kwikset.const import PARALLEL_UPDATES as CONST_VALUE
+        from custom_components.kwikset.event import PARALLEL_UPDATES as EVENT_VALUE
         from custom_components.kwikset.lock import PARALLEL_UPDATES as LOCK_VALUE
         from custom_components.kwikset.sensor import PARALLEL_UPDATES as SENSOR_VALUE
         from custom_components.kwikset.switch import PARALLEL_UPDATES as SWITCH_VALUE
 
+        assert EVENT_VALUE == CONST_VALUE
         assert LOCK_VALUE == CONST_VALUE
         assert SENSOR_VALUE == CONST_VALUE
         assert SWITCH_VALUE == CONST_VALUE
 
     @pytest.mark.skipif(
-        not _can_import_lock_module() or not _can_import_switch_module(),
-        reason="Requires lock and switch modules (HA 2025.2+)",
+        not _can_import_lock_module()
+        or not _can_import_switch_module()
+        or not _can_import_event_module(),
+        reason="Requires lock, switch, and event modules (HA 2025.2+)",
     )
     def test_all_entities_inherit_from_kwikset_entity(self) -> None:
         """Test all entity classes inherit from KwiksetEntity."""
         from custom_components.kwikset.entity import KwiksetEntity
+        from custom_components.kwikset.event import KwiksetLockEvent
         from custom_components.kwikset.lock import KwiksetLock
         from custom_components.kwikset.sensor import KwiksetSensor
         from custom_components.kwikset.switch import KwiksetSwitch
 
+        assert issubclass(KwiksetLockEvent, KwiksetEntity)
         assert issubclass(KwiksetLock, KwiksetEntity)
         assert issubclass(KwiksetSensor, KwiksetEntity)
         assert issubclass(KwiksetSwitch, KwiksetEntity)

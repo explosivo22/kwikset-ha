@@ -21,9 +21,11 @@ from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -31,6 +33,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.storage import Store
 
 from .const import CONF_ACCESS_TOKEN
 from .const import CONF_HOME_ID
@@ -43,9 +46,21 @@ from .const import DOMAIN
 from .const import LOGGER
 from .const import MAX_REFRESH_INTERVAL
 from .const import MIN_REFRESH_INTERVAL
+from .const import STORAGE_KEY
+from .const import STORAGE_VERSION
+from .const import WEBSOCKET_EVENT_MANAGE_DEVICE
+from .const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+from .const import WEBSOCKET_FIELD_DEVICE_ID
 from .device import KwiksetDeviceDataUpdateCoordinator
+from .services import async_setup_services
+from .services import async_unload_services
 
-PLATFORMS: list[Platform] = [Platform.LOCK, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS: list[Platform] = [
+    Platform.EVENT,
+    Platform.LOCK,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 DEVICE_DISCOVERY_INTERVAL = timedelta(minutes=5)
 
 
@@ -58,6 +73,7 @@ class KwiksetRuntimeData:
         devices: Device ID to coordinator mapping.
         known_devices: Tracked device IDs for stale device detection.
         cancel_device_discovery: Cancellation callback for discovery timer.
+        websocket_subscribed: Whether websocket subscription is active.
 
     """
 
@@ -65,6 +81,7 @@ class KwiksetRuntimeData:
     devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = field(default_factory=dict)
     known_devices: set[str] = field(default_factory=set)
     cancel_device_discovery: Callable[[], None] | None = None
+    websocket_subscribed: bool = False
 
 
 # Type alias for typed ConfigEntry access (PEP 695)
@@ -135,6 +152,8 @@ def _create_coordinator(
     device: dict[str, Any],
     update_interval: int,
     entry: KwiksetConfigEntry,
+    access_code_store: Store | None = None,
+    access_code_data: dict[str, dict[str, Any]] | None = None,
 ) -> KwiksetDeviceDataUpdateCoordinator:
     """Create a coordinator for a device.
 
@@ -144,6 +163,8 @@ def _create_coordinator(
         device: Device data from API.
         update_interval: Polling interval in seconds.
         entry: Config entry for the integration.
+        access_code_store: Shared access code persistent store.
+        access_code_data: Shared access code store data dict.
 
     Returns:
         Configured coordinator for the device.
@@ -156,6 +177,8 @@ def _create_coordinator(
         device_name=device["devicename"],
         update_interval=update_interval,
         config_entry=entry,
+        access_code_store=access_code_store,
+        access_code_data=access_code_data,
     )
 
 
@@ -164,6 +187,8 @@ async def _build_device_coordinators(
     entry: KwiksetConfigEntry,
     client: API,
     api_devices: list[dict[str, Any]],
+    access_code_store: Store | None = None,
+    access_code_data: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, KwiksetDeviceDataUpdateCoordinator]:
     """Build coordinators for all devices and perform first refresh.
 
@@ -172,6 +197,8 @@ async def _build_device_coordinators(
         entry: Config entry for the integration.
         client: API client for API calls.
         api_devices: List of device data from API.
+        access_code_store: Shared access code persistent store.
+        access_code_data: Shared access code store data dict.
 
     Returns:
         Dictionary mapping device IDs to their coordinators.
@@ -181,11 +208,126 @@ async def _build_device_coordinators(
     devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = {}
 
     for device in api_devices:
-        coordinator = _create_coordinator(hass, client, device, update_interval, entry)
+        coordinator = _create_coordinator(
+            hass,
+            client,
+            device,
+            update_interval,
+            entry,
+            access_code_store=access_code_store,
+            access_code_data=access_code_data,
+        )
         await coordinator.async_config_entry_first_refresh()
         devices[device["deviceid"]] = coordinator
 
     return devices
+
+
+async def _async_setup_websocket(
+    hass: HomeAssistant,
+    entry: KwiksetConfigEntry,
+) -> None:
+    """Set up real-time websocket event monitoring.
+
+    Subscribes to the aiokwikset subscriptions API for real-time
+    device state updates. Routes events to the correct device coordinator.
+
+    Args:
+        hass: Home Assistant instance.
+        entry: Config entry with runtime data.
+
+    """
+    client = entry.runtime_data.client
+    email = entry.data[CONF_EMAIL]
+
+    @callback
+    def _handle_realtime_event(name: str, data: dict[str, Any]) -> None:
+        """Handle incoming real-time device events."""
+        if name != WEBSOCKET_EVENT_MANAGE_DEVICE:
+            LOGGER.debug("Ignoring unknown websocket event: %s", name)
+            return
+
+        # The websocket payload nests the device fields under the event name key:
+        # data = {"onManageDevice": {"deviceid": "...", "devicestatus": "...", ...}}
+        payload = data.get(name, data) if isinstance(data.get(name), dict) else data
+
+        device_id = payload.get(WEBSOCKET_FIELD_DEVICE_ID)
+        if not device_id:
+            LOGGER.debug("Websocket event missing device ID: %s", data)
+            return
+
+        coordinator = entry.runtime_data.devices.get(device_id)
+        if coordinator is None:
+            LOGGER.debug(
+                "Websocket event for unknown device %s \u2014 ignoring",
+                device_id,
+            )
+            return
+
+        LOGGER.debug("Real-time event for device %s: %s", device_id, payload)
+        coordinator.handle_realtime_event(payload)
+
+    client.subscriptions.set_callback(_handle_realtime_event)
+
+    try:
+        await client.subscriptions.async_subscribe_device(email)
+        LOGGER.info("WebSocket subscription active for %s", email)
+    except Exception:
+        LOGGER.warning(
+            "Failed to establish WebSocket subscription for %s"
+            " \u2014 falling back to polling",
+            email,
+            exc_info=True,
+        )
+        return
+
+    entry.runtime_data.websocket_subscribed = True
+
+    # With websocket active, reduce polling to a safety-net heartbeat
+    _apply_websocket_poll_interval(entry)
+
+
+def _apply_websocket_poll_interval(entry: KwiksetConfigEntry) -> None:
+    """Increase polling interval while websocket is providing real-time updates."""
+    ws_interval = timedelta(seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL)
+    for coordinator in entry.runtime_data.devices.values():
+        if coordinator.update_interval != ws_interval:
+            LOGGER.debug(
+                "WebSocket active — slowing polling for %s from %ss to %ss",
+                coordinator.device_name,
+                coordinator.update_interval.total_seconds()
+                if coordinator.update_interval
+                else None,
+                WEBSOCKET_FALLBACK_POLL_INTERVAL,
+            )
+            coordinator.set_update_interval(ws_interval)
+
+
+def _restore_user_poll_interval(entry: KwiksetConfigEntry) -> None:
+    """Restore the user-configured polling interval when websocket is down."""
+    user_interval = timedelta(seconds=_get_update_interval(entry))
+    for coordinator in entry.runtime_data.devices.values():
+        if coordinator.update_interval != user_interval:
+            LOGGER.debug(
+                "WebSocket disconnected — restoring polling for %s to %ss",
+                coordinator.device_name,
+                user_interval.total_seconds(),
+            )
+            coordinator.set_update_interval(user_interval)
+
+
+async def _async_get_access_code_store(
+    hass: HomeAssistant,
+) -> tuple[Store, dict[str, dict[str, Any]]]:
+    """Load or retrieve the shared access code store."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    if "access_code_store" not in domain_data:
+        ac_store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+        ac_data = await ac_store.async_load() or {}
+        domain_data["access_code_store"] = ac_store
+        domain_data["access_code_data"] = ac_data
+
+    return domain_data["access_code_store"], domain_data["access_code_data"]
 
 
 # =============================================================================
@@ -263,7 +405,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     # Fetch devices and create coordinators
     assert client.device is not None  # Set after authentication
     api_devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
-    devices = await _build_device_coordinators(hass, entry, client, api_devices)
+
+    access_code_store, access_code_data = await _async_get_access_code_store(hass)
+
+    devices = await _build_device_coordinators(
+        hass,
+        entry,
+        client,
+        api_devices,
+        access_code_store=access_code_store,
+        access_code_data=access_code_data,
+    )
 
     # Store runtime data
     entry.runtime_data = KwiksetRuntimeData(
@@ -274,6 +426,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register access code management services (idempotent — safe for multiple entries)
+    async_setup_services(hass)
 
     # Register listeners
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
@@ -288,11 +443,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         DEVICE_DISCOVERY_INTERVAL,
     )
 
+    # Set up real-time websocket subscription
+    await _async_setup_websocket(hass, entry)
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> bool:
     """Unload a config entry and clean up resources."""
+    if entry.runtime_data.websocket_subscribed:
+        try:
+            await entry.runtime_data.client.subscriptions.async_unsubscribe()
+        except Exception:
+            LOGGER.debug("Failed to unsubscribe from websocket", exc_info=True)
+        entry.runtime_data.websocket_subscribed = False
+        _restore_user_poll_interval(entry)
+
     if entry.runtime_data.cancel_device_discovery:
         entry.runtime_data.cancel_device_discovery()
         entry.runtime_data.cancel_device_discovery = None
@@ -301,7 +467,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> 
     if hasattr(entry.runtime_data.client, "async_close"):
         await entry.runtime_data.client.async_close()
 
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    # Unload services only when the last config entry is being unloaded
+    if unload_ok:
+        loaded_entries = [
+            e
+            for e in hass.config_entries.async_entries(DOMAIN)
+            if e.entry_id != entry.entry_id and e.state == ConfigEntryState.LOADED
+        ]
+        if not loaded_entries:
+            async_unload_services(hass)
+            hass.data.pop(DOMAIN, None)
+
+    return unload_ok
 
 
 # =============================================================================
@@ -327,11 +506,22 @@ async def _async_add_new_devices(
     runtime_data = entry.runtime_data
     update_interval = _get_update_interval(entry)
 
+    # Get access code store references if available
+    domain_data = hass.data.get(DOMAIN, {})
+    ac_store = domain_data.get("access_code_store")
+    ac_data = domain_data.get("access_code_data")
+
     for device in api_devices:
         device_id = device["deviceid"]
         if device_id in new_device_ids:
             coordinator = _create_coordinator(
-                hass, runtime_data.client, device, update_interval, entry
+                hass,
+                runtime_data.client,
+                device,
+                update_interval,
+                entry,
+                access_code_store=ac_store,
+                access_code_data=ac_data,
             )
             await coordinator.async_config_entry_first_refresh()
             runtime_data.devices[device_id] = coordinator
@@ -424,9 +614,22 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
 async def _async_options_updated(
     hass: HomeAssistant, entry: KwiksetConfigEntry
 ) -> None:
-    """Handle options update by applying new polling interval to coordinators."""
+    """Handle options update by applying new polling interval to coordinators.
+
+    If the websocket is active, the user's new interval is saved but not
+    applied until the websocket disconnects. The safety-net heartbeat
+    interval remains in effect.
+    """
     devices = entry.runtime_data.devices
     if not devices:
+        return
+
+    # When websocket is active, keep the heartbeat interval — the user's
+    # preference is persisted in options and will be applied if websocket drops.
+    if entry.runtime_data.websocket_subscribed:
+        LOGGER.debug(
+            "WebSocket active — user interval saved but heartbeat polling unchanged"
+        )
         return
 
     new_interval = _get_update_interval(entry)

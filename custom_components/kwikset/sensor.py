@@ -151,6 +151,50 @@ HISTORY_SENSOR_DESCRIPTIONS: tuple[KwiksetHistorySensorEntityDescription, ...] =
 )
 
 
+class KwiksetAccessCodeSensorEntityDescription(
+    SensorEntityDescription, frozen_or_thawed=True, kw_only=True
+):
+    """Describes an access code sensor entity with extra state attributes.
+
+    Attributes:
+        value_fn: Callable that returns the sensor state value (int).
+        attrs_fn: Callable that returns extra state attributes dict.
+
+    """
+
+    value_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], int]
+    attrs_fn: Callable[[KwiksetDeviceDataUpdateCoordinator], dict[str, Any]]
+
+
+ACCESS_CODE_SENSOR_DESCRIPTIONS: tuple[
+    KwiksetAccessCodeSensorEntityDescription, ...
+] = (
+    KwiksetAccessCodeSensorEntityDescription(
+        key="access_code_count",
+        translation_key="access_code_count",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:key-variant",
+        value_fn=lambda coordinator: coordinator.total_access_codes,
+        attrs_fn=lambda coordinator: {
+            "occupied_slots": coordinator.occupied_slots,
+            "access_codes": [
+                {
+                    "slot": entry["slot"],
+                    "name": entry["name"],
+                    "source": entry["source"],
+                    "enabled": entry["enabled"],
+                    "schedule_type": entry["schedule_type"],
+                }
+                for entry in sorted(
+                    coordinator.access_codes.values(), key=lambda e: e["slot"]
+                )
+            ],
+        },
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: KwiksetConfigEntry,
@@ -196,6 +240,8 @@ async def async_setup_entry(
                 entities.append(KwiksetSensor(coordinator, description))
             for description in HISTORY_SENSOR_DESCRIPTIONS:
                 entities.append(KwiksetHistorySensor(coordinator, description))
+            for description in ACCESS_CODE_SENSOR_DESCRIPTIONS:
+                entities.append(KwiksetAccessCodeSensor(coordinator, description))
         async_add_entities(entities)
         known_ids.update(new_ids)
         LOGGER.debug("Added sensor entities for devices: %s", new_ids)
@@ -315,6 +361,39 @@ class KwiksetHistorySensor(KwiksetEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra state attributes for the history sensor."""
+        return self.entity_description.attrs_fn(self.coordinator)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        super()._handle_coordinator_update()
+
+
+class KwiksetAccessCodeSensor(KwiksetEntity, SensorEntity):
+    """Access code count sensor with slot detail attributes.
+
+    Shows the total number of known access code slots occupied on the lock.
+    Extra state attributes expose per-slot details for dashboard templates.
+    """
+
+    __slots__ = ()
+
+    entity_description: KwiksetAccessCodeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: KwiksetDeviceDataUpdateCoordinator,
+        description: KwiksetAccessCodeSensorEntityDescription,
+    ) -> None:
+        """Initialize the access code sensor entity."""
+        self.entity_description = description
+        super().__init__(description.key, coordinator)
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes with access code slot details."""
         return self.entity_description.attrs_fn(self.coordinator)
 
     @callback
