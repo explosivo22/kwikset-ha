@@ -61,6 +61,7 @@ class TestEntrySetup:
     ) -> None:
         """Test successful entry setup creates runtime data and platforms."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -142,6 +143,7 @@ class TestEntrySetup:
     ) -> None:
         """Test authentication failure raises ConfigEntryAuthFailed."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -161,6 +163,7 @@ class TestEntrySetup:
     ) -> None:
         """Test connection failure raises ConfigEntryNotReady."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -243,6 +246,7 @@ class TestEntryUnload:
     ) -> None:
         """Test successful entry unload."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -278,6 +282,7 @@ class TestEntryUnload:
     ) -> None:
         """Test unload cancels device discovery timer."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -444,6 +449,7 @@ class TestOptionsUpdate:
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -484,6 +490,7 @@ class TestPlatformSetup:
     ) -> None:
         """Test all platforms are forwarded during setup."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()

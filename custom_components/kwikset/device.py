@@ -212,30 +212,25 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     # -------------------------------------------------------------------------
 
     async def _async_setup(self) -> None:
-        """Load initial device information."""
-        assert self.api_client.device is not None  # Set after authentication
-        result = await self._api_call_with_retry(
-            self.api_client.device.get_device_info,
-            self.device_id,
-        )
-        self._device_info = result if result is not None else {}
-        LOGGER.debug("Initial device data loaded for %s", self.device_id)
+        """Prepare coordinator for first data fetch.
 
-    async def _async_update_data(self) -> KwiksetDeviceData:
-        """Fetch current device state."""
-        assert self.api_client.device is not None  # Set after authentication
-        result = await self._api_call_with_retry(
-            self.api_client.device.get_device_info,
-            self.device_id,
-        )
-        info = result if result is not None else {}
-        self._device_info = info
+        Device info is loaded by _async_update_data() on the first refresh,
+        so no separate API call is needed here. This eliminates a redundant
+        network round trip during startup.
+        """
 
-        # Fetch device history with retry logic.
-        # History is supplemental diagnostic data; failures must not stall the
-        # coordinator update.  The Kwikset history_v4 endpoint can be slow or
-        # return 504, so we retry a couple of times with a short delay and fall
-        # back to previously cached events on persistent failure.
+    async def _async_fetch_history(self) -> list[dict[str, Any]]:
+        """Fetch device history with retry logic.
+
+        History is supplemental diagnostic data; failures must not stall the
+        coordinator update.  The Kwikset history_v4 endpoint can be slow or
+        return 504, so we retry a couple of times with a short delay and fall
+        back to previously cached events on persistent failure.
+
+        Returns:
+            List of history event dicts, or cached events on failure.
+
+        """
         history_events = self._last_history_events
         history_fetched = False
 
@@ -313,6 +308,24 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                     self._history_failure_count,
                     self.device_id,
                 )
+
+        return history_events
+
+    async def _async_update_data(self) -> KwiksetDeviceData:
+        """Fetch current device state."""
+        assert self.api_client.device is not None  # Set after authentication
+
+        # Fetch device info and history concurrently to reduce update time.
+        # History is supplemental; its failure is handled inside _async_fetch_history.
+        result, history_events = await asyncio.gather(
+            self._api_call_with_retry(
+                self.api_client.device.get_device_info,
+                self.device_id,
+            ),
+            self._async_fetch_history(),
+        )
+        info = result if result is not None else {}
+        self._device_info = info
 
         # Parse access code slot data from device info
         self._device_reported_slots = self._discover_device_slots(info)

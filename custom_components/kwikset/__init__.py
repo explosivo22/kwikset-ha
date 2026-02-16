@@ -9,6 +9,7 @@ Data Flow:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
@@ -205,22 +206,30 @@ async def _build_device_coordinators(
 
     """
     update_interval = _get_update_interval(entry)
-    devices: dict[str, KwiksetDeviceDataUpdateCoordinator] = {}
 
-    for device in api_devices:
-        coordinator = _create_coordinator(
-            hass,
-            client,
-            device,
-            update_interval,
-            entry,
-            access_code_store=access_code_store,
-            access_code_data=access_code_data,
+    # Create all coordinators first, then initialize them in parallel
+    # to reduce startup time (each first-refresh makes network calls).
+    coordinators = [
+        (
+            device["deviceid"],
+            _create_coordinator(
+                hass,
+                client,
+                device,
+                update_interval,
+                entry,
+                access_code_store=access_code_store,
+                access_code_data=access_code_data,
+            ),
         )
-        await coordinator.async_config_entry_first_refresh()
-        devices[device["deviceid"]] = coordinator
+        for device in api_devices
+    ]
 
-    return devices
+    await asyncio.gather(
+        *(coord.async_config_entry_first_refresh() for _, coord in coordinators)
+    )
+
+    return dict(coordinators)
 
 
 async def _async_setup_websocket(
@@ -428,11 +437,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     except (RequestError, KwiksetConnectionError) as err:
         raise ConfigEntryNotReady from err
 
-    # Fetch devices and create coordinators
+    # Fetch devices and load access code store in parallel
     assert client.device is not None  # Set after authentication
-    api_devices = await client.device.get_devices(entry.data[CONF_HOME_ID])
-
-    access_code_store, access_code_data = await _async_get_access_code_store(hass)
+    api_devices, (access_code_store, access_code_data) = await asyncio.gather(
+        client.device.get_devices(entry.data[CONF_HOME_ID]),
+        _async_get_access_code_store(hass),
+    )
 
     devices = await _build_device_coordinators(
         hass,

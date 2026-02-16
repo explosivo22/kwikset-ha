@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 from aiokwikset.api import Unauthenticated
 from aiokwikset.errors import RequestError
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -71,6 +72,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup returns True on successful initialization."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -98,6 +100,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup creates KwiksetRuntimeData with correct structure."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -129,6 +132,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup calls API authentication methods."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -158,6 +162,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup fetches devices from API."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -185,6 +190,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup creates a coordinator for each discovered device."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -230,6 +236,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup forwards all platforms."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -264,6 +271,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup registers options update listener."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -293,6 +301,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup starts periodic device discovery timer."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -332,6 +341,7 @@ class TestSetupErrorHandling:
     ) -> None:
         """Test setup raises ConfigEntryAuthFailed on authentication failure."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -351,6 +361,7 @@ class TestSetupErrorHandling:
     ) -> None:
         """Test setup raises ConfigEntryNotReady on connection failure."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -380,6 +391,7 @@ class TestSetupErrorHandling:
             version=6,
         )
         entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         # Capture the token_update_callback that will be passed to API
         captured_callback = None
@@ -430,6 +442,7 @@ class TestAsyncUnloadEntry:
     ) -> None:
         """Test unload returns True on successful cleanup."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -465,6 +478,7 @@ class TestAsyncUnloadEntry:
     ) -> None:
         """Test unload cancels device discovery timer."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -507,6 +521,7 @@ class TestAsyncUnloadEntry:
     ) -> None:
         """Test unload unloads all platforms."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -556,6 +571,7 @@ class TestAsyncMigrateEntry:
         """
         # Use MagicMock for v1 migration because source code directly sets version
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.version = 1
         entry.data = {
             CONF_HOME_ID: MOCK_HOME_ID,
@@ -741,6 +757,7 @@ class TestCoordinatorInterval:
     ) -> None:
         """Test coordinators use default refresh interval when websocket is off."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = {}  # No custom interval
@@ -777,6 +794,7 @@ class TestCoordinatorInterval:
         """Test coordinators use custom refresh interval when websocket is off."""
         custom_interval = 45
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = {CONF_REFRESH_INTERVAL: custom_interval}
@@ -951,6 +969,7 @@ class TestOptionsUpdateCallback:
         from custom_components.kwikset import _async_options_updated
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1006,6 +1025,7 @@ class TestOptionsUpdateCallback:
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1051,6 +1071,7 @@ class TestOptionsUpdateCallback:
         from custom_components.kwikset import _async_options_updated
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.runtime_data = KwiksetRuntimeData(client=MagicMock())
 
         # Should not raise
@@ -1082,6 +1103,7 @@ class TestAutoReloginWithStoredPassword:
             version=6,
         )
         entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         # First call (authenticate_with_tokens) fails, second call (async_login) succeeds
         mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
@@ -1112,6 +1134,7 @@ class TestAutoReloginWithStoredPassword:
     ) -> None:
         """Test setup raises ConfigEntryAuthFailed when auto-relogin fails."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = {
             **MOCK_ENTRY_DATA,
@@ -1135,6 +1158,7 @@ class TestAutoReloginWithStoredPassword:
     ) -> None:
         """Test setup raises ConfigEntryAuthFailed when no stored password exists."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()  # No CONF_STORED_PASSWORD
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1164,6 +1188,7 @@ class TestAutoReloginWithStoredPassword:
             version=6,
         )
         entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
             "Token expired"
@@ -1211,6 +1236,7 @@ class TestWebSocketSubscription:
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1255,6 +1281,7 @@ class TestWebSocketSubscription:
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1300,6 +1327,7 @@ class TestWebSocketSubscription:
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1351,6 +1379,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Test that a duplicate disconnect callback is a no-op."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1394,6 +1423,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Test setup succeeds even if WebSocket subscription fails."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1435,6 +1465,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Test WebSocket subscription is cancelled during unload."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1473,6 +1504,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Verify that events with a name other than onManageDevice are ignored."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1514,6 +1546,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Verify that onManageDevice events without deviceid are handled gracefully."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1552,6 +1585,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Verify that events for an unknown device_id are handled gracefully."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -1594,6 +1628,7 @@ class TestWebSocketSubscription:
     ) -> None:
         """Test real websocket payload with nested onManageDevice dict is unwrapped."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
