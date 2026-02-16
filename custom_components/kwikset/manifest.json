@@ -7,6 +7,6 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/explosivo22/kwikset-ha/issues",
   "quality_scale": "platinum",
-  "requirements": ["aiokwikset==0.6.1"],
+  "requirements": ["aiokwikset==0.6.2"],
   "version": "0.6.1"
 }
