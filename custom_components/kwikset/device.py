@@ -26,11 +26,11 @@ from typing import TypedDict
 from typing import TypeVar
 
 from aiokwikset import API
-from aiokwikset import AccessCodeResult
-from aiokwikset import AccessCodeSchedule
-from aiokwikset import MqttCommandType
-from aiokwikset import parse_lock_mq_response
-from aiokwikset import parse_single_access_code_crc
+from aiokwikset import AccessCodeResult  # type: ignore[attr-defined]
+from aiokwikset import AccessCodeSchedule  # type: ignore[attr-defined]
+from aiokwikset import MqttCommandType  # type: ignore[attr-defined]
+from aiokwikset import parse_lock_mq_response  # type: ignore[attr-defined]
+from aiokwikset import parse_single_access_code_crc  # type: ignore[attr-defined]
 from aiokwikset.errors import ConnectionError as KwiksetConnectionError
 from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
@@ -1144,7 +1144,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Create an access code on the device."""
         assert self.api_client.device is not None
         result = await self._api_call_with_retry(
-            self.api_client.device.create_access_code,
+            self.api_client.device.create_access_code,  # type: ignore[attr-defined]
             self.device_id,
             code,
             name,
@@ -1168,7 +1168,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Edit an existing access code on the device."""
         assert self.api_client.device is not None
         result = await self._api_call_with_retry(
-            self.api_client.device.edit_access_code,
+            self.api_client.device.edit_access_code,  # type: ignore[attr-defined]
             self.device_id,
             code,
             name,
@@ -1189,7 +1189,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Disable an access code on the device."""
         assert self.api_client.device is not None
         result = await self._api_call_with_retry(
-            self.api_client.device.disable_access_code,
+            self.api_client.device.disable_access_code,  # type: ignore[attr-defined]
             self.device_id,
             code,
             name,
@@ -1209,7 +1209,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Enable an access code on the device."""
         assert self.api_client.device is not None
         result = await self._api_call_with_retry(
-            self.api_client.device.enable_access_code,
+            self.api_client.device.enable_access_code,  # type: ignore[attr-defined]
             self.device_id,
             code,
             name,
@@ -1223,7 +1223,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Delete a single access code from the device."""
         assert self.api_client.device is not None
         result = await self._api_call_with_retry(
-            self.api_client.device.delete_access_code,
+            self.api_client.device.delete_access_code,  # type: ignore[attr-defined]
             self.device_id,
             slot,
         )
@@ -1234,7 +1234,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Delete all access codes from the device."""
         assert self.api_client.device is not None
         result = await self._api_call_with_retry(
-            self.api_client.device.delete_all_access_codes,
+            self.api_client.device.delete_all_access_codes,  # type: ignore[attr-defined]
             self.device_id,
         )
         LOGGER.debug("All access codes deleted from %s", self.device_id)
