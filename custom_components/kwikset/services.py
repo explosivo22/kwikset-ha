@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import calendar
 import datetime
+import functools
 from functools import reduce
 from operator import or_
 from typing import TYPE_CHECKING
@@ -524,9 +525,10 @@ def _resolve_stored_code_params(
 # =============================================================================
 
 
-async def async_handle_create_access_code(call: ServiceCall) -> ServiceResponse:
+async def async_handle_create_access_code(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle create_access_code service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -574,9 +576,10 @@ async def async_handle_create_access_code(call: ServiceCall) -> ServiceResponse:
     }
 
 
-async def async_handle_edit_access_code(call: ServiceCall) -> ServiceResponse:
+async def async_handle_edit_access_code(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle edit_access_code service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -624,14 +627,15 @@ async def async_handle_edit_access_code(call: ServiceCall) -> ServiceResponse:
     }
 
 
-async def async_handle_disable_access_code(call: ServiceCall) -> ServiceResponse:
+async def async_handle_disable_access_code(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle disable_access_code service call.
 
     Only device_id and slot are required. If the code was created through HA,
     the stored code/name/schedule are used automatically. Any field can be
     overridden by providing it explicitly in the service call.
     """
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -670,14 +674,15 @@ async def async_handle_disable_access_code(call: ServiceCall) -> ServiceResponse
     }
 
 
-async def async_handle_enable_access_code(call: ServiceCall) -> ServiceResponse:
+async def async_handle_enable_access_code(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle enable_access_code service call.
 
     Only device_id and slot are required. If the code was created through HA,
     the stored code/name/schedule are used automatically. Any field can be
     overridden by providing it explicitly in the service call.
     """
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -716,9 +721,10 @@ async def async_handle_enable_access_code(call: ServiceCall) -> ServiceResponse:
     }
 
 
-async def async_handle_delete_access_code(call: ServiceCall) -> ServiceResponse:
+async def async_handle_delete_access_code(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle delete_access_code service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -754,9 +760,10 @@ async def async_handle_delete_access_code(call: ServiceCall) -> ServiceResponse:
     return {"slot": slot}
 
 
-async def async_handle_delete_all_access_codes(call: ServiceCall) -> ServiceResponse:
+async def async_handle_delete_all_access_codes(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle delete_all_access_codes service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     _resolve_coordinator(hass, device_id)
@@ -768,9 +775,10 @@ async def async_handle_delete_all_access_codes(call: ServiceCall) -> ServiceResp
     )
 
 
-async def async_handle_list_access_codes(call: ServiceCall) -> ServiceResponse:
+async def async_handle_list_access_codes(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle list_access_codes service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -821,9 +829,10 @@ async def _async_refresh_home_users(entry: KwiksetConfigEntry) -> None:
         coordinator.async_set_updated_data(coordinator.data)
 
 
-async def async_handle_invite_user(call: ServiceCall) -> ServiceResponse:
+async def async_handle_invite_user(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle invite_user service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
@@ -857,9 +866,10 @@ async def async_handle_invite_user(call: ServiceCall) -> ServiceResponse:
     return {"email": data["email"], "access_level": data["access_level"]}
 
 
-async def async_handle_update_user(call: ServiceCall) -> ServiceResponse:
+async def async_handle_update_user(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle update_user service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
@@ -892,9 +902,10 @@ async def async_handle_update_user(call: ServiceCall) -> ServiceResponse:
     return {"email": data["email"], "access_level": data["access_level"]}
 
 
-async def async_handle_delete_user(call: ServiceCall) -> ServiceResponse:
+async def async_handle_delete_user(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle delete_user service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
@@ -915,9 +926,10 @@ async def async_handle_delete_user(call: ServiceCall) -> ServiceResponse:
     return {"email": data["email"]}
 
 
-async def async_handle_list_users(call: ServiceCall) -> ServiceResponse:
+async def async_handle_list_users(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
     """Handle list_users service call."""
-    hass: HomeAssistant = call.hass  # type: ignore[attr-defined]
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
@@ -1031,7 +1043,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         hass.services.async_register(
             DOMAIN,
             service_name,
-            handler,
+            functools.partial(handler, hass),
             schema=schema,
             supports_response=response_type,
         )
