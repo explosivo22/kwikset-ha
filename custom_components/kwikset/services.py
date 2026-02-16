@@ -809,7 +809,7 @@ async def _async_refresh_home_users(entry: KwiksetConfigEntry) -> None:
     """Refresh the cached home user list after a mutation."""
     try:
         entry.runtime_data.home_users = (
-            await entry.runtime_data.client.home_user.get_users(  # type: ignore[attr-defined]
+            await entry.runtime_data.client.home_user.get_users(  # type: ignore[attr-defined, union-attr]
                 entry.data[CONF_HOME_ID]
             )
         )
@@ -836,7 +836,7 @@ async def async_handle_invite_user(call: ServiceCall) -> ServiceResponse:
     access_time = _build_home_user_access_time(data)
 
     try:
-        await client.home_user.invite_user(  # type: ignore[attr-defined]
+        await client.home_user.invite_user(  # type: ignore[attr-defined, union-attr]
             home_id,
             data["email"],
             data["access_level"],
@@ -872,7 +872,7 @@ async def async_handle_update_user(call: ServiceCall) -> ServiceResponse:
     access_time = _build_home_user_access_time(data)
 
     try:
-        await client.home_user.update_user(  # type: ignore[attr-defined]
+        await client.home_user.update_user(  # type: ignore[attr-defined, union-attr]
             home_id,
             data["email"],
             data["access_level"],
@@ -901,7 +901,7 @@ async def async_handle_delete_user(call: ServiceCall) -> ServiceResponse:
     client = entry.runtime_data.client
 
     try:
-        await client.home_user.delete_user(home_id, data["email"])  # type: ignore[attr-defined]
+        await client.home_user.delete_user(home_id, data["email"])  # type: ignore[attr-defined, union-attr]
     except Exception as err:
         raise HomeAssistantError(
             translation_domain=DOMAIN,
@@ -924,7 +924,7 @@ async def async_handle_list_users(call: ServiceCall) -> ServiceResponse:
     client = entry.runtime_data.client
 
     try:
-        users = await client.home_user.get_users(home_id)  # type: ignore[attr-defined]
+        users = await client.home_user.get_users(home_id)  # type: ignore[attr-defined, union-attr]
     except Exception as err:
         raise HomeAssistantError(
             translation_domain=DOMAIN,
