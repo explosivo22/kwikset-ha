@@ -162,7 +162,7 @@ HISTORY_SENSOR_DESCRIPTIONS: tuple[KwiksetHistorySensorEntityDescription, ...] =
         key="last_lock_event",
         translation_key="last_lock_event",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda coordinator: _format_last_event(coordinator),
+        value_fn=_format_last_event,
         attrs_fn=lambda coordinator: {
             "user": coordinator.last_event_user,
             "event_type": coordinator.last_event_type,
