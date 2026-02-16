@@ -403,6 +403,15 @@
             },
             "access_code_count": {
                 "name": "Access Code Count"
+            },
+            "last_lock_user": {
+                "name": "Last Lock User"
+            },
+            "last_lock_method": {
+                "name": "Last Lock Method"
+            },
+            "last_lock_category": {
+                "name": "Last Lock Category"
             }
         },
         "switch": {

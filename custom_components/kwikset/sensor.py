@@ -133,12 +133,35 @@ SENSOR_DESCRIPTIONS: tuple[KwiksetSensorEntityDescription, ...] = (
 )
 
 
+def _format_last_event(
+    coordinator: KwiksetDeviceDataUpdateCoordinator,
+) -> str | None:
+    """Format the last lock event with user and method details.
+
+    Returns a rich state string for better history visibility:
+    - "Locked by John Doe via Mobile" (all parts available)
+    - "Locked by John Doe" (no event type)
+    - "Locked" (no user)
+    - None (no event)
+    """
+    event = coordinator.last_event
+    if event is None:
+        return None
+    user = coordinator.last_event_user
+    event_type = coordinator.last_event_type
+    if user and event_type:
+        return f"{event} by {user} via {event_type}"
+    if user:
+        return f"{event} by {user}"
+    return event
+
+
 HISTORY_SENSOR_DESCRIPTIONS: tuple[KwiksetHistorySensorEntityDescription, ...] = (
     KwiksetHistorySensorEntityDescription(
         key="last_lock_event",
         translation_key="last_lock_event",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda coordinator: coordinator.last_event,
+        value_fn=lambda coordinator: _format_last_event(coordinator),
         attrs_fn=lambda coordinator: {
             "user": coordinator.last_event_user,
             "event_type": coordinator.last_event_type,
@@ -146,6 +169,41 @@ HISTORY_SENSOR_DESCRIPTIONS: tuple[KwiksetHistorySensorEntityDescription, ...] =
             "event_category": coordinator.last_event_category,
             "device_name": coordinator.device_name,
             "total_events": coordinator.total_events,
+        },
+    ),
+    KwiksetHistorySensorEntityDescription(
+        key="last_lock_user",
+        translation_key="last_lock_user",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda coordinator: coordinator.last_event_user,
+        attrs_fn=lambda coordinator: {
+            "event": coordinator.last_event,
+            "timestamp": coordinator.last_event_timestamp,
+        },
+    ),
+    KwiksetHistorySensorEntityDescription(
+        key="last_lock_method",
+        translation_key="last_lock_method",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda coordinator: coordinator.last_event_type,
+        attrs_fn=lambda coordinator: {
+            "event": coordinator.last_event,
+            "user": coordinator.last_event_user,
+            "timestamp": coordinator.last_event_timestamp,
+        },
+    ),
+    KwiksetHistorySensorEntityDescription(
+        key="last_lock_category",
+        translation_key="last_lock_category",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda coordinator: coordinator.last_event_category,
+        attrs_fn=lambda coordinator: {
+            "event": coordinator.last_event,
+            "user": coordinator.last_event_user,
+            "timestamp": coordinator.last_event_timestamp,
         },
     ),
 )

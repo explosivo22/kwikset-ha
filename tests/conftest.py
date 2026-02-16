@@ -287,6 +287,8 @@ def mock_api() -> Generator[MagicMock, None, None]:
             # Subscriptions namespace (websocket events)
             api.subscriptions = MagicMock()
             api.subscriptions.set_callback = MagicMock()
+            api.subscriptions.set_on_disconnect = MagicMock()
+            api.subscriptions.set_on_reconnect = MagicMock()
             api.subscriptions.async_subscribe_device = AsyncMock()
             api.subscriptions.async_unsubscribe = AsyncMock()
 
@@ -338,6 +340,8 @@ def mock_api_config_flow() -> Generator[MagicMock, None, None]:
             # Subscriptions namespace (websocket events)
             api.subscriptions = MagicMock()
             api.subscriptions.set_callback = MagicMock()
+            api.subscriptions.set_on_disconnect = MagicMock()
+            api.subscriptions.set_on_reconnect = MagicMock()
             api.subscriptions.async_subscribe_device = AsyncMock()
             api.subscriptions.async_unsubscribe = AsyncMock()
 
@@ -392,6 +396,8 @@ def mock_api_device() -> Generator[MagicMock, None, None]:
         # Subscriptions namespace (websocket events)
         api.subscriptions = MagicMock()
         api.subscriptions.set_callback = MagicMock()
+        api.subscriptions.set_on_disconnect = MagicMock()
+        api.subscriptions.set_on_reconnect = MagicMock()
         api.subscriptions.async_subscribe_device = AsyncMock()
         api.subscriptions.async_unsubscribe = AsyncMock()
 

@@ -31,6 +31,15 @@
             },
             "last_lock_event": {
                 "default": "mdi:history"
+            },
+            "last_lock_user": {
+                "default": "mdi:account"
+            },
+            "last_lock_method": {
+                "default": "mdi:cellphone-key"
+            },
+            "last_lock_category": {
+                "default": "mdi:tag"
             }
         },
         "switch": {

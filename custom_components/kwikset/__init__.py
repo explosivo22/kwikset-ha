@@ -269,6 +269,32 @@ async def _async_setup_websocket(
 
     client.subscriptions.set_callback(_handle_realtime_event)
 
+    # Register disconnect/reconnect callbacks so we can dynamically adjust
+    # the polling interval.  On disconnect we restore the user-configured
+    # interval; on reconnect we switch back to the heartbeat interval and
+    # schedule an immediate refresh to reconcile any missed state changes.
+    @callback
+    def _on_websocket_disconnect() -> None:
+        """Handle websocket disconnection — restore normal polling."""
+        if not entry.runtime_data.websocket_subscribed:
+            return
+        LOGGER.warning("WebSocket disconnected — restoring normal polling")
+        entry.runtime_data.websocket_subscribed = False
+        _restore_user_poll_interval(entry)
+
+    @callback
+    def _on_websocket_reconnect() -> None:
+        """Handle websocket reconnection — slow polling, catch-up refresh."""
+        LOGGER.info("WebSocket reconnected — switching to heartbeat polling")
+        entry.runtime_data.websocket_subscribed = True
+        _apply_websocket_poll_interval(entry)
+        # Schedule a refresh to catch state changes missed during the outage
+        for coord in entry.runtime_data.devices.values():
+            hass.async_create_task(coord.async_request_refresh(), eager_start=False)
+
+    client.subscriptions.set_on_disconnect(_on_websocket_disconnect)
+    client.subscriptions.set_on_reconnect(_on_websocket_reconnect)
+
     try:
         await client.subscriptions.async_subscribe_device(email)
         LOGGER.info("WebSocket subscription active for %s", email)

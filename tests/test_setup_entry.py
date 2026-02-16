@@ -1242,6 +1242,151 @@ class TestWebSocketSubscription:
                 seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
             )
 
+        # Disconnect/reconnect callbacks should be registered
+        mock_api.subscriptions.set_on_disconnect.assert_called_once()
+        mock_api.subscriptions.set_on_reconnect.assert_called_once()
+
+    async def test_websocket_disconnect_restores_user_polling(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test that websocket disconnect restores the user-configured polling interval."""
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
+        entry = MagicMock()
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Verify WS is active and polling is at heartbeat
+        assert entry.runtime_data.websocket_subscribed is True
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
+        # Simulate disconnect by calling the registered callback
+        disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
+        disconnect_cb()
+
+        # websocket_subscribed should be False and polling restored to user interval
+        assert entry.runtime_data.websocket_subscribed is False
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
+
+    async def test_websocket_reconnect_restores_heartbeat_polling(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test that websocket reconnect switches back to heartbeat polling and refreshes."""
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
+        entry = MagicMock()
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Simulate disconnect first
+        disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
+        disconnect_cb()
+        assert entry.runtime_data.websocket_subscribed is False
+
+        # Mock async_request_refresh on coordinators to verify catch-up refresh
+        for coordinator in entry.runtime_data.devices.values():
+            coordinator.async_request_refresh = AsyncMock()
+
+        # Simulate reconnect
+        reconnect_cb = mock_api.subscriptions.set_on_reconnect.call_args[0][0]
+        reconnect_cb()
+
+        # websocket_subscribed should be True, polling at heartbeat, and refresh scheduled
+        assert entry.runtime_data.websocket_subscribed is True
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
+        # Give the event loop a chance to run the async_create_task calls
+        await hass.async_block_till_done()
+
+        for coordinator in entry.runtime_data.devices.values():
+            coordinator.async_request_refresh.assert_awaited_once()
+
+    async def test_websocket_disconnect_ignored_when_already_disconnected(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test that a duplicate disconnect callback is a no-op."""
+        entry = MagicMock()
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        # Disable websocket so subscription fails
+        mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
+            "disabled"
+        )
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        assert entry.runtime_data.websocket_subscribed is False
+
+        # Calling disconnect callback when already disconnected should be a no-op
+        disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
+        disconnect_cb()
+
+        # Should still be False, no crash
+        assert entry.runtime_data.websocket_subscribed is False
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
+
     async def test_websocket_subscription_failure_falls_back_to_polling(
         self,
         hass: HomeAssistant,

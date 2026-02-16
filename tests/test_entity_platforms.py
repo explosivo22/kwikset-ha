@@ -842,13 +842,15 @@ class TestKwiksetHistorySensor:
         """Test history sensor returns correct native_value."""
         description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
         sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
-        assert sensor.native_value == "Locked"
+        assert sensor.native_value == "Locked by John Doe via Mobile ( WiFi, LTE, ETC)"
 
     def test_history_sensor_native_value_none(
         self, sensor_module, mock_coordinator: MagicMock
     ) -> None:
         """Test history sensor returns None when no history."""
         mock_coordinator.last_event = None
+        mock_coordinator.last_event_user = None
+        mock_coordinator.last_event_type = None
         description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
         sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
         assert sensor.native_value is None
@@ -902,6 +904,59 @@ class TestKwiksetHistorySensor:
         sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
         assert sensor.entity_description == description
 
+    def test_last_lock_user_sensor(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_user sensor returns the user name."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "John Doe"
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_user"
+
+    def test_last_lock_method_sensor(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_method sensor returns the event type."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[2]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "Mobile ( WiFi, LTE, ETC)"
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_method"
+
+    def test_last_lock_category_sensor(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_category sensor returns the event category."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[3]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "Lock Mechanism"
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_category"
+
+    def test_new_sensors_disabled_by_default(self, sensor_module) -> None:
+        """Test new history sensors are disabled by default."""
+        for desc in sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1:]:
+            assert desc.entity_registry_enabled_default is False
+
+    def test_last_lock_user_extra_attributes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_user sensor extra attributes."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+        assert attrs["event"] == "Locked"
+        assert attrs["timestamp"] == 1770928208
+
+    def test_last_lock_method_extra_attributes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_method sensor extra attributes."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[2]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+        assert attrs["event"] == "Locked"
+        assert attrs["user"] == "John Doe"
+        assert attrs["timestamp"] == 1770928208
+
 
 class TestHistorySensorDescriptions:
     """Tests for history sensor entity descriptions."""
@@ -925,7 +980,7 @@ class TestHistorySensorDescriptions:
         """Test value_fn is callable and returns correct value."""
         desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
         value = desc.value_fn(mock_coordinator)
-        assert value == "Locked"
+        assert value == "Locked by John Doe via Mobile ( WiFi, LTE, ETC)"
 
     def test_history_sensor_attrs_fn_callable(
         self, sensor_module, mock_coordinator: MagicMock
@@ -948,6 +1003,65 @@ class TestHistorySensorDescriptions:
             sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0] = (
                 sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
             )
+
+    def test_format_last_event_full(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with all parts available."""
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result == "Locked by John Doe via Mobile ( WiFi, LTE, ETC)"
+
+    def test_format_last_event_no_type(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with no event type."""
+        mock_coordinator.last_event_type = None
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result == "Locked by John Doe"
+
+    def test_format_last_event_no_user(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with no user."""
+        mock_coordinator.last_event_user = None
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result == "Locked"
+
+    def test_format_last_event_none(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with no event."""
+        mock_coordinator.last_event = None
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result is None
+
+    def test_last_lock_user_description(self, sensor_module) -> None:
+        """Test last_lock_user sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1]
+        assert desc.key == "last_lock_user"
+        assert desc.translation_key == "last_lock_user"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.entity_registry_enabled_default is False
+
+    def test_last_lock_method_description(self, sensor_module) -> None:
+        """Test last_lock_method sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[2]
+        assert desc.key == "last_lock_method"
+        assert desc.translation_key == "last_lock_method"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.entity_registry_enabled_default is False
+
+    def test_last_lock_category_description(self, sensor_module) -> None:
+        """Test last_lock_category sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[3]
+        assert desc.key == "last_lock_category"
+        assert desc.translation_key == "last_lock_category"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.entity_registry_enabled_default is False
+
+    def test_history_sensor_descriptions_count(self, sensor_module) -> None:
+        """Test correct number of history sensor descriptions."""
+        assert len(sensor_module.HISTORY_SENSOR_DESCRIPTIONS) == 4
 
 
 # =============================================================================
