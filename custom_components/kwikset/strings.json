@@ -489,6 +489,12 @@
         },
         "invalid_schedule_params": {
             "message": "Invalid schedule parameters. Date range schedules require start_date and end_date. Weekly schedules require days_of_week."
+        },
+        "cannot_delete_last_access_code": {
+            "message": "Cannot delete the last access code. Each lock device must have at least one access code. Add another code before deleting this one."
+        },
+        "cannot_delete_all_access_codes": {
+            "message": "Cannot delete all access codes. Each lock device must have at least one access code. Use the delete access code service to remove individual codes instead."
         }
     },
     "issues": {

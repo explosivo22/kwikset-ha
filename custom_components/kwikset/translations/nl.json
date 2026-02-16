@@ -489,6 +489,12 @@
         },
         "access_code_not_tracked": {
             "message": "Access code at slot {slot} was not created through Home Assistant and no code was provided. Provide the code, name, and schedule_type fields to disable or enable codes not managed by HA."
+        },
+        "cannot_delete_last_access_code": {
+            "message": "Kan de laatste toegangscode niet verwijderen. Elk slot moet ten minste één toegangscode hebben. Voeg een andere code toe voordat u deze verwijdert."
+        },
+        "cannot_delete_all_access_codes": {
+            "message": "Kan niet alle toegangscodes verwijderen. Elk slot moet ten minste één toegangscode hebben. Gebruik de dienst voor het verwijderen van individuele toegangscodes."
         }
     },
     "issues": {

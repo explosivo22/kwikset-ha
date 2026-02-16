@@ -489,6 +489,12 @@
         },
         "access_code_not_tracked": {
             "message": "Access code at slot {slot} was not created through Home Assistant and no code was provided. Provide the code, name, and schedule_type fields to disable or enable codes not managed by HA."
+        },
+        "cannot_delete_last_access_code": {
+            "message": "Der letzte Zugangscode kann nicht gelöscht werden. Jedes Schloss muss mindestens einen Zugangscode haben. Fügen Sie einen weiteren Code hinzu, bevor Sie diesen löschen."
+        },
+        "cannot_delete_all_access_codes": {
+            "message": "Alle Zugangscodes können nicht gelöscht werden. Jedes Schloss muss mindestens einen Zugangscode haben. Verwenden Sie den Dienst zum Löschen einzelner Zugangscodes."
         }
     },
     "issues": {

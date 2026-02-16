@@ -546,6 +546,13 @@ async def async_handle_delete_access_code(call: ServiceCall) -> ServiceResponse:
 
     slot = data["slot"]
 
+    # Enforce minimum 1 access code per device
+    if coordinator.total_access_codes <= 1:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="cannot_delete_last_access_code",
+        )
+
     try:
         await coordinator.delete_access_code(slot=slot)
     except HomeAssistantError:
@@ -573,27 +580,13 @@ async def async_handle_delete_all_access_codes(call: ServiceCall) -> ServiceResp
     hass = call.hass
     data = call.data
     device_id = data["device_id"]
-    coordinator = _resolve_coordinator(hass, device_id)
+    _resolve_coordinator(hass, device_id)
 
-    try:
-        await coordinator.delete_all_access_codes()
-    except HomeAssistantError:
-        raise
-    except Exception as err:
-        raise HomeAssistantError(
-            translation_domain=DOMAIN,
-            translation_key="delete_all_access_codes_failed",
-        ) from err
-
-    LOGGER.info(
-        "All access codes deleted on %s",
-        coordinator.device_name,
+    # Always blocked — deleting all codes would violate the minimum-1 rule
+    raise HomeAssistantError(
+        translation_domain=DOMAIN,
+        translation_key="cannot_delete_all_access_codes",
     )
-
-    # Clear all tracked access codes for this device
-    await coordinator.async_remove_all_access_codes()
-
-    return {"device_id": device_id}
 
 
 async def async_handle_list_access_codes(call: ServiceCall) -> ServiceResponse:

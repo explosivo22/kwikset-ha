@@ -489,6 +489,12 @@
         },
         "access_code_not_tracked": {
             "message": "Access code at slot {slot} was not created through Home Assistant and no code was provided. Provide the code, name, and schedule_type fields to disable or enable codes not managed by HA."
+        },
+        "cannot_delete_last_access_code": {
+            "message": "Não é possível excluir o último código de acesso. Cada fechadura deve ter pelo menos um código de acesso. Adicione outro código antes de excluir este."
+        },
+        "cannot_delete_all_access_codes": {
+            "message": "Não é possível excluir todos os códigos de acesso. Cada fechadura deve ter pelo menos um código de acesso. Use o serviço de exclusão individual de códigos de acesso."
         }
     },
     "issues": {

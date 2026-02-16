@@ -709,6 +709,14 @@ class TestDeleteAccessCode:
     ) -> None:
         """Test deleting a specific access code by slot."""
         ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes so minimum-1 rule allows deletion
+        await coordinator.async_track_access_code(
+            slot=3, name="Code A", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=4, name="Code B", code="5678", schedule_type="all_day"
+        )
         coordinator.delete_access_code = AsyncMock(return_value={"data": []})
 
         await hass.services.async_call(
@@ -725,26 +733,34 @@ class TestDeleteAccessCode:
         assert coordinator.delete_access_code.call_args.kwargs["slot"] == 3
 
     async def test_delete_all(self, hass: HomeAssistant, mock_api: MagicMock) -> None:
-        """Test deleting all access codes."""
-        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
-        coordinator.delete_all_access_codes = AsyncMock(return_value={"data": []})
+        """Test delete_all_access_codes is always blocked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
 
-        await hass.services.async_call(
-            DOMAIN,
-            SERVICE_DELETE_ALL_ACCESS_CODES,
-            {
-                "device_id": ha_device_id,
-            },
-            blocking=True,
-        )
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {
+                    "device_id": ha_device_id,
+                },
+                blocking=True,
+            )
 
-        coordinator.delete_all_access_codes.assert_called_once()
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
 
     async def test_delete_raises_on_api_error(
         self, hass: HomeAssistant, mock_api: MagicMock
     ) -> None:
         """Test HomeAssistantError on API failure."""
         ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes so minimum-1 rule allows the delete attempt
+        await coordinator.async_track_access_code(
+            slot=3, name="Code A", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=4, name="Code B", code="5678", schedule_type="all_day"
+        )
         coordinator.delete_access_code = AsyncMock(
             side_effect=RuntimeError("API error")
         )
@@ -765,11 +781,8 @@ class TestDeleteAccessCode:
     async def test_delete_all_raises_on_api_error(
         self, hass: HomeAssistant, mock_api: MagicMock
     ) -> None:
-        """Test HomeAssistantError on API failure."""
-        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
-        coordinator.delete_all_access_codes = AsyncMock(
-            side_effect=RuntimeError("API error")
-        )
+        """Test delete_all is blocked before reaching the API."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
 
         with pytest.raises(HomeAssistantError) as exc_info:
             await hass.services.async_call(
@@ -781,7 +794,7 @@ class TestDeleteAccessCode:
                 blocking=True,
             )
 
-        assert exc_info.value.translation_key == "delete_all_access_codes_failed"
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
 
     async def test_delete_device_not_found(
         self, hass: HomeAssistant, mock_api: MagicMock
@@ -799,6 +812,177 @@ class TestDeleteAccessCode:
                 },
                 blocking=True,
             )
+
+
+# =============================================================================
+# Minimum Code Enforcement Tests
+# =============================================================================
+
+
+class TestMinimumCodeEnforcement:
+    """Tests for minimum access code enforcement (at least 1 code per device)."""
+
+    async def test_delete_last_code_blocked(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting the last access code is blocked."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track exactly 1 code
+        await coordinator.async_track_access_code(
+            slot=1, name="Only Code", code="1234", schedule_type="all_day"
+        )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ACCESS_CODE,
+                {"device_id": ha_device_id, "slot": 1},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_last_access_code"
+
+    async def test_delete_with_zero_codes_blocked(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting when 0 codes exist is blocked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ACCESS_CODE,
+                {"device_id": ha_device_id, "slot": 1},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_last_access_code"
+
+    async def test_delete_when_multiple_codes_allowed(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting succeeds when 2+ codes exist."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes
+        await coordinator.async_track_access_code(
+            slot=1, name="Code 1", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=2, name="Code 2", code="5678", schedule_type="all_day"
+        )
+
+        coordinator.delete_access_code = AsyncMock(return_value={})
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 1},
+            blocking=True,
+        )
+
+        coordinator.delete_access_code.assert_called_once()
+
+    async def test_delete_second_to_last_allowed(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting succeeds going from 2 to 1 code."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes
+        await coordinator.async_track_access_code(
+            slot=1, name="Code A", code="1111", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=2, name="Code B", code="2222", schedule_type="all_day"
+        )
+
+        coordinator.delete_access_code = AsyncMock(return_value={})
+
+        # Delete one — should succeed (going from 2 to 1)
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 1},
+            blocking=True,
+        )
+
+        coordinator.delete_access_code.assert_called_once()
+
+    async def test_delete_all_always_blocked(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test delete_all_access_codes is always blocked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {"device_id": ha_device_id},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+    async def test_delete_all_blocked_even_with_many_codes(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test delete_all_access_codes blocked even with many codes."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 5 codes
+        for i in range(1, 6):
+            await coordinator.async_track_access_code(
+                slot=i, name=f"Code {i}", code=f"{i:04d}", schedule_type="all_day"
+            )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {"device_id": ha_device_id},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+    async def test_disable_not_blocked_by_minimum(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test disabling the only code is still allowed (disable != delete)."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track exactly 1 code
+        await coordinator.async_track_access_code(
+            slot=1, name="Only Code", code="1234", schedule_type="all_day"
+        )
+        coordinator.disable_access_code = AsyncMock(
+            return_value=MOCK_ACCESS_CODE_RESULT
+        )
+        coordinator.get_tracked_code = MagicMock(
+            return_value={
+                "slot": 1,
+                "name": "Only Code",
+                "code": "1234",
+                "schedule_type": "all_day",
+                "enabled": True,
+                "source": "ha",
+                "created_at": None,
+                "last_updated": None,
+            }
+        )
+
+        # Should succeed — disabling is not deleting
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DISABLE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 1},
+            blocking=True,
+        )
+
+        coordinator.disable_access_code.assert_called_once()
 
 
 # =============================================================================
@@ -914,9 +1098,12 @@ class TestListAccessCodes:
         """Test deleting a code and verifying it's gone from list."""
         ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
 
-        # Track then delete
+        # Track 2 codes so minimum-1 rule allows deletion of one
         await coordinator.async_track_access_code(
             slot=2, name="Temp", code="4321", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=3, name="Keep", code="9999", schedule_type="all_day"
         )
         coordinator.delete_access_code = AsyncMock(return_value={})
 
@@ -942,7 +1129,7 @@ class TestListAccessCodes:
     async def test_delete_all_clears_tracking(
         self, hass: HomeAssistant, mock_api: MagicMock
     ) -> None:
-        """Test delete_all clears all tracked codes."""
+        """Test delete_all is blocked even with multiple tracked codes."""
         ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
 
         # Track multiple codes
@@ -952,22 +1139,13 @@ class TestListAccessCodes:
         await coordinator.async_track_access_code(
             slot=2, name="Code2", code="2222", schedule_type="weekly"
         )
-        coordinator.delete_all_access_codes = AsyncMock(return_value={})
 
-        await hass.services.async_call(
-            DOMAIN,
-            SERVICE_DELETE_ALL_ACCESS_CODES,
-            {"device_id": ha_device_id},
-            blocking=True,
-        )
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {"device_id": ha_device_id},
+                blocking=True,
+            )
 
-        result = await hass.services.async_call(
-            DOMAIN,
-            SERVICE_LIST_ACCESS_CODES,
-            {"device_id": ha_device_id},
-            blocking=True,
-            return_response=True,
-        )
-
-        assert result is not None
-        assert result["total"] == 0
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"

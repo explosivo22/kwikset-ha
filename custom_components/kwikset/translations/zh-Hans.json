@@ -489,6 +489,12 @@
         },
         "access_code_not_tracked": {
             "message": "Access code at slot {slot} was not created through Home Assistant and no code was provided. Provide the code, name, and schedule_type fields to disable or enable codes not managed by HA."
+        },
+        "cannot_delete_last_access_code": {
+            "message": "无法删除最后一个访问代码。每个锁具设备必须至少保留一个访问代码。请在删除此代码之前添加另一个代码。"
+        },
+        "cannot_delete_all_access_codes": {
+            "message": "无法删除所有访问代码。每个锁具设备必须至少保留一个访问代码。请使用单个访问代码删除服务。"
         }
     },
     "issues": {
