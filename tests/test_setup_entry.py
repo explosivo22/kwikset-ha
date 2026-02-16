@@ -28,7 +28,9 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.kwikset import PLATFORMS
 from custom_components.kwikset import KwiksetRuntimeData
@@ -1675,3 +1677,8 @@ class TestWebSocketSubscription:
         assert coordinator.data["led_status"] is True
         # securescreenstatus "true" should be applied
         assert coordinator.data["secure_screen_status"] is True
+
+        # Flush the debouncer timer created by the history refresh request
+        # triggered by the door status change (Locked → Unlocked).
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=15))
+        await hass.async_block_till_done()
