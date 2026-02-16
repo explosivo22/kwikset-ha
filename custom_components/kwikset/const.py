@@ -88,6 +88,16 @@ SCHEDULE_TYPE_WEEKLY: Final = "weekly"
 SCHEDULE_TYPE_ONE_TIME_UNLIMITED: Final = "one_time_unlimited"
 SCHEDULE_TYPE_ONE_TIME_24_HOUR: Final = "one_time_24_hour"
 
+# Home user management service names
+SERVICE_INVITE_USER: Final = "invite_user"
+SERVICE_UPDATE_USER: Final = "update_user"
+SERVICE_DELETE_USER: Final = "delete_user"
+SERVICE_LIST_USERS: Final = "list_users"
+
+# Home user access levels
+ACCESS_LEVEL_MEMBER: Final = "Member"
+ACCESS_LEVEL_ADMIN: Final = "Admin"
+
 # WebSocket event constants (aiokwikset subscriptions API)
 WEBSOCKET_EVENT_MANAGE_DEVICE: Final = "onManageDevice"
 WEBSOCKET_FIELD_DEVICE_ID: Final = "deviceid"

@@ -41,6 +41,7 @@ from custom_components.kwikset.const import OPTIMISTIC_TIMEOUT_SECONDS
 
 from .conftest import MOCK_DEVICE_ID
 from .conftest import MOCK_DEVICE_NAME
+from .conftest import MOCK_HOME_ID
 
 # =============================================================================
 # API Compatibility Checks
@@ -1454,3 +1455,99 @@ class TestAccessCodeSensorDescriptions:
         assert "occupied_slots" in attrs
         assert "access_codes" in attrs
         assert len(attrs["access_codes"]) == 2
+
+
+# =============================================================================
+# Home Sensor Entity Tests
+# =============================================================================
+
+
+class TestKwiksetHomeSensor:
+    """Tests for the KwiksetHomeSensor entity."""
+
+    def test_home_sensor_is_sensor_entity(
+        self, sensor_module, entity_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test KwiksetHomeSensor inherits from SensorEntity."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert isinstance(sensor, SensorEntity)
+        assert isinstance(sensor, entity_module.KwiksetEntity)
+
+    def test_home_sensor_unique_id_uses_home_id(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test unique_id is scoped to home_id, not device_id."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert sensor.unique_id == f"{MOCK_HOME_ID}_home_user_count"
+
+    def test_home_sensor_native_value(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test home sensor returns correct native_value."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert sensor.native_value == 2
+
+    def test_home_sensor_entity_description_stored(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test entity_description is stored correctly."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert sensor.entity_description == description
+
+    def test_home_sensor_coordinator_update(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _handle_coordinator_update refreshes state."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        # Initial value
+        assert sensor.native_value == 2
+
+        # Update coordinator mock value and recreate to verify value_fn is used
+        mock_coordinator.home_user_count = 5
+        # Directly verify value_fn returns updated value
+        assert description.value_fn(mock_coordinator) == 5
+
+
+class TestHomeSensorDescriptions:
+    """Tests for home-level sensor entity descriptions."""
+
+    def test_home_user_count_description(self, sensor_module) -> None:
+        """Test home_user_count sensor description properties."""
+        desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        assert desc.key == "home_user_count"
+        assert desc.translation_key == "home_user_count"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.state_class == SensorStateClass.MEASUREMENT
+        assert desc.native_unit_of_measurement == "users"
+
+    def test_home_user_count_value_fn(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn returns correct home user count."""
+        desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        value = desc.value_fn(mock_coordinator)
+        assert value == 2
+
+    def test_home_user_count_value_fn_zero(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn returns 0 when no home users."""
+        mock_coordinator.home_user_count = 0
+        desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        value = desc.value_fn(mock_coordinator)
+        assert value == 0

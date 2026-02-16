@@ -640,6 +640,30 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         return len(self.access_codes)
 
     # -------------------------------------------------------------------------
+    # Home User Properties
+    # -------------------------------------------------------------------------
+
+    @property
+    def home_user_count(self) -> int:
+        """Return the number of shared users in the home."""
+        if (
+            hasattr(self.config_entry, "runtime_data")
+            and self.config_entry.runtime_data is not None
+        ):
+            return len(self.config_entry.runtime_data.home_users)
+        return 0
+
+    @property
+    def home_users(self) -> list[dict[str, Any]]:
+        """Return the list of shared home users."""
+        if (
+            hasattr(self.config_entry, "runtime_data")
+            and self.config_entry.runtime_data is not None
+        ):
+            return self.config_entry.runtime_data.home_users
+        return []
+
+    # -------------------------------------------------------------------------
     # Access Code Slot Parsing
     # -------------------------------------------------------------------------
 

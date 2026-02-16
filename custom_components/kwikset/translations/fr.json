@@ -218,6 +218,126 @@
                     "description": "The Kwikset lock device."
                 }
             }
+        },
+        "invite_user": {
+            "name": "Invite user",
+            "description": "Invite a new user to your Kwikset home with a specified access level.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                },
+                "email": {
+                    "name": "Email",
+                    "description": "Email address of the user to invite."
+                },
+                "access_level": {
+                    "name": "Access level",
+                    "description": "Access level for the user: Member or Admin."
+                },
+                "nickname": {
+                    "name": "Nickname",
+                    "description": "A friendly name for the invited user."
+                },
+                "allowed_devices": {
+                    "name": "Allowed devices",
+                    "description": "The Kwikset lock devices the user is allowed to access."
+                },
+                "access_time_type": {
+                    "name": "Access time type",
+                    "description": "Type of time-based access restriction: date_range for a fixed period, or weekly for a recurring schedule."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date for date range access (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date for date range access (YYYY-MM-DD)."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Daily start time for weekly access (HH:MM:SS)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "Daily end time for weekly access (HH:MM:SS)."
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Days of the week for weekly access (e.g., Mon, Tue, Wed)."
+                }
+            }
+        },
+        "update_user": {
+            "name": "Update user",
+            "description": "Update an existing user's access level or permissions in your Kwikset home.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                },
+                "email": {
+                    "name": "Email",
+                    "description": "Email address of the user to update."
+                },
+                "access_level": {
+                    "name": "Access level",
+                    "description": "Updated access level: Member or Admin."
+                },
+                "allowed_devices": {
+                    "name": "Allowed devices",
+                    "description": "The Kwikset lock devices the user is allowed to access."
+                },
+                "access_time_type": {
+                    "name": "Access time type",
+                    "description": "Type of time-based access restriction: date_range for a fixed period, or weekly for a recurring schedule."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date for date range access (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date for date range access (YYYY-MM-DD)."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Daily start time for weekly access (HH:MM:SS)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "Daily end time for weekly access (HH:MM:SS)."
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Days of the week for weekly access (e.g., Mon, Tue, Wed)."
+                }
+            }
+        },
+        "delete_user": {
+            "name": "Delete user",
+            "description": "Remove a user from your Kwikset home.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                },
+                "email": {
+                    "name": "Email",
+                    "description": "Email address of the user to remove."
+                }
+            }
+        },
+        "list_users": {
+            "name": "List users",
+            "description": "List all users who have access to your Kwikset home.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                }
+            }
         }
     },
     "config": {
@@ -412,6 +532,9 @@
             },
             "last_lock_category": {
                 "name": "Last Lock Category"
+            },
+            "home_user_count": {
+                "name": "Home user count"
             }
         },
         "switch": {
@@ -495,6 +618,30 @@
         },
         "cannot_delete_all_access_codes": {
             "message": "Impossible de supprimer tous les codes d'accès. Chaque serrure doit avoir au moins un code d'accès. Utilisez le service de suppression individuelle des codes d'accès."
+        },
+        "invite_user_failed": {
+            "message": "Failed to invite user. Please check the email address and try again."
+        },
+        "update_user_failed": {
+            "message": "Failed to update user. The user may not exist or there may be a connectivity issue. Please try again."
+        },
+        "delete_user_failed": {
+            "message": "Failed to remove user. The user may not exist or there may be a connectivity issue. Please try again."
+        },
+        "list_users_failed": {
+            "message": "Failed to retrieve user list. Please check your connection and try again."
+        },
+        "config_entry_not_found": {
+            "message": "Config entry not found. Please verify the config entry ID is correct."
+        },
+        "config_entry_not_loaded": {
+            "message": "Config entry is not loaded. The integration may need to be reloaded."
+        },
+        "missing_date_range_fields": {
+            "message": "Date range access requires both start_date and end_date to be provided."
+        },
+        "missing_weekly_fields": {
+            "message": "Weekly access requires start_time, end_time, and days to be provided."
         }
     },
     "issues": {

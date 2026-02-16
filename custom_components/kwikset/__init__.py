@@ -83,6 +83,7 @@ class KwiksetRuntimeData:
     known_devices: set[str] = field(default_factory=set)
     cancel_device_discovery: Callable[[], None] | None = None
     websocket_subscribed: bool = False
+    home_users: list[dict[str, Any]] = field(default_factory=list)
 
 
 # Type alias for typed ConfigEntry access (PEP 695)
@@ -453,11 +454,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         access_code_data=access_code_data,
     )
 
+    # Fetch home user list for sensor
+    home_users: list[dict[str, Any]] = []
+    try:
+        if client.home_user is not None:
+            home_users = await client.home_user.get_users(entry.data[CONF_HOME_ID])
+    except Exception:
+        LOGGER.debug("Failed to fetch home users during setup", exc_info=True)
+
     # Store runtime data
     entry.runtime_data = KwiksetRuntimeData(
         client=client,
         devices=devices,
         known_devices=set(devices.keys()),
+        home_users=home_users,
     )
 
     # Set up platforms
@@ -632,6 +642,15 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
                 removed_device_ids,
             )
             await _async_remove_stale_devices(hass, entry, removed_device_ids)
+
+        # Refresh home user list alongside device discovery
+        try:
+            if runtime_data.client.home_user is not None:
+                runtime_data.home_users = await runtime_data.client.home_user.get_users(
+                    entry.data[CONF_HOME_ID]
+                )
+        except Exception:
+            LOGGER.debug("Failed to refresh home users", exc_info=True)
 
     except (
         TokenExpiredError,

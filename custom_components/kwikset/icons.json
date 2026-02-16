@@ -40,6 +40,9 @@
             },
             "last_lock_category": {
                 "default": "mdi:tag"
+            },
+            "home_user_count": {
+                "default": "mdi:account-group"
             }
         },
         "switch": {

@@ -61,6 +61,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import CONF_HOME_ID
 from .const import DOMAIN
 from .const import LOGGER
 from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
@@ -252,6 +253,17 @@ ACCESS_CODE_SENSOR_DESCRIPTIONS: tuple[
     ),
 )
 
+HOME_SENSOR_DESCRIPTIONS: tuple[KwiksetSensorEntityDescription, ...] = (
+    KwiksetSensorEntityDescription(
+        key="home_user_count",
+        translation_key="home_user_count",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="users",
+        value_fn=lambda coordinator: coordinator.home_user_count,
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -306,6 +318,17 @@ async def async_setup_entry(
 
     # Add existing devices
     _async_add_new_devices()
+
+    # Add home-level sensors (once per home, not per device)
+    home_id = entry.data.get(CONF_HOME_ID, "")
+    if devices and home_id:
+        first_coordinator = next(iter(devices.values()))
+        home_entities: list[SensorEntity] = [
+            KwiksetHomeSensor(first_coordinator, desc, home_id)
+            for desc in HOME_SENSOR_DESCRIPTIONS
+        ]
+        async_add_entities(home_entities)
+        LOGGER.debug("Added home-level sensor entities for home: %s", home_id)
 
     # Listen for new device discovery events
     # Gold tier: dynamic_devices - runtime discovery support
@@ -453,6 +476,45 @@ class KwiksetAccessCodeSensor(KwiksetEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra state attributes with access code slot details."""
         return self.entity_description.attrs_fn(self.coordinator)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        super()._handle_coordinator_update()
+
+
+class KwiksetHomeSensor(KwiksetEntity, SensorEntity):
+    """Home-level sensor entity (one per home, not per device).
+
+    Creates sensors scoped to the Kwikset home rather than individual devices.
+    The unique_id uses home_id instead of device_id to prevent duplicates
+    when multiple devices exist in the same home.
+    """
+
+    __slots__ = ()
+
+    entity_description: KwiksetSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: KwiksetDeviceDataUpdateCoordinator,
+        description: KwiksetSensorEntityDescription,
+        home_id: str,
+    ) -> None:
+        """Initialize the home-level sensor entity.
+
+        Args:
+            coordinator: Any device coordinator from this home (for updates).
+            description: Entity description defining sensor behavior.
+            home_id: Kwikset home ID for unique_id scoping.
+
+        """
+        self.entity_description = description
+        super().__init__(description.key, coordinator)
+        # Override unique_id to be home-scoped (not device-scoped)
+        self._attr_unique_id = f"{home_id}_{description.key}"
+        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
 
     @callback
     def _handle_coordinator_update(self) -> None:

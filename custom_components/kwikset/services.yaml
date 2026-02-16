@@ -333,3 +333,175 @@ list_access_codes:
       selector:
         device:
           integration: kwikset
+
+invite_user:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: kwikset
+    email:
+      required: true
+      example: "guest@example.com"
+      selector:
+        text:
+    access_level:
+      required: true
+      selector:
+        select:
+          options:
+            - value: "Member"
+              label: "Member"
+            - value: "Admin"
+              label: "Admin"
+    nickname:
+      required: true
+      example: "Guest User"
+      selector:
+        text:
+    allowed_devices:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+          multiple: true
+    access_time_type:
+      required: false
+      selector:
+        select:
+          options:
+            - value: "date_range"
+              label: "Date Range"
+            - value: "weekly"
+              label: "Weekly"
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: false
+      selector:
+        date:
+    start_time:
+      required: false
+      selector:
+        time:
+    end_time:
+      required: false
+      selector:
+        time:
+    days:
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: "Sun"
+              label: "Sunday"
+            - value: "Mon"
+              label: "Monday"
+            - value: "Tue"
+              label: "Tuesday"
+            - value: "Wed"
+              label: "Wednesday"
+            - value: "Thu"
+              label: "Thursday"
+            - value: "Fri"
+              label: "Friday"
+            - value: "Sat"
+              label: "Saturday"
+
+update_user:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: kwikset
+    email:
+      required: true
+      example: "guest@example.com"
+      selector:
+        text:
+    access_level:
+      required: true
+      selector:
+        select:
+          options:
+            - value: "Member"
+              label: "Member"
+            - value: "Admin"
+              label: "Admin"
+    allowed_devices:
+      required: true
+      selector:
+        device:
+          integration: kwikset
+          multiple: true
+    access_time_type:
+      required: false
+      selector:
+        select:
+          options:
+            - value: "date_range"
+              label: "Date Range"
+            - value: "weekly"
+              label: "Weekly"
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: false
+      selector:
+        date:
+    start_time:
+      required: false
+      selector:
+        time:
+    end_time:
+      required: false
+      selector:
+        time:
+    days:
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - value: "Sun"
+              label: "Sunday"
+            - value: "Mon"
+              label: "Monday"
+            - value: "Tue"
+              label: "Tuesday"
+            - value: "Wed"
+              label: "Wednesday"
+            - value: "Thu"
+              label: "Thursday"
+            - value: "Fri"
+              label: "Friday"
+            - value: "Sat"
+              label: "Saturday"
+
+delete_user:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: kwikset
+    email:
+      required: true
+      example: "guest@example.com"
+      selector:
+        text:
+
+list_users:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: kwikset

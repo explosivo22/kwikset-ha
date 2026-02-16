@@ -213,6 +213,20 @@ MOCK_ACCESS_CODE_RESULT = MagicMock()
 MOCK_ACCESS_CODE_RESULT.token = "mock_token_abc123"
 MOCK_ACCESS_CODE_RESULT.last_update_status = 1770928208
 
+# Home user mock data
+MOCK_HOME_USERS: list[dict[str, Any]] = [
+    {
+        "sharedwithname": "Test User",
+        "email": "test@example.com",
+        "useraccesslevel": "Admin",
+    },
+    {
+        "sharedwithname": "Guest User",
+        "email": "guest@example.com",
+        "useraccesslevel": "Member",
+    },
+]
+
 
 # =============================================================================
 # API Mock Fixtures
@@ -291,6 +305,13 @@ def mock_api() -> Generator[MagicMock, None, None]:
             api.subscriptions.set_on_reconnect = MagicMock()
             api.subscriptions.async_subscribe_device = AsyncMock()
             api.subscriptions.async_unsubscribe = AsyncMock()
+
+            # Home user namespace
+            api.home_user = MagicMock()
+            api.home_user.get_users = AsyncMock(return_value=MOCK_HOME_USERS)
+            api.home_user.invite_user = AsyncMock()
+            api.home_user.update_user = AsyncMock()
+            api.home_user.delete_user = AsyncMock()
 
             mock_api_class.return_value = api
             yield api
@@ -441,6 +462,10 @@ def mock_coordinator() -> MagicMock:
     coordinator.total_access_codes = 0
     coordinator.occupied_slots = []
     coordinator.access_codes = {}
+
+    # Home user properties
+    coordinator.home_user_count = 2
+    coordinator.home_users = MOCK_HOME_USERS
 
     # Data dict for coordinator entity pattern
     coordinator.data = {
