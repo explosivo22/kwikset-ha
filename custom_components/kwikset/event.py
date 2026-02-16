@@ -14,7 +14,6 @@ Quality Scale:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import ClassVar
 
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant
@@ -114,7 +113,7 @@ class KwiksetLockEvent(KwiksetEntity, EventEntity):
     __slots__ = ("_last_event_id",)
 
     # No EventDeviceClass.LOCK exists — omit device_class (stays None)
-    _attr_event_types: ClassVar[list[str]] = [
+    _attr_event_types: list[str] = [  # noqa: RUF012
         EVENT_LOCKED,
         EVENT_UNLOCKED,
         EVENT_JAMMED,
@@ -142,7 +141,7 @@ class KwiksetLockEvent(KwiksetEntity, EventEntity):
         # is available, the sentinel _UNSET_EVENT_ID ensures the very
         # first real event (API or websocket-synthesized) will fire.
         events = coordinator.history_events
-        self._last_event_id: int = (
+        self._last_event_id: int | None = (
             events[0].get("id", _UNSET_EVENT_ID) if events else _UNSET_EVENT_ID
         )
 

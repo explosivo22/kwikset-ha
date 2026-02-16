@@ -101,7 +101,7 @@ _SCHEDULE_FIELDS: dict[vol.Optional, Any] = {
 }
 
 SERVICE_CREATE_ACCESS_CODE_SCHEMA = vol.Schema(
-    {
+    {  # type: ignore[misc]
         vol.Required("device_id"): cv.string,
         vol.Required("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
         vol.Required("name"): cv.string,
@@ -114,7 +114,7 @@ SERVICE_CREATE_ACCESS_CODE_SCHEMA = vol.Schema(
 )
 
 SERVICE_EDIT_ACCESS_CODE_SCHEMA = vol.Schema(
-    {
+    {  # type: ignore[misc]
         vol.Required("device_id"): cv.string,
         vol.Required("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
         vol.Required("name"): cv.string,
@@ -125,7 +125,7 @@ SERVICE_EDIT_ACCESS_CODE_SCHEMA = vol.Schema(
 )
 
 SERVICE_DISABLE_ACCESS_CODE_SCHEMA = vol.Schema(
-    {
+    {  # type: ignore[misc]
         vol.Required("device_id"): cv.string,
         vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
         vol.Optional("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
@@ -136,7 +136,7 @@ SERVICE_DISABLE_ACCESS_CODE_SCHEMA = vol.Schema(
 )
 
 SERVICE_ENABLE_ACCESS_CODE_SCHEMA = vol.Schema(
-    {
+    {  # type: ignore[misc]
         vol.Required("device_id"): cv.string,
         vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
         vol.Optional("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
@@ -299,7 +299,7 @@ def _resolve_config_entry(
             translation_domain=DOMAIN,
             translation_key="config_entry_not_loaded",
         )
-    return entry  # type: ignore[return-value]
+    return entry
 
 
 def _resolve_kwikset_device_ids(
@@ -526,7 +526,7 @@ def _resolve_stored_code_params(
 
 async def async_handle_create_access_code(call: ServiceCall) -> ServiceResponse:
     """Handle create_access_code service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -576,7 +576,7 @@ async def async_handle_create_access_code(call: ServiceCall) -> ServiceResponse:
 
 async def async_handle_edit_access_code(call: ServiceCall) -> ServiceResponse:
     """Handle edit_access_code service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -631,7 +631,7 @@ async def async_handle_disable_access_code(call: ServiceCall) -> ServiceResponse
     the stored code/name/schedule are used automatically. Any field can be
     overridden by providing it explicitly in the service call.
     """
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -677,7 +677,7 @@ async def async_handle_enable_access_code(call: ServiceCall) -> ServiceResponse:
     the stored code/name/schedule are used automatically. Any field can be
     overridden by providing it explicitly in the service call.
     """
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -718,7 +718,7 @@ async def async_handle_enable_access_code(call: ServiceCall) -> ServiceResponse:
 
 async def async_handle_delete_access_code(call: ServiceCall) -> ServiceResponse:
     """Handle delete_access_code service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -756,7 +756,7 @@ async def async_handle_delete_access_code(call: ServiceCall) -> ServiceResponse:
 
 async def async_handle_delete_all_access_codes(call: ServiceCall) -> ServiceResponse:
     """Handle delete_all_access_codes service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     _resolve_coordinator(hass, device_id)
@@ -770,7 +770,7 @@ async def async_handle_delete_all_access_codes(call: ServiceCall) -> ServiceResp
 
 async def async_handle_list_access_codes(call: ServiceCall) -> ServiceResponse:
     """Handle list_access_codes service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     device_id = data["device_id"]
     coordinator = _resolve_coordinator(hass, device_id)
@@ -809,7 +809,7 @@ async def _async_refresh_home_users(entry: KwiksetConfigEntry) -> None:
     """Refresh the cached home user list after a mutation."""
     try:
         entry.runtime_data.home_users = (
-            await entry.runtime_data.client.home_user.get_users(
+            await entry.runtime_data.client.home_user.get_users(  # type: ignore[attr-defined]
                 entry.data[CONF_HOME_ID]
             )
         )
@@ -823,7 +823,7 @@ async def _async_refresh_home_users(entry: KwiksetConfigEntry) -> None:
 
 async def async_handle_invite_user(call: ServiceCall) -> ServiceResponse:
     """Handle invite_user service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
@@ -836,7 +836,7 @@ async def async_handle_invite_user(call: ServiceCall) -> ServiceResponse:
     access_time = _build_home_user_access_time(data)
 
     try:
-        await client.home_user.invite_user(
+        await client.home_user.invite_user(  # type: ignore[attr-defined]
             home_id,
             data["email"],
             data["access_level"],
@@ -859,7 +859,7 @@ async def async_handle_invite_user(call: ServiceCall) -> ServiceResponse:
 
 async def async_handle_update_user(call: ServiceCall) -> ServiceResponse:
     """Handle update_user service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
@@ -872,7 +872,7 @@ async def async_handle_update_user(call: ServiceCall) -> ServiceResponse:
     access_time = _build_home_user_access_time(data)
 
     try:
-        await client.home_user.update_user(
+        await client.home_user.update_user(  # type: ignore[attr-defined]
             home_id,
             data["email"],
             data["access_level"],
@@ -894,14 +894,14 @@ async def async_handle_update_user(call: ServiceCall) -> ServiceResponse:
 
 async def async_handle_delete_user(call: ServiceCall) -> ServiceResponse:
     """Handle delete_user service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
     client = entry.runtime_data.client
 
     try:
-        await client.home_user.delete_user(home_id, data["email"])
+        await client.home_user.delete_user(home_id, data["email"])  # type: ignore[attr-defined]
     except Exception as err:
         raise HomeAssistantError(
             translation_domain=DOMAIN,
@@ -917,14 +917,14 @@ async def async_handle_delete_user(call: ServiceCall) -> ServiceResponse:
 
 async def async_handle_list_users(call: ServiceCall) -> ServiceResponse:
     """Handle list_users service call."""
-    hass = call.hass
+    hass: HomeAssistant = call.hass
     data = call.data
     entry = _resolve_config_entry(hass, data["config_entry_id"])
     home_id = entry.data[CONF_HOME_ID]
     client = entry.runtime_data.client
 
     try:
-        users = await client.home_user.get_users(home_id)
+        users = await client.home_user.get_users(home_id)  # type: ignore[attr-defined]
     except Exception as err:
         raise HomeAssistantError(
             translation_domain=DOMAIN,

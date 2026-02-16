@@ -302,8 +302,8 @@ async def _async_setup_websocket(
         for coord in entry.runtime_data.devices.values():
             hass.async_create_task(coord.async_request_refresh(), eager_start=False)
 
-    client.subscriptions.set_on_disconnect(_on_websocket_disconnect)
-    client.subscriptions.set_on_reconnect(_on_websocket_reconnect)
+    client.subscriptions.set_on_disconnect(_on_websocket_disconnect)  # type: ignore[attr-defined]
+    client.subscriptions.set_on_reconnect(_on_websocket_reconnect)  # type: ignore[attr-defined]
 
     try:
         await client.subscriptions.async_subscribe_device(email)
@@ -424,9 +424,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
                 await _async_update_tokens(
                     hass,
                     entry,
-                    client.id_token,
-                    client.access_token,
-                    client.refresh_token,
+                    client.id_token or "",
+                    client.access_token or "",
+                    client.refresh_token or "",
                 )
             except Exception as login_err:
                 LOGGER.error("Automatic re-login failed: %s", login_err)
@@ -457,8 +457,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     # Fetch home user list for sensor
     home_users: list[dict[str, Any]] = []
     try:
-        if client.home_user is not None:
-            home_users = await client.home_user.get_users(entry.data[CONF_HOME_ID])
+        if client.home_user is not None:  # type: ignore[attr-defined]
+            home_users = await client.home_user.get_users(entry.data[CONF_HOME_ID])  # type: ignore[attr-defined]
     except Exception:
         LOGGER.debug("Failed to fetch home users during setup", exc_info=True)
 
@@ -499,7 +499,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> 
     """Unload a config entry and clean up resources."""
     if entry.runtime_data.websocket_subscribed:
         try:
-            await entry.runtime_data.client.subscriptions.async_unsubscribe()
+            await entry.runtime_data.client.subscriptions.async_unsubscribe()  # type: ignore[call-arg]
         except Exception:
             LOGGER.debug("Failed to unsubscribe from websocket", exc_info=True)
         entry.runtime_data.websocket_subscribed = False
@@ -645,8 +645,8 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
 
         # Refresh home user list alongside device discovery
         try:
-            if runtime_data.client.home_user is not None:
-                runtime_data.home_users = await runtime_data.client.home_user.get_users(
+            if runtime_data.client.home_user is not None:  # type: ignore[attr-defined]
+                runtime_data.home_users = await runtime_data.client.home_user.get_users(  # type: ignore[attr-defined]
                     entry.data[CONF_HOME_ID]
                 )
         except Exception:

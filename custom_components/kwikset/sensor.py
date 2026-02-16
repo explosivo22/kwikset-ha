@@ -306,12 +306,12 @@ async def async_setup_entry(
         entities: list[SensorEntity] = []
         for device_id in new_ids:
             coordinator = devices[device_id]
-            for description in SENSOR_DESCRIPTIONS:
-                entities.append(KwiksetSensor(coordinator, description))
-            for description in HISTORY_SENSOR_DESCRIPTIONS:
-                entities.append(KwiksetHistorySensor(coordinator, description))
-            for description in ACCESS_CODE_SENSOR_DESCRIPTIONS:
-                entities.append(KwiksetAccessCodeSensor(coordinator, description))
+            for desc in SENSOR_DESCRIPTIONS:
+                entities.append(KwiksetSensor(coordinator, desc))
+            for hist_desc in HISTORY_SENSOR_DESCRIPTIONS:
+                entities.append(KwiksetHistorySensor(coordinator, hist_desc))
+            for ac_desc in ACCESS_CODE_SENSOR_DESCRIPTIONS:
+                entities.append(KwiksetAccessCodeSensor(coordinator, ac_desc))
         async_add_entities(entities)
         known_ids.update(new_ids)
         LOGGER.debug("Added sensor entities for devices: %s", new_ids)

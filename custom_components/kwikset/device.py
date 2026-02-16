@@ -237,7 +237,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         for attempt in range(HISTORY_MAX_RETRY_ATTEMPTS):
             try:
                 history_response = await asyncio.wait_for(
-                    self.api_client.device.get_device_history(
+                    self.api_client.device.get_device_history(  # type: ignore[union-attr]
                         self.device_id,
                         top=10,
                     ),
@@ -445,7 +445,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             updated.get("door_status"),
         )
 
-        self.async_set_updated_data(KwiksetDeviceData(**updated))
+        self.async_set_updated_data(KwiksetDeviceData(**updated))  # type: ignore[typeddict-item]
 
         # After pushing the immediate state update to entities (lock, switches,
         # battery), schedule a coordinator refresh to fetch real event history
@@ -603,6 +603,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 merged[slot_idx] = AccessCodeEntry(
                     slot=slot_idx,
                     name="",
+                    code="",
                     schedule_type="unknown",
                     enabled=True,
                     source="device",
@@ -618,6 +619,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 merged[slot_idx] = AccessCodeEntry(
                     slot=entry_data.get("slot", slot_idx),
                     name=entry_data.get("name", ""),
+                    code=entry_data.get("code", ""),
                     schedule_type=entry_data.get("schedule_type", "unknown"),
                     enabled=entry_data.get("enabled", True),
                     source="ha",
