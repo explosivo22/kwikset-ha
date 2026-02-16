@@ -1678,6 +1678,10 @@ class TestWebSocketSubscription:
         # securescreenstatus "true" should be applied
         assert coordinator.data["secure_screen_status"] is True
 
+        # Let the async_create_task from handle_realtime_event run so that
+        # async_request_refresh() executes and the debouncer timer is created.
+        await hass.async_block_till_done()
+
         # Flush the debouncer timer created by the history refresh request
         # triggered by the door status change (Locked → Unlocked).
         async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=15))
