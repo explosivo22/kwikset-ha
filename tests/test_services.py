@@ -1,0 +1,1744 @@
+"""Tests for the Kwikset access code management services.
+
+Tests the service registration, device resolution, schedule building,
+and all access code service handlers.
+
+Quality Scale: Platinum tier - comprehensive service testing infrastructure.
+"""
+
+from __future__ import annotations
+
+import datetime
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
+
+import pytest
+from aiokwikset import DayOfWeek
+from aiokwikset import ScheduleType
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
+
+from custom_components.kwikset.const import DOMAIN
+from custom_components.kwikset.const import SERVICE_CREATE_ACCESS_CODE
+from custom_components.kwikset.const import SERVICE_DELETE_ACCESS_CODE
+from custom_components.kwikset.const import SERVICE_DELETE_ALL_ACCESS_CODES
+from custom_components.kwikset.const import SERVICE_DELETE_USER
+from custom_components.kwikset.const import SERVICE_DISABLE_ACCESS_CODE
+from custom_components.kwikset.const import SERVICE_EDIT_ACCESS_CODE
+from custom_components.kwikset.const import SERVICE_ENABLE_ACCESS_CODE
+from custom_components.kwikset.const import SERVICE_INVITE_USER
+from custom_components.kwikset.const import SERVICE_LIST_ACCESS_CODES
+from custom_components.kwikset.const import SERVICE_LIST_USERS
+from custom_components.kwikset.const import SERVICE_UPDATE_USER
+from custom_components.kwikset.services import _build_schedule
+from custom_components.kwikset.services import _resolve_config_entry
+from custom_components.kwikset.services import _resolve_coordinator
+
+from .conftest import MOCK_ACCESS_CODE_RESULT
+from .conftest import MOCK_DEVICE_ID
+from .conftest import MOCK_HOME_ID
+
+# =============================================================================
+# Helper to set up a loaded config entry with a registered device
+# =============================================================================
+
+
+async def _setup_entry_with_device(
+    hass: HomeAssistant,
+    mock_api: MagicMock,
+) -> tuple[str, MagicMock]:
+    """Set up a config entry and return (ha_device_id, coordinator).
+
+    Returns:
+        Tuple of (HA device registry ID, mock coordinator).
+
+    """
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "email": "user@example.com",
+            "conf_home_id": MOCK_HOME_ID,
+            "conf_id_token": "mock_id_token",
+            "conf_access_token": "mock_access_token",
+            "conf_refresh_token": "mock_refresh_token",
+        },
+        options={"refresh_interval": 30},
+        title="My House",
+        unique_id=MOCK_HOME_ID,
+        version=6,
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+
+    # Look up the HA device registry ID
+    device_registry = dr.async_get(hass)
+    device_entry = device_registry.async_get_device(
+        identifiers={(DOMAIN, MOCK_DEVICE_ID)}
+    )
+    assert device_entry is not None
+
+    coordinator = entry.runtime_data.devices[MOCK_DEVICE_ID]
+
+    return device_entry.id, coordinator
+
+
+# =============================================================================
+# Service Registration Tests
+# =============================================================================
+
+
+class TestServiceRegistration:
+    """Tests for service registration/unregistration."""
+
+    async def test_services_registered_on_setup(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test all services are registered after entry setup."""
+        await _setup_entry_with_device(hass, mock_api)
+
+        assert hass.services.has_service(DOMAIN, SERVICE_CREATE_ACCESS_CODE)
+        assert hass.services.has_service(DOMAIN, SERVICE_EDIT_ACCESS_CODE)
+        assert hass.services.has_service(DOMAIN, SERVICE_DISABLE_ACCESS_CODE)
+        assert hass.services.has_service(DOMAIN, SERVICE_ENABLE_ACCESS_CODE)
+        assert hass.services.has_service(DOMAIN, SERVICE_DELETE_ACCESS_CODE)
+        assert hass.services.has_service(DOMAIN, SERVICE_DELETE_ALL_ACCESS_CODES)
+        assert hass.services.has_service(DOMAIN, SERVICE_LIST_ACCESS_CODES)
+        assert hass.services.has_service(DOMAIN, SERVICE_INVITE_USER)
+        assert hass.services.has_service(DOMAIN, SERVICE_UPDATE_USER)
+        assert hass.services.has_service(DOMAIN, SERVICE_DELETE_USER)
+        assert hass.services.has_service(DOMAIN, SERVICE_LIST_USERS)
+
+    async def test_services_unregistered_on_last_entry_unload(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test services removed when last config entry is unloaded."""
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                "email": "user@example.com",
+                "conf_home_id": MOCK_HOME_ID,
+                "conf_id_token": "mock_id_token",
+                "conf_access_token": "mock_access_token",
+                "conf_refresh_token": "mock_refresh_token",
+            },
+            options={"refresh_interval": 30},
+            title="My House",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert entry.state is ConfigEntryState.LOADED
+
+        # Services should be registered
+        assert hass.services.has_service(DOMAIN, SERVICE_CREATE_ACCESS_CODE)
+
+        # Unload
+        await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
+        # Services should be gone since no entries left
+        assert not hass.services.has_service(DOMAIN, SERVICE_CREATE_ACCESS_CODE)
+
+
+# =============================================================================
+# Schedule Builder Tests
+# =============================================================================
+
+
+class TestScheduleBuilder:
+    """Tests for _build_schedule helper."""
+
+    def test_build_all_day_schedule(self) -> None:
+        """Test building an all-day schedule."""
+        data = {"schedule_type": "all_day"}
+        schedule = _build_schedule(data)
+        assert schedule.schedule_type == ScheduleType.ALL_DAY
+
+    def test_build_date_range_schedule(self) -> None:
+        """Test building a date-range schedule with dates and times."""
+        data = {
+            "schedule_type": "date_range",
+            "start_date": datetime.date(2026, 3, 1),
+            "end_date": datetime.date(2026, 3, 7),
+            "start_time": datetime.time(8, 0),
+            "end_time": datetime.time(22, 0),
+        }
+        schedule = _build_schedule(data)
+        assert schedule.schedule_type == ScheduleType.DATE_RANGE
+        assert schedule.start_year == 2026
+        assert schedule.start_month == 3
+        assert schedule.start_day == 1
+        assert schedule.end_year == 2026
+        assert schedule.end_month == 3
+        assert schedule.end_day == 7
+        assert schedule.start_hour == 8
+        assert schedule.end_hour == 22
+
+    def test_build_weekly_schedule(self) -> None:
+        """Test building a weekly schedule with days."""
+        data = {
+            "schedule_type": "weekly",
+            "days_of_week": ["monday", "wednesday", "friday"],
+            "start_time": datetime.time(9, 0),
+            "end_time": datetime.time(17, 0),
+        }
+        schedule = _build_schedule(data)
+        assert schedule.schedule_type == ScheduleType.WEEKLY
+        assert schedule.days_of_week is not None
+        assert DayOfWeek.MONDAY in schedule.days_of_week
+        assert DayOfWeek.WEDNESDAY in schedule.days_of_week
+        assert DayOfWeek.FRIDAY in schedule.days_of_week
+        assert DayOfWeek.SUNDAY not in schedule.days_of_week
+        assert schedule.start_hour == 9
+        assert schedule.end_hour == 17
+
+    def test_build_one_time_unlimited_schedule(self) -> None:
+        """Test building one-time unlimited schedule."""
+        data = {"schedule_type": "one_time_unlimited"}
+        schedule = _build_schedule(data)
+        assert schedule.schedule_type == ScheduleType.ONE_TIME_UNLIMITED
+
+    def test_build_one_time_24_hour_schedule(self) -> None:
+        """Test building one-time 24-hour schedule."""
+        data = {"schedule_type": "one_time_24_hour"}
+        schedule = _build_schedule(data)
+        assert schedule.schedule_type == ScheduleType.ONE_TIME_24_HOUR
+
+    def test_date_range_missing_dates_raises(self) -> None:
+        """Test date_range without required dates raises error."""
+        data = {"schedule_type": "date_range"}
+        with pytest.raises(HomeAssistantError):
+            _build_schedule(data)
+
+    def test_weekly_missing_days_raises(self) -> None:
+        """Test weekly without days_of_week raises error."""
+        data = {"schedule_type": "weekly"}
+        with pytest.raises(HomeAssistantError):
+            _build_schedule(data)
+
+
+# =============================================================================
+# Device Resolution Tests
+# =============================================================================
+
+
+class TestDeviceResolution:
+    """Tests for _resolve_coordinator helper."""
+
+    async def test_resolve_valid_device(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test resolving a valid HA device ID to coordinator."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        result = _resolve_coordinator(hass, ha_device_id)
+        assert result is coordinator
+
+    async def test_resolve_unknown_device_raises(self, hass: HomeAssistant) -> None:
+        """Test HomeAssistantError for unknown device ID."""
+        with pytest.raises(HomeAssistantError):
+            _resolve_coordinator(hass, "nonexistent_device_id")
+
+    async def test_resolve_non_kwikset_device_raises(self, hass: HomeAssistant) -> None:
+        """Test HomeAssistantError for non-Kwikset device."""
+        device_registry = dr.async_get(hass)
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain="other_domain")
+        entry.add_to_hass(hass)
+        device_entry = device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={("other_domain", "some_id")},
+        )
+
+        with pytest.raises(HomeAssistantError):
+            _resolve_coordinator(hass, device_entry.id)
+
+    async def test_resolve_unloaded_device_raises(self, hass: HomeAssistant) -> None:
+        """Test HomeAssistantError when device exists but integration not loaded."""
+        device_registry = dr.async_get(hass)
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain=DOMAIN)
+        entry.add_to_hass(hass)
+        device_entry = device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, "orphan_device_id")},
+        )
+
+        with pytest.raises(HomeAssistantError):
+            _resolve_coordinator(hass, device_entry.id)
+
+
+# =============================================================================
+# Create Access Code Tests
+# =============================================================================
+
+
+class TestCreateAccessCode:
+    """Tests for kwikset.create_access_code service."""
+
+    async def test_create_all_day_code(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test creating an all-day access code."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_CREATE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "1234",
+                "name": "Guest",
+                "schedule_type": "all_day",
+            },
+            blocking=True,
+        )
+
+        coordinator.create_access_code.assert_called_once()
+        call_kwargs = coordinator.create_access_code.call_args.kwargs
+        assert call_kwargs["code"] == "1234"
+        assert call_kwargs["name"] == "Guest"
+        assert call_kwargs["slot"] == 0
+
+    async def test_create_date_range_code(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test creating a date-range scheduled code."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_CREATE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "5678",
+                "name": "Contractor",
+                "schedule_type": "date_range",
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-07",
+                "start_time": "08:00:00",
+                "end_time": "17:00:00",
+            },
+            blocking=True,
+        )
+
+        coordinator.create_access_code.assert_called_once()
+        schedule = coordinator.create_access_code.call_args.kwargs["schedule"]
+        assert schedule.schedule_type == ScheduleType.DATE_RANGE
+
+    async def test_create_weekly_code(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test creating a weekly scheduled code."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_CREATE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "9012",
+                "name": "Cleaner",
+                "schedule_type": "weekly",
+                "days_of_week": ["monday", "wednesday", "friday"],
+                "start_time": "09:00:00",
+                "end_time": "17:00:00",
+            },
+            blocking=True,
+        )
+
+        coordinator.create_access_code.assert_called_once()
+        schedule = coordinator.create_access_code.call_args.kwargs["schedule"]
+        assert schedule.schedule_type == ScheduleType.WEEKLY
+
+    async def test_create_with_specific_slot(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test creating code in a specific slot."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_CREATE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "1234",
+                "name": "Friend",
+                "schedule_type": "all_day",
+                "slot": 5,
+            },
+            blocking=True,
+        )
+
+        assert coordinator.create_access_code.call_args.kwargs["slot"] == 5
+
+    async def test_create_raises_on_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError with translation_key on API failure."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.create_access_code = AsyncMock(
+            side_effect=HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="api_error",
+            )
+        )
+
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_CREATE_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "code": "1234",
+                    "name": "Test",
+                    "schedule_type": "all_day",
+                },
+                blocking=True,
+            )
+
+    async def test_create_wraps_unexpected_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test unexpected errors wrapped in HomeAssistantError."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.create_access_code = AsyncMock(
+            side_effect=RuntimeError("unexpected")
+        )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_CREATE_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "code": "1234",
+                    "name": "Test",
+                    "schedule_type": "all_day",
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "create_access_code_failed"
+
+
+# =============================================================================
+# Edit Access Code Tests
+# =============================================================================
+
+
+class TestEditAccessCode:
+    """Tests for kwikset.edit_access_code service."""
+
+    async def test_edit_access_code(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test editing an access code."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.edit_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_EDIT_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "5678",
+                "name": "Updated Guest",
+                "schedule_type": "all_day",
+                "slot": 3,
+            },
+            blocking=True,
+        )
+
+        coordinator.edit_access_code.assert_called_once()
+        call_kwargs = coordinator.edit_access_code.call_args.kwargs
+        assert call_kwargs["code"] == "5678"
+        assert call_kwargs["name"] == "Updated Guest"
+        assert call_kwargs["slot"] == 3
+
+    async def test_edit_raises_on_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.edit_access_code = AsyncMock(side_effect=RuntimeError("API error"))
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_EDIT_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "code": "5678",
+                    "name": "Test",
+                    "schedule_type": "all_day",
+                    "slot": 3,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "edit_access_code_failed"
+
+
+# =============================================================================
+# Disable/Enable Access Code Tests
+# =============================================================================
+
+
+class TestDisableEnableAccessCode:
+    """Tests for kwikset.disable_access_code and kwikset.enable_access_code."""
+
+    async def test_disable_access_code_with_overrides(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test disabling an access code with all fields provided (override path)."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.disable_access_code = AsyncMock(
+            return_value=MOCK_ACCESS_CODE_RESULT
+        )
+        coordinator.get_tracked_code = MagicMock(return_value=None)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DISABLE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "1234",
+                "name": "Guest",
+                "schedule_type": "all_day",
+                "slot": 3,
+            },
+            blocking=True,
+        )
+
+        coordinator.disable_access_code.assert_called_once()
+        call_kwargs = coordinator.disable_access_code.call_args.kwargs
+        assert call_kwargs["code"] == "1234"
+        assert call_kwargs["slot"] == 3
+
+    async def test_disable_access_code_slot_only(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test disabling by slot number only, using stored metadata."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.disable_access_code = AsyncMock(
+            return_value=MOCK_ACCESS_CODE_RESULT
+        )
+        coordinator.get_tracked_code = MagicMock(
+            return_value={
+                "slot": 3,
+                "name": "Guest",
+                "code": "5678",
+                "schedule_type": "all_day",
+                "enabled": True,
+                "source": "ha",
+                "created_at": None,
+                "last_updated": None,
+            }
+        )
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DISABLE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "slot": 3,
+            },
+            blocking=True,
+        )
+
+        coordinator.disable_access_code.assert_called_once()
+        call_kwargs = coordinator.disable_access_code.call_args.kwargs
+        assert call_kwargs["code"] == "5678"
+        assert call_kwargs["name"] == "Guest"
+        assert call_kwargs["slot"] == 3
+
+    async def test_disable_access_code_not_tracked_no_code(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test error when slot not tracked and no code provided."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.get_tracked_code = MagicMock(return_value=None)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DISABLE_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "slot": 3,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "access_code_not_tracked"
+
+    async def test_enable_access_code_with_overrides(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test enabling an access code with all fields provided (override path)."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+        coordinator.get_tracked_code = MagicMock(return_value=None)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_ENABLE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "1234",
+                "name": "Guest",
+                "schedule_type": "all_day",
+                "slot": 3,
+            },
+            blocking=True,
+        )
+
+        coordinator.enable_access_code.assert_called_once()
+        call_kwargs = coordinator.enable_access_code.call_args.kwargs
+        assert call_kwargs["code"] == "1234"
+        assert call_kwargs["slot"] == 3
+
+    async def test_enable_access_code_slot_only(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test enabling by slot number only, using stored metadata."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+        coordinator.get_tracked_code = MagicMock(
+            return_value={
+                "slot": 5,
+                "name": "Temp Code",
+                "code": "9999",
+                "schedule_type": "all_day",
+                "enabled": False,
+                "source": "ha",
+                "created_at": None,
+                "last_updated": None,
+            }
+        )
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_ENABLE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "slot": 5,
+            },
+            blocking=True,
+        )
+
+        coordinator.enable_access_code.assert_called_once()
+        call_kwargs = coordinator.enable_access_code.call_args.kwargs
+        assert call_kwargs["code"] == "9999"
+        assert call_kwargs["name"] == "Temp Code"
+        assert call_kwargs["slot"] == 5
+
+    async def test_disable_raises_on_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.disable_access_code = AsyncMock(
+            side_effect=RuntimeError("API error")
+        )
+        coordinator.get_tracked_code = MagicMock(return_value=None)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DISABLE_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "code": "1234",
+                    "name": "Guest",
+                    "schedule_type": "all_day",
+                    "slot": 3,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "disable_access_code_failed"
+
+    async def test_enable_raises_on_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+        coordinator.enable_access_code = AsyncMock(
+            side_effect=RuntimeError("API error")
+        )
+        coordinator.get_tracked_code = MagicMock(return_value=None)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_ENABLE_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "code": "1234",
+                    "name": "Guest",
+                    "schedule_type": "all_day",
+                    "slot": 3,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "enable_access_code_failed"
+
+
+# =============================================================================
+# Delete Access Code Tests
+# =============================================================================
+
+
+class TestDeleteAccessCode:
+    """Tests for kwikset.delete_access_code and kwikset.delete_all_access_codes."""
+
+    async def test_delete_by_slot(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting a specific access code by slot."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes so minimum-1 rule allows deletion
+        await coordinator.async_track_access_code(
+            slot=3, name="Code A", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=4, name="Code B", code="5678", schedule_type="all_day"
+        )
+        coordinator.delete_access_code = AsyncMock(return_value={"data": []})
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "slot": 3,
+            },
+            blocking=True,
+        )
+
+        coordinator.delete_access_code.assert_called_once()
+        assert coordinator.delete_access_code.call_args.kwargs["slot"] == 3
+
+    async def test_delete_all(self, hass: HomeAssistant, mock_api: MagicMock) -> None:
+        """Test delete_all_access_codes is always blocked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {
+                    "device_id": ha_device_id,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+    async def test_delete_raises_on_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes so minimum-1 rule allows the delete attempt
+        await coordinator.async_track_access_code(
+            slot=3, name="Code A", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=4, name="Code B", code="5678", schedule_type="all_day"
+        )
+        coordinator.delete_access_code = AsyncMock(
+            side_effect=RuntimeError("API error")
+        )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ACCESS_CODE,
+                {
+                    "device_id": ha_device_id,
+                    "slot": 3,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "delete_access_code_failed"
+
+    async def test_delete_all_raises_on_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test delete_all is blocked before reaching the API."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {
+                    "device_id": ha_device_id,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+    async def test_delete_device_not_found(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError when device not found."""
+        await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ACCESS_CODE,
+                {
+                    "device_id": "nonexistent_device",
+                    "slot": 1,
+                },
+                blocking=True,
+            )
+
+
+# =============================================================================
+# Minimum Code Enforcement Tests
+# =============================================================================
+
+
+class TestMinimumCodeEnforcement:
+    """Tests for minimum access code enforcement (at least 1 code per device)."""
+
+    async def test_delete_last_code_blocked(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting the last access code is blocked."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track exactly 1 code
+        await coordinator.async_track_access_code(
+            slot=1, name="Only Code", code="1234", schedule_type="all_day"
+        )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ACCESS_CODE,
+                {"device_id": ha_device_id, "slot": 1},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_last_access_code"
+
+    async def test_delete_with_zero_codes_blocked(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting when 0 codes exist is blocked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ACCESS_CODE,
+                {"device_id": ha_device_id, "slot": 1},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_last_access_code"
+
+    async def test_delete_when_multiple_codes_allowed(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting succeeds when 2+ codes exist."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes
+        await coordinator.async_track_access_code(
+            slot=1, name="Code 1", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=2, name="Code 2", code="5678", schedule_type="all_day"
+        )
+
+        coordinator.delete_access_code = AsyncMock(return_value={})
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 1},
+            blocking=True,
+        )
+
+        coordinator.delete_access_code.assert_called_once()
+
+    async def test_delete_second_to_last_allowed(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting succeeds going from 2 to 1 code."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes
+        await coordinator.async_track_access_code(
+            slot=1, name="Code A", code="1111", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=2, name="Code B", code="2222", schedule_type="all_day"
+        )
+
+        coordinator.delete_access_code = AsyncMock(return_value={})
+
+        # Delete one — should succeed (going from 2 to 1)
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 1},
+            blocking=True,
+        )
+
+        coordinator.delete_access_code.assert_called_once()
+
+    async def test_delete_all_always_blocked(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test delete_all_access_codes is always blocked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {"device_id": ha_device_id},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+    async def test_delete_all_blocked_even_with_many_codes(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test delete_all_access_codes blocked even with many codes."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 5 codes
+        for i in range(1, 6):
+            await coordinator.async_track_access_code(
+                slot=i, name=f"Code {i}", code=f"{i:04d}", schedule_type="all_day"
+            )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {"device_id": ha_device_id},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+    async def test_disable_not_blocked_by_minimum(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test disabling the only code is still allowed (disable != delete)."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track exactly 1 code
+        await coordinator.async_track_access_code(
+            slot=1, name="Only Code", code="1234", schedule_type="all_day"
+        )
+        coordinator.disable_access_code = AsyncMock(
+            return_value=MOCK_ACCESS_CODE_RESULT
+        )
+        coordinator.get_tracked_code = MagicMock(
+            return_value={
+                "slot": 1,
+                "name": "Only Code",
+                "code": "1234",
+                "schedule_type": "all_day",
+                "enabled": True,
+                "source": "ha",
+                "created_at": None,
+                "last_updated": None,
+            }
+        )
+
+        # Should succeed — disabling is not deleting
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DISABLE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 1},
+            blocking=True,
+        )
+
+        coordinator.disable_access_code.assert_called_once()
+
+
+# =============================================================================
+# List Access Codes Tests
+# =============================================================================
+
+
+class TestListAccessCodes:
+    """Tests for the list_access_codes service."""
+
+    async def test_list_empty(self, hass: HomeAssistant, mock_api: MagicMock) -> None:
+        """Test listing access codes with no codes tracked."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_LIST_ACCESS_CODES,
+            {"device_id": ha_device_id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result is not None
+        assert result["total"] == 0
+        assert result["access_codes"] == []
+
+    async def test_list_with_ha_managed_codes(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test listing access codes after creating some via service."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track a code manually
+        await coordinator.async_track_access_code(
+            slot=1, name="Guest", code="1234", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=5, name="Cleaner", code="5678", schedule_type="weekly", enabled=False
+        )
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_LIST_ACCESS_CODES,
+            {"device_id": ha_device_id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result is not None
+        assert result["total"] == 2
+        codes = result["access_codes"]
+        assert len(codes) == 2
+        assert codes[0]["slot"] == 1
+        assert codes[0]["name"] == "Guest"
+        assert codes[0]["source"] == "ha"
+        assert codes[0]["enabled"] is True
+        assert codes[1]["slot"] == 5
+        assert codes[1]["name"] == "Cleaner"
+        assert codes[1]["enabled"] is False
+
+    async def test_list_device_not_found(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError when device is not found."""
+        await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_LIST_ACCESS_CODES,
+                {"device_id": "nonexistent_device"},
+                blocking=True,
+                return_response=True,
+            )
+
+    async def test_create_then_list_round_trip(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test creating a code and seeing it in list_access_codes."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_CREATE_ACCESS_CODE,
+            {
+                "device_id": ha_device_id,
+                "code": "1234",
+                "name": "Test Code",
+                "schedule_type": "all_day",
+                "slot": 3,
+            },
+            blocking=True,
+        )
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_LIST_ACCESS_CODES,
+            {"device_id": ha_device_id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result is not None
+        assert result["total"] >= 1
+        slots = [c["slot"] for c in result["access_codes"]]
+        assert 3 in slots
+
+    async def test_delete_then_list_round_trip(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test deleting a code and verifying it's gone from list."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track 2 codes so minimum-1 rule allows deletion of one
+        await coordinator.async_track_access_code(
+            slot=2, name="Temp", code="4321", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=3, name="Keep", code="9999", schedule_type="all_day"
+        )
+        coordinator.delete_access_code = AsyncMock(return_value={})
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_ACCESS_CODE,
+            {"device_id": ha_device_id, "slot": 2},
+            blocking=True,
+        )
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_LIST_ACCESS_CODES,
+            {"device_id": ha_device_id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result is not None
+        slots = [c["slot"] for c in result["access_codes"]]
+        assert 2 not in slots
+
+    async def test_delete_all_clears_tracking(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test delete_all is blocked even with multiple tracked codes."""
+        ha_device_id, coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        # Track multiple codes
+        await coordinator.async_track_access_code(
+            slot=1, name="Code1", code="1111", schedule_type="all_day"
+        )
+        await coordinator.async_track_access_code(
+            slot=2, name="Code2", code="2222", schedule_type="weekly"
+        )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_ALL_ACCESS_CODES,
+                {"device_id": ha_device_id},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "cannot_delete_all_access_codes"
+
+
+# =============================================================================
+# Config Entry Resolution Tests
+# =============================================================================
+
+
+class TestConfigEntryResolution:
+    """Tests for _resolve_config_entry helper."""
+
+    async def test_resolve_valid_config_entry(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test resolving a valid config entry ID."""
+        await _setup_entry_with_device(hass, mock_api)
+
+        entries = hass.config_entries.async_entries(DOMAIN)
+        assert len(entries) >= 1
+        entry = entries[0]
+
+        result = _resolve_config_entry(hass, entry.entry_id)
+        assert result is entry
+
+    async def test_resolve_nonexistent_entry_raises(self, hass: HomeAssistant) -> None:
+        """Test HomeAssistantError for nonexistent config entry ID."""
+        with pytest.raises(HomeAssistantError) as exc_info:
+            _resolve_config_entry(hass, "nonexistent_entry_id")
+        assert exc_info.value.translation_key == "config_entry_not_found"
+
+    async def test_resolve_wrong_domain_raises(self, hass: HomeAssistant) -> None:
+        """Test HomeAssistantError for entry from a different domain."""
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain="other_domain")
+        entry.add_to_hass(hass)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            _resolve_config_entry(hass, entry.entry_id)
+        assert exc_info.value.translation_key == "config_entry_not_found"
+
+    async def test_resolve_not_loaded_entry_raises(self, hass: HomeAssistant) -> None:
+        """Test HomeAssistantError when entry exists but not loaded."""
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                "email": "user@example.com",
+                "conf_home_id": MOCK_HOME_ID,
+                "conf_id_token": "mock_id_token",
+                "conf_access_token": "mock_access_token",
+                "conf_refresh_token": "mock_refresh_token",
+            },
+            title="My House",
+            unique_id="home_not_loaded",
+            version=6,
+        )
+        entry.add_to_hass(hass)
+        # Entry is added but NOT set up, so runtime_data is not available
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            _resolve_config_entry(hass, entry.entry_id)
+        assert exc_info.value.translation_key == "config_entry_not_loaded"
+
+
+# =============================================================================
+# Invite User Tests
+# =============================================================================
+
+
+class TestInviteUser:
+    """Tests for kwikset.invite_user service."""
+
+    async def test_invite_user_success(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test successfully inviting a user."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_INVITE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "newuser@example.com",
+                "access_level": "Member",
+                "nickname": "New User",
+                "allowed_devices": [ha_device_id],
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+        mock_api.home_user.invite_user.assert_called_once_with(
+            MOCK_HOME_ID,
+            "newuser@example.com",
+            "Member",
+            "New User",
+            [MOCK_DEVICE_ID],
+            access_time=None,
+        )
+        assert result is not None
+        assert result["email"] == "newuser@example.com"
+        assert result["access_level"] == "Member"
+
+    async def test_invite_user_admin(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test inviting a user with Admin access level."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_INVITE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "admin@example.com",
+                "access_level": "Admin",
+                "nickname": "Admin User",
+                "allowed_devices": [ha_device_id],
+            },
+            blocking=True,
+        )
+
+        mock_api.home_user.invite_user.assert_called_once_with(
+            MOCK_HOME_ID,
+            "admin@example.com",
+            "Admin",
+            "Admin User",
+            [MOCK_DEVICE_ID],
+            access_time=None,
+        )
+
+    async def test_invite_user_with_date_range(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test inviting a user with date range access time."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_INVITE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "scheduled@example.com",
+                "access_level": "Member",
+                "nickname": "Scheduled User",
+                "allowed_devices": [ha_device_id],
+                "access_time_type": "date_range",
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-07",
+            },
+            blocking=True,
+        )
+
+        call_kwargs = mock_api.home_user.invite_user.call_args
+        assert call_kwargs.kwargs["access_time"] is not None
+        access_time = call_kwargs.kwargs["access_time"]
+        assert access_time["accesstimetype"] == "DATE_RANGE"
+        assert "startdate" in access_time
+        assert "enddate" in access_time
+
+    async def test_invite_user_with_weekly(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test inviting a user with weekly repeat access time."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_INVITE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "weekly@example.com",
+                "access_level": "Member",
+                "nickname": "Weekly User",
+                "allowed_devices": [ha_device_id],
+                "access_time_type": "weekly",
+                "start_time": "08:00:00",
+                "end_time": "17:00:00",
+                "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            },
+            blocking=True,
+        )
+
+        call_kwargs = mock_api.home_user.invite_user.call_args
+        assert call_kwargs.kwargs["access_time"] is not None
+        access_time = call_kwargs.kwargs["access_time"]
+        assert access_time["accesstimetype"] == "WEEKLY"
+        assert "starttime" in access_time
+        assert "endtime" in access_time
+        assert access_time["days"] == ["Mon", "Tue", "Wed", "Thu", "Fri"]
+
+    async def test_invite_user_weekly_missing_fields(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test error when weekly is selected without start_time/end_time/days."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_INVITE_USER,
+                {
+                    "config_entry_id": entry_id,
+                    "email": "weekly@example.com",
+                    "access_level": "Member",
+                    "nickname": "Weekly User",
+                    "allowed_devices": [ha_device_id],
+                    "access_time_type": "weekly",
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "missing_weekly_fields"
+
+    async def test_invite_user_date_range_missing_fields(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test error when date_range is selected without start_date/end_date."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_INVITE_USER,
+                {
+                    "config_entry_id": entry_id,
+                    "email": "scheduled@example.com",
+                    "access_level": "Member",
+                    "nickname": "Scheduled User",
+                    "allowed_devices": [ha_device_id],
+                    "access_time_type": "date_range",
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "missing_date_range_fields"
+
+    async def test_invite_user_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        mock_api.home_user.invite_user = AsyncMock(side_effect=Exception("API error"))
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_INVITE_USER,
+                {
+                    "config_entry_id": entry_id,
+                    "email": "fail@example.com",
+                    "access_level": "Member",
+                    "nickname": "Fail User",
+                    "allowed_devices": [ha_device_id],
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "invite_user_failed"
+
+    async def test_invite_user_refreshes_home_users(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test that invite_user refreshes the cached home users list."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        # Reset mock to track refresh call after invite
+        mock_api.home_user.get_users.reset_mock()
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_INVITE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "newuser@example.com",
+                "access_level": "Member",
+                "nickname": "New User",
+                "allowed_devices": [ha_device_id],
+            },
+            blocking=True,
+        )
+
+        # get_users should have been called to refresh
+        mock_api.home_user.get_users.assert_called_with(MOCK_HOME_ID)
+
+
+# =============================================================================
+# Update User Tests
+# =============================================================================
+
+
+class TestUpdateUser:
+    """Tests for kwikset.update_user service."""
+
+    async def test_update_user_success(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test successfully updating a user."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_UPDATE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "test@example.com",
+                "access_level": "Admin",
+                "allowed_devices": [ha_device_id],
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+        mock_api.home_user.update_user.assert_called_once_with(
+            MOCK_HOME_ID,
+            "test@example.com",
+            "Admin",
+            [MOCK_DEVICE_ID],
+            access_time=None,
+        )
+        assert result is not None
+        assert result["email"] == "test@example.com"
+        assert result["access_level"] == "Admin"
+
+    async def test_update_user_with_date_range(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test updating a user with date range access time."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_UPDATE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "test@example.com",
+                "access_level": "Member",
+                "allowed_devices": [ha_device_id],
+                "access_time_type": "date_range",
+                "start_date": "2026-03-01",
+                "end_date": "2026-03-07",
+            },
+            blocking=True,
+        )
+
+        call_kwargs = mock_api.home_user.update_user.call_args
+        assert call_kwargs.kwargs["access_time"] is not None
+        access_time = call_kwargs.kwargs["access_time"]
+        assert access_time["accesstimetype"] == "DATE_RANGE"
+        assert "startdate" in access_time
+        assert "enddate" in access_time
+
+    async def test_update_user_with_weekly(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test updating a user with weekly repeat access time."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_UPDATE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "test@example.com",
+                "access_level": "Member",
+                "allowed_devices": [ha_device_id],
+                "access_time_type": "weekly",
+                "start_time": "09:00:00",
+                "end_time": "18:00:00",
+                "days": ["Sat", "Sun"],
+            },
+            blocking=True,
+        )
+
+        call_kwargs = mock_api.home_user.update_user.call_args
+        assert call_kwargs.kwargs["access_time"] is not None
+        access_time = call_kwargs.kwargs["access_time"]
+        assert access_time["accesstimetype"] == "WEEKLY"
+        assert "starttime" in access_time
+        assert "endtime" in access_time
+        assert access_time["days"] == ["Sat", "Sun"]
+
+    async def test_update_user_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        mock_api.home_user.update_user = AsyncMock(side_effect=Exception("API error"))
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_UPDATE_USER,
+                {
+                    "config_entry_id": entry_id,
+                    "email": "test@example.com",
+                    "access_level": "Admin",
+                    "allowed_devices": [ha_device_id],
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "update_user_failed"
+
+
+# =============================================================================
+# Delete User Tests
+# =============================================================================
+
+
+class TestDeleteUser:
+    """Tests for kwikset.delete_user service."""
+
+    async def test_delete_user_success(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test successfully deleting a user."""
+        await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "guest@example.com",
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+        mock_api.home_user.delete_user.assert_called_once_with(
+            MOCK_HOME_ID, "guest@example.com"
+        )
+        assert result is not None
+        assert result["email"] == "guest@example.com"
+
+    async def test_delete_user_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        mock_api.home_user.delete_user = AsyncMock(side_effect=Exception("API error"))
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_DELETE_USER,
+                {
+                    "config_entry_id": entry_id,
+                    "email": "fail@example.com",
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "delete_user_failed"
+
+    async def test_delete_user_refreshes_home_users(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test that delete_user refreshes the cached home users list."""
+        await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        mock_api.home_user.get_users.reset_mock()
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_DELETE_USER,
+            {
+                "config_entry_id": entry_id,
+                "email": "guest@example.com",
+            },
+            blocking=True,
+        )
+
+        mock_api.home_user.get_users.assert_called_with(MOCK_HOME_ID)
+
+
+# =============================================================================
+# List Users Tests
+# =============================================================================
+
+
+class TestListUsers:
+    """Tests for kwikset.list_users service."""
+
+    async def test_list_users_success(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test successfully listing users."""
+        await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_LIST_USERS,
+            {"config_entry_id": entry_id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result is not None
+        assert result["total"] == 2
+        assert len(result["users"]) == 2
+        assert result["users"][0]["name"] == "Test User"
+        assert result["users"][0]["email"] == "test@example.com"
+        assert result["users"][0]["access_level"] == "Admin"
+        assert result["users"][1]["name"] == "Guest User"
+        assert result["users"][1]["email"] == "guest@example.com"
+        assert result["users"][1]["access_level"] == "Member"
+
+    async def test_list_users_api_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError on API failure."""
+        await _setup_entry_with_device(hass, mock_api)
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry_id = entries[0].entry_id
+
+        mock_api.home_user.get_users = AsyncMock(side_effect=Exception("API error"))
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_LIST_USERS,
+                {"config_entry_id": entry_id},
+                blocking=True,
+                return_response=True,
+            )
+
+        assert exc_info.value.translation_key == "list_users_failed"
+
+    async def test_list_users_invalid_entry_raises(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test HomeAssistantError for invalid config entry ID."""
+        await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_LIST_USERS,
+                {"config_entry_id": "nonexistent_id"},
+                blocking=True,
+                return_response=True,
+            )
+
+        assert exc_info.value.translation_key == "config_entry_not_found"

@@ -14,6 +14,7 @@ from .const import CONF_ACCESS_TOKEN
 from .const import CONF_HOME_ID
 from .const import CONF_ID_TOKEN
 from .const import CONF_REFRESH_TOKEN
+from .const import CONF_STORED_PASSWORD
 
 if TYPE_CHECKING:
     from . import KwiksetConfigEntry
@@ -25,6 +26,7 @@ TO_REDACT = {
     CONF_ACCESS_TOKEN,
     CONF_ID_TOKEN,
     CONF_REFRESH_TOKEN,
+    CONF_STORED_PASSWORD,
     CONF_HOME_ID,
     "deviceid",
     "serialnumber",

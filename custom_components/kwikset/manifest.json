@@ -4,9 +4,9 @@
   "codeowners": ["@explosivo22"],
   "config_flow": true,
   "documentation": "https://github.com/explosivo22/kwikset-ha/",
-  "iot_class": "cloud_polling",
+  "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/explosivo22/kwikset-ha/issues",
   "quality_scale": "platinum",
-  "requirements": ["aiokwikset==0.4.1"],
-  "version": "0.4.2"
+  "requirements": ["aiokwikset==0.6.1"],
+  "version": "0.6.1"
 }

@@ -133,6 +133,39 @@ MOCK_HOMES = [
     },
 ]
 
+MOCK_DEVICE_HISTORY = {
+    "data": [
+        {
+            "id": 2640374935,
+            "lse": "61",
+            "user": "John Doe",
+            "timestamp": 1770928208,
+            "eventtype": "Mobile ( WiFi, LTE, ETC)",
+            "event": "Locked",
+            "eventcategory": "Lock Mechanism",
+            "devicename": "Front Door",
+            "homeid": "home_001",
+            "timezone": "GMT-6:00",
+            "isissue": 0,
+        },
+        {
+            "id": 2640374934,
+            "lse": "60",
+            "user": "Jane Doe",
+            "timestamp": 1770924608,
+            "eventtype": "Keypad",
+            "event": "Unlocked",
+            "eventcategory": "Lock Mechanism",
+            "devicename": "Front Door",
+            "homeid": "home_001",
+            "timezone": "GMT-6:00",
+            "isissue": 0,
+        },
+    ],
+    "total": 2,
+    "issues": [],
+}
+
 
 def generate_mock_jwt(expiry_seconds: int = 3600) -> str:
     """Generate a mock JWT token with configurable expiry.
@@ -174,6 +207,25 @@ MOCK_ENTRY_DATA = {
 MOCK_ENTRY_OPTIONS = {
     CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
 }
+
+# Access code mock result
+MOCK_ACCESS_CODE_RESULT = MagicMock()
+MOCK_ACCESS_CODE_RESULT.token = "mock_token_abc123"
+MOCK_ACCESS_CODE_RESULT.last_update_status = 1770928208
+
+# Home user mock data
+MOCK_HOME_USERS: list[dict[str, Any]] = [
+    {
+        "sharedwithname": "Test User",
+        "email": "test@example.com",
+        "useraccesslevel": "Admin",
+    },
+    {
+        "sharedwithname": "Guest User",
+        "email": "guest@example.com",
+        "useraccesslevel": "Member",
+    },
+]
 
 
 # =============================================================================
@@ -226,6 +278,40 @@ def mock_api() -> Generator[MagicMock, None, None]:
             api.device.set_ledstatus = AsyncMock()
             api.device.set_audiostatus = AsyncMock()
             api.device.set_securescreenstatus = AsyncMock()
+            api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+            # Access code methods
+            api.device.create_access_code = AsyncMock(
+                return_value=MOCK_ACCESS_CODE_RESULT
+            )
+            api.device.edit_access_code = AsyncMock(
+                return_value=MOCK_ACCESS_CODE_RESULT
+            )
+            api.device.disable_access_code = AsyncMock(
+                return_value=MOCK_ACCESS_CODE_RESULT
+            )
+            api.device.enable_access_code = AsyncMock(
+                return_value=MOCK_ACCESS_CODE_RESULT
+            )
+            api.device.delete_access_code = AsyncMock(return_value={"data": []})
+            api.device.delete_all_access_codes = AsyncMock(return_value={"data": []})
+            api.device.get_access_code_status = AsyncMock(
+                return_value={"data": [{"status": "synced"}]}
+            )
+
+            # Subscriptions namespace (websocket events)
+            api.subscriptions = MagicMock()
+            api.subscriptions.set_callback = MagicMock()
+            api.subscriptions.set_on_disconnect = MagicMock()
+            api.subscriptions.set_on_reconnect = MagicMock()
+            api.subscriptions.async_subscribe_device = AsyncMock()
+            api.subscriptions.async_unsubscribe = AsyncMock()
+
+            # Home user namespace
+            api.home_user = MagicMock()
+            api.home_user.get_users = AsyncMock(return_value=MOCK_HOME_USERS)
+            api.home_user.invite_user = AsyncMock()
+            api.home_user.update_user = AsyncMock()
+            api.home_user.delete_user = AsyncMock()
 
             mock_api_class.return_value = api
             yield api
@@ -270,6 +356,15 @@ def mock_api_config_flow() -> Generator[MagicMock, None, None]:
             api.device = MagicMock()
             api.device.get_devices = AsyncMock(return_value=MOCK_DEVICES)
             api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+            api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+
+            # Subscriptions namespace (websocket events)
+            api.subscriptions = MagicMock()
+            api.subscriptions.set_callback = MagicMock()
+            api.subscriptions.set_on_disconnect = MagicMock()
+            api.subscriptions.set_on_reconnect = MagicMock()
+            api.subscriptions.async_subscribe_device = AsyncMock()
+            api.subscriptions.async_unsubscribe = AsyncMock()
 
             mock_api_class.return_value = api
             yield api
@@ -307,6 +402,25 @@ def mock_api_device() -> Generator[MagicMock, None, None]:
         api.device.set_ledstatus = AsyncMock()
         api.device.set_audiostatus = AsyncMock()
         api.device.set_securescreenstatus = AsyncMock()
+        api.device.get_device_history = AsyncMock(return_value=MOCK_DEVICE_HISTORY)
+        # Access code methods
+        api.device.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+        api.device.edit_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+        api.device.disable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+        api.device.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+        api.device.delete_access_code = AsyncMock(return_value={"data": []})
+        api.device.delete_all_access_codes = AsyncMock(return_value={"data": []})
+        api.device.get_access_code_status = AsyncMock(
+            return_value={"data": [{"status": "synced"}]}
+        )
+
+        # Subscriptions namespace (websocket events)
+        api.subscriptions = MagicMock()
+        api.subscriptions.set_callback = MagicMock()
+        api.subscriptions.set_on_disconnect = MagicMock()
+        api.subscriptions.set_on_reconnect = MagicMock()
+        api.subscriptions.async_subscribe_device = AsyncMock()
+        api.subscriptions.async_unsubscribe = AsyncMock()
 
         mock_api_class.return_value = api
         yield api
@@ -335,7 +449,23 @@ def mock_coordinator() -> MagicMock:
     coordinator.led_status = True
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
+    coordinator.history_events = MOCK_DEVICE_HISTORY["data"]
+    coordinator.last_event = "Locked"
+    coordinator.last_event_user = "John Doe"
+    coordinator.last_event_type = "Mobile ( WiFi, LTE, ETC)"
+    coordinator.last_event_timestamp = 1770928208
+    coordinator.last_event_category = "Lock Mechanism"
+    coordinator.total_events = 2
     coordinator.last_update_success = True
+
+    # Access code tracking properties
+    coordinator.total_access_codes = 0
+    coordinator.occupied_slots = []
+    coordinator.access_codes = {}
+
+    # Home user properties
+    coordinator.home_user_count = 2
+    coordinator.home_users = MOCK_HOME_USERS
 
     # Data dict for coordinator entity pattern
     coordinator.data = {
@@ -348,6 +478,7 @@ def mock_coordinator() -> MagicMock:
         "led_status": True,
         "audio_status": True,
         "secure_screen_status": False,
+        "history_events": MOCK_DEVICE_HISTORY["data"],
     }
 
     # Async action methods
@@ -356,6 +487,12 @@ def mock_coordinator() -> MagicMock:
     coordinator.set_led = AsyncMock()
     coordinator.set_audio = AsyncMock()
     coordinator.set_secure_screen = AsyncMock()
+    coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+    coordinator.disable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+    coordinator.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+    coordinator.delete_access_code = AsyncMock(return_value={"data": []})
+    coordinator.delete_all_access_codes = AsyncMock(return_value={"data": []})
+    coordinator.get_tracked_code = MagicMock(return_value=None)
     coordinator.async_request_refresh = AsyncMock()
     coordinator.async_config_entry_first_refresh = AsyncMock()
 
@@ -377,6 +514,13 @@ def mock_coordinator_unlocked() -> MagicMock:
     coordinator.led_status = True
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
+    coordinator.history_events = MOCK_DEVICE_HISTORY["data"]
+    coordinator.last_event = "Locked"
+    coordinator.last_event_user = "John Doe"
+    coordinator.last_event_type = "Mobile ( WiFi, LTE, ETC)"
+    coordinator.last_event_timestamp = 1770928208
+    coordinator.last_event_category = "Lock Mechanism"
+    coordinator.total_events = 2
     coordinator.last_update_success = True
 
     coordinator.data = {
@@ -389,6 +533,7 @@ def mock_coordinator_unlocked() -> MagicMock:
         "led_status": True,
         "audio_status": True,
         "secure_screen_status": False,
+        "history_events": MOCK_DEVICE_HISTORY["data"],
     }
 
     coordinator.lock = AsyncMock()
@@ -396,6 +541,11 @@ def mock_coordinator_unlocked() -> MagicMock:
     coordinator.set_led = AsyncMock()
     coordinator.set_audio = AsyncMock()
     coordinator.set_secure_screen = AsyncMock()
+    coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+    coordinator.disable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+    coordinator.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
+    coordinator.delete_access_code = AsyncMock(return_value={"data": []})
+    coordinator.delete_all_access_codes = AsyncMock(return_value={"data": []})
     coordinator.async_request_refresh = AsyncMock()
     coordinator.async_config_entry_first_refresh = AsyncMock()
 

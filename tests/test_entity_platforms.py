@@ -41,6 +41,7 @@ from custom_components.kwikset.const import OPTIMISTIC_TIMEOUT_SECONDS
 
 from .conftest import MOCK_DEVICE_ID
 from .conftest import MOCK_DEVICE_NAME
+from .conftest import MOCK_HOME_ID
 
 # =============================================================================
 # API Compatibility Checks
@@ -67,11 +68,22 @@ def _can_import_switch_module() -> bool:
         return False
 
 
+def _can_import_event_module() -> bool:
+    """Check if event module can be imported."""
+    try:
+        from custom_components.kwikset import event  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 # Skip reasons for API compatibility
 LOCK_SKIP_REASON = "lock module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
 SWITCH_SKIP_REASON = (
     "switch module requires AddConfigEntryEntitiesCallback (HA 2025.2+)"
 )
+EVENT_SKIP_REASON = "event module requires EventEntity (HA 2023.8+)"
 
 
 # =============================================================================
@@ -109,6 +121,14 @@ def switch_module():
     from custom_components.kwikset import switch
 
     return switch
+
+
+@pytest.fixture
+def event_module():
+    """Import event module lazily."""
+    from custom_components.kwikset import event
+
+    return event
 
 
 # =============================================================================
@@ -793,6 +813,259 @@ class TestSwitchDescriptions:
 
 
 # =============================================================================
+# History Sensor Entity Tests
+# =============================================================================
+
+
+class TestKwiksetHistorySensor:
+    """Tests for the KwiksetHistorySensor entity."""
+
+    def test_history_sensor_is_sensor_entity(
+        self, sensor_module, entity_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test KwiksetHistorySensor inherits from SensorEntity."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert isinstance(sensor, SensorEntity)
+        assert isinstance(sensor, entity_module.KwiksetEntity)
+
+    def test_history_sensor_unique_id(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor unique_id includes description key."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_event"
+
+    def test_history_sensor_native_value(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns correct native_value."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "Locked by John Doe via Mobile ( WiFi, LTE, ETC)"
+
+    def test_history_sensor_native_value_none(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns None when no history."""
+        mock_coordinator.last_event = None
+        mock_coordinator.last_event_user = None
+        mock_coordinator.last_event_type = None
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value is None
+
+    def test_history_sensor_entity_category(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor has DIAGNOSTIC entity category."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        assert description.entity_category == EntityCategory.DIAGNOSTIC
+
+    def test_history_sensor_extra_state_attributes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns correct extra state attributes."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+
+        assert attrs["user"] == "John Doe"
+        assert attrs["event_type"] == "Mobile ( WiFi, LTE, ETC)"
+        assert attrs["timestamp"] == 1770928208
+        assert attrs["event_category"] == "Lock Mechanism"
+        assert attrs["device_name"] == MOCK_DEVICE_NAME
+        assert attrs["total_events"] == 2
+
+    def test_history_sensor_extra_state_attributes_empty(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test history sensor returns None values when no history."""
+        mock_coordinator.last_event_user = None
+        mock_coordinator.last_event_type = None
+        mock_coordinator.last_event_timestamp = None
+        mock_coordinator.last_event_category = None
+        mock_coordinator.total_events = 0
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+
+        assert attrs["user"] is None
+        assert attrs["event_type"] is None
+        assert attrs["timestamp"] is None
+        assert attrs["event_category"] is None
+        assert attrs["total_events"] == 0
+
+    def test_history_sensor_entity_description_stored(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test entity_description is stored correctly."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.entity_description == description
+
+    def test_last_lock_user_sensor(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_user sensor returns the user name."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "John Doe"
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_user"
+
+    def test_last_lock_method_sensor(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_method sensor returns the event type."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[2]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "Mobile ( WiFi, LTE, ETC)"
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_method"
+
+    def test_last_lock_category_sensor(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_category sensor returns the event category."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[3]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        assert sensor.native_value == "Lock Mechanism"
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_last_lock_category"
+
+    def test_new_sensors_disabled_by_default(self, sensor_module) -> None:
+        """Test new history sensors are disabled by default."""
+        for desc in sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1:]:
+            assert desc.entity_registry_enabled_default is False
+
+    def test_last_lock_user_extra_attributes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_user sensor extra attributes."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+        assert attrs["event"] == "Locked"
+        assert attrs["timestamp"] == 1770928208
+
+    def test_last_lock_method_extra_attributes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test last_lock_method sensor extra attributes."""
+        description = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[2]
+        sensor = sensor_module.KwiksetHistorySensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+        assert attrs["event"] == "Locked"
+        assert attrs["user"] == "John Doe"
+        assert attrs["timestamp"] == 1770928208
+
+
+class TestHistorySensorDescriptions:
+    """Tests for history sensor entity descriptions."""
+
+    def test_last_lock_event_description(self, sensor_module) -> None:
+        """Test last_lock_event sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        assert desc.key == "last_lock_event"
+        assert desc.translation_key == "last_lock_event"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+
+    def test_history_sensor_descriptions_are_frozen(self, sensor_module) -> None:
+        """Test history sensor descriptions are frozen dataclasses."""
+        for desc in sensor_module.HISTORY_SENSOR_DESCRIPTIONS:
+            with pytest.raises(AttributeError):
+                desc.key = "modified"
+
+    def test_history_sensor_value_fn_callable(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn is callable and returns correct value."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        value = desc.value_fn(mock_coordinator)
+        assert value == "Locked by John Doe via Mobile ( WiFi, LTE, ETC)"
+
+    def test_history_sensor_attrs_fn_callable(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test attrs_fn is callable and returns correct dict."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+        attrs = desc.attrs_fn(mock_coordinator)
+        assert isinstance(attrs, dict)
+        assert "user" in attrs
+        assert "event_type" in attrs
+        assert "timestamp" in attrs
+        assert "event_category" in attrs
+        assert "device_name" in attrs
+        assert "total_events" in attrs
+
+    def test_history_descriptions_tuple_is_immutable(self, sensor_module) -> None:
+        """Test HISTORY_SENSOR_DESCRIPTIONS is a tuple (immutable)."""
+        assert isinstance(sensor_module.HISTORY_SENSOR_DESCRIPTIONS, tuple)
+        with pytest.raises(TypeError):
+            sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0] = (
+                sensor_module.HISTORY_SENSOR_DESCRIPTIONS[0]
+            )
+
+    def test_format_last_event_full(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with all parts available."""
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result == "Locked by John Doe via Mobile ( WiFi, LTE, ETC)"
+
+    def test_format_last_event_no_type(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with no event type."""
+        mock_coordinator.last_event_type = None
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result == "Locked by John Doe"
+
+    def test_format_last_event_no_user(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with no user."""
+        mock_coordinator.last_event_user = None
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result == "Locked"
+
+    def test_format_last_event_none(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _format_last_event with no event."""
+        mock_coordinator.last_event = None
+        result = sensor_module._format_last_event(mock_coordinator)
+        assert result is None
+
+    def test_last_lock_user_description(self, sensor_module) -> None:
+        """Test last_lock_user sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[1]
+        assert desc.key == "last_lock_user"
+        assert desc.translation_key == "last_lock_user"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.entity_registry_enabled_default is False
+
+    def test_last_lock_method_description(self, sensor_module) -> None:
+        """Test last_lock_method sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[2]
+        assert desc.key == "last_lock_method"
+        assert desc.translation_key == "last_lock_method"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.entity_registry_enabled_default is False
+
+    def test_last_lock_category_description(self, sensor_module) -> None:
+        """Test last_lock_category sensor description properties."""
+        desc = sensor_module.HISTORY_SENSOR_DESCRIPTIONS[3]
+        assert desc.key == "last_lock_category"
+        assert desc.translation_key == "last_lock_category"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.entity_registry_enabled_default is False
+
+    def test_history_sensor_descriptions_count(self, sensor_module) -> None:
+        """Test correct number of history sensor descriptions."""
+        assert len(sensor_module.HISTORY_SENSOR_DESCRIPTIONS) == 4
+
+
+# =============================================================================
 # Coordinator Update Tests
 # =============================================================================
 
@@ -896,3 +1169,385 @@ class TestEntityDescriptionPattern:
             assert callable(desc.value_fn)
             assert callable(desc.turn_on_fn)
             assert callable(desc.turn_off_fn)
+
+
+# =============================================================================
+# Event Entity Tests
+# =============================================================================
+
+
+@pytest.mark.skipif(not _can_import_event_module(), reason=EVENT_SKIP_REASON)
+class TestKwiksetLockEvent:
+    """Tests for the KwiksetLockEvent entity."""
+
+    def test_event_is_event_entity(
+        self, event_module, entity_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test KwiksetLockEvent inherits from EventEntity."""
+        from homeassistant.components.event import EventEntity
+
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert isinstance(entity, EventEntity)
+        assert isinstance(entity, entity_module.KwiksetEntity)
+
+    def test_event_unique_id(self, event_module, mock_coordinator: MagicMock) -> None:
+        """Test event unique_id is device_id_lock_event."""
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert entity.unique_id == f"{MOCK_DEVICE_ID}_lock_event"
+
+    def test_event_types(self, event_module, mock_coordinator: MagicMock) -> None:
+        """Test event types list contains locked, unlocked, jammed."""
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert entity.event_types == ["locked", "unlocked", "jammed"]
+
+    def test_event_translation_key(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test event has correct translation key."""
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert entity._attr_translation_key == "lock_event"
+
+    def test_event_entity_category(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test event has DIAGNOSTIC entity category."""
+        from homeassistant.helpers.entity import EntityCategory
+
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert entity._attr_entity_category == EntityCategory.DIAGNOSTIC
+
+    def test_event_seeds_initial_event_id(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test initial event ID is seeded from coordinator history."""
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert (
+            entity._last_event_id == 2640374935
+        )  # First event ID from MOCK_DEVICE_HISTORY
+
+    def test_event_seeds_sentinel_when_no_history(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test initial event ID is sentinel when no history available."""
+        mock_coordinator.history_events = []
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        assert entity._last_event_id == event_module._UNSET_EVENT_ID
+
+    def test_no_event_fired_on_same_id(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test no event fired when event ID hasn't changed."""
+        from unittest.mock import patch
+
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        entity.async_write_ha_state = MagicMock()
+
+        # Coordinator update with same event ID should not fire
+        with patch.object(entity, "_trigger_event") as mock_trigger:
+            entity._handle_coordinator_update()
+            mock_trigger.assert_not_called()
+
+    def test_event_fired_on_new_id(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test event IS fired when a new event ID is detected."""
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        entity.async_write_ha_state = MagicMock()
+        initial_id = entity._last_event_id
+        assert initial_id == 2640374935
+
+        # Simulate a new event appearing
+        new_event = {
+            "id": 9999999,
+            "event": "Unlocked",
+            "user": "Jane Doe",
+            "eventtype": "Keypad",
+            "timestamp": 1770999999,
+            "eventcategory": "Lock Mechanism",
+            "devicename": "Front Door",
+        }
+        mock_coordinator.history_events = [new_event, *mock_coordinator.history_events]
+
+        entity._handle_coordinator_update()
+
+        assert entity._last_event_id == 9999999
+
+    def test_event_maps_locked(self, event_module, mock_coordinator: MagicMock) -> None:
+        """Test 'Locked' API value maps to 'locked' event type."""
+        assert event_module._EVENT_MAP["Locked"] == "locked"
+
+    def test_event_maps_unlocked(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test 'Unlocked' API value maps to 'unlocked' event type."""
+        assert event_module._EVENT_MAP["Unlocked"] == "unlocked"
+
+    def test_event_maps_jammed(self, event_module, mock_coordinator: MagicMock) -> None:
+        """Test 'Jammed' API value maps to 'jammed' event type."""
+        assert event_module._EVENT_MAP["Jammed"] == "jammed"
+
+    def test_event_handles_empty_history(
+        self, event_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test coordinator update with empty history doesn't crash."""
+        mock_coordinator.history_events = []
+        entity = event_module.KwiksetLockEvent(mock_coordinator)
+        entity.async_write_ha_state = MagicMock()
+        # Should not raise
+        entity._handle_coordinator_update()
+
+    def test_event_parallel_updates(self, event_module) -> None:
+        """Test PARALLEL_UPDATES is set to 1."""
+        assert event_module.PARALLEL_UPDATES == 1
+
+
+# =============================================================================
+# Access Code Sensor Tests
+# =============================================================================
+
+
+class TestKwiksetAccessCodeSensor:
+    """Tests for the KwiksetAccessCodeSensor entity."""
+
+    def test_sensor_is_sensor_entity(
+        self, sensor_module, entity_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test KwiksetAccessCodeSensor inherits from SensorEntity."""
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        assert isinstance(sensor, SensorEntity)
+        assert isinstance(sensor, entity_module.KwiksetEntity)
+
+    def test_sensor_unique_id(self, sensor_module, mock_coordinator: MagicMock) -> None:
+        """Test access code sensor unique_id includes description key."""
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        assert sensor.unique_id == f"{MOCK_DEVICE_ID}_access_code_count"
+
+    def test_sensor_native_value_zero(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test sensor returns 0 when no access codes exist."""
+        mock_coordinator.total_access_codes = 0
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        assert sensor.native_value == 0
+
+    def test_sensor_native_value_with_codes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test sensor returns correct count when codes exist."""
+        mock_coordinator.total_access_codes = 3
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        assert sensor.native_value == 3
+
+    def test_extra_state_attributes_empty(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test extra_state_attributes when no codes exist."""
+        mock_coordinator.total_access_codes = 0
+        mock_coordinator.occupied_slots = []
+        mock_coordinator.access_codes = {}
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+        assert attrs["occupied_slots"] == []
+        assert attrs["access_codes"] == []
+
+    def test_extra_state_attributes_with_codes(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test extra_state_attributes contains slot details."""
+        mock_coordinator.total_access_codes = 2
+        mock_coordinator.occupied_slots = [1, 5]
+        mock_coordinator.access_codes = {
+            1: {
+                "slot": 1,
+                "name": "Guest",
+                "source": "ha",
+                "enabled": True,
+                "schedule_type": "all_day",
+            },
+            5: {
+                "slot": 5,
+                "name": "",
+                "source": "device",
+                "enabled": True,
+                "schedule_type": "unknown",
+            },
+        }
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        attrs = sensor.extra_state_attributes
+        assert attrs["occupied_slots"] == [1, 5]
+        assert len(attrs["access_codes"]) == 2
+        assert attrs["access_codes"][0]["slot"] == 1
+        assert attrs["access_codes"][0]["name"] == "Guest"
+        assert attrs["access_codes"][1]["slot"] == 5
+        assert attrs["access_codes"][1]["source"] == "device"
+
+    def test_handle_coordinator_update(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _handle_coordinator_update refreshes the value."""
+        mock_coordinator.total_access_codes = 0
+        description = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetAccessCodeSensor(mock_coordinator, description)
+        assert sensor.native_value == 0
+
+        # Simulate coordinator update with new data
+        mock_coordinator.total_access_codes = 5
+        sensor.async_write_ha_state = MagicMock()
+        sensor._handle_coordinator_update()
+        assert sensor.native_value == 5
+
+
+class TestAccessCodeSensorDescriptions:
+    """Tests for access code sensor entity descriptions."""
+
+    def test_description_key(self, sensor_module) -> None:
+        """Test access_code_count description properties."""
+        desc = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        assert desc.key == "access_code_count"
+        assert desc.translation_key == "access_code_count"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.state_class == SensorStateClass.MEASUREMENT
+        assert desc.icon == "mdi:key-variant"
+
+    def test_descriptions_are_frozen(self, sensor_module) -> None:
+        """Test access code descriptions are frozen dataclasses."""
+        for desc in sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS:
+            with pytest.raises(AttributeError):
+                desc.key = "modified"
+
+    def test_value_fn_callable(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn returns total_access_codes from coordinator."""
+        mock_coordinator.total_access_codes = 7
+        desc = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        assert desc.value_fn(mock_coordinator) == 7
+
+    def test_attrs_fn_callable(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test attrs_fn returns dict with occupied_slots and access_codes."""
+        mock_coordinator.occupied_slots = [2, 4]
+        mock_coordinator.access_codes = {
+            2: {
+                "slot": 2,
+                "name": "A",
+                "source": "ha",
+                "enabled": True,
+                "schedule_type": "all_day",
+            },
+            4: {
+                "slot": 4,
+                "name": "",
+                "source": "device",
+                "enabled": True,
+                "schedule_type": "unknown",
+            },
+        }
+        desc = sensor_module.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        attrs = desc.attrs_fn(mock_coordinator)
+        assert "occupied_slots" in attrs
+        assert "access_codes" in attrs
+        assert len(attrs["access_codes"]) == 2
+
+
+# =============================================================================
+# Home Sensor Entity Tests
+# =============================================================================
+
+
+class TestKwiksetHomeSensor:
+    """Tests for the KwiksetHomeSensor entity."""
+
+    def test_home_sensor_is_sensor_entity(
+        self, sensor_module, entity_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test KwiksetHomeSensor inherits from SensorEntity."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert isinstance(sensor, SensorEntity)
+        assert isinstance(sensor, entity_module.KwiksetEntity)
+
+    def test_home_sensor_unique_id_uses_home_id(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test unique_id is scoped to home_id, not device_id."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert sensor.unique_id == f"{MOCK_HOME_ID}_home_user_count"
+
+    def test_home_sensor_native_value(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test home sensor returns correct native_value."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert sensor.native_value == 2
+
+    def test_home_sensor_entity_description_stored(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test entity_description is stored correctly."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        assert sensor.entity_description == description
+
+    def test_home_sensor_coordinator_update(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _handle_coordinator_update refreshes state."""
+        description = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        sensor = sensor_module.KwiksetHomeSensor(
+            mock_coordinator, description, MOCK_HOME_ID
+        )
+        # Initial value
+        assert sensor.native_value == 2
+
+        # Update coordinator mock value and recreate to verify value_fn is used
+        mock_coordinator.home_user_count = 5
+        # Directly verify value_fn returns updated value
+        assert description.value_fn(mock_coordinator) == 5
+
+
+class TestHomeSensorDescriptions:
+    """Tests for home-level sensor entity descriptions."""
+
+    def test_home_user_count_description(self, sensor_module) -> None:
+        """Test home_user_count sensor description properties."""
+        desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        assert desc.key == "home_user_count"
+        assert desc.translation_key == "home_user_count"
+        assert desc.entity_category == EntityCategory.DIAGNOSTIC
+        assert desc.state_class == SensorStateClass.MEASUREMENT
+        assert desc.native_unit_of_measurement == "users"
+
+    def test_home_user_count_value_fn(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn returns correct home user count."""
+        desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        value = desc.value_fn(mock_coordinator)
+        assert value == 2
+
+    def test_home_user_count_value_fn_zero(
+        self, sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test value_fn returns 0 when no home users."""
+        mock_coordinator.home_user_count = 0
+        desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
+        value = desc.value_fn(mock_coordinator)
+        assert value == 0

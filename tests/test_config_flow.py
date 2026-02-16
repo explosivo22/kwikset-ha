@@ -34,6 +34,8 @@ from custom_components.kwikset.const import CONF_HOME_ID
 from custom_components.kwikset.const import CONF_ID_TOKEN
 from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
 from custom_components.kwikset.const import CONF_REFRESH_TOKEN
+from custom_components.kwikset.const import CONF_SAVE_PASSWORD
+from custom_components.kwikset.const import CONF_STORED_PASSWORD
 from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
 from custom_components.kwikset.const import DOMAIN
 
@@ -944,22 +946,25 @@ class TestReconfigureFlowExtended:
         ):
             result = await hass.config_entries.flow.async_configure(
                 result["flow_id"],
-                {},
+                {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
             )
 
         assert result["type"] == FlowResultType.ABORT
         assert result["reason"] == "reconfigure_successful"
 
-    async def test_reconfigure_token_expired(
+        # Verify tokens were updated
+        assert entry.data[CONF_ID_TOKEN] == MOCK_ID_TOKEN
+        assert entry.data[CONF_ACCESS_TOKEN] == MOCK_ACCESS_TOKEN
+        assert entry.data[CONF_REFRESH_TOKEN] == MOCK_REFRESH_TOKEN
+
+    async def test_reconfigure_invalid_auth(
         self,
         hass: HomeAssistant,
         mock_api_config_flow: MagicMock,
     ) -> None:
-        """Test reconfigure with expired token shows error."""
-        from aiokwikset.errors import TokenExpiredError
-
-        mock_api_config_flow.async_authenticate_with_tokens.side_effect = (
-            TokenExpiredError("Token expired")
+        """Test reconfigure with invalid credentials shows error."""
+        mock_api_config_flow.async_login.side_effect = RequestError(
+            "Invalid credentials"
         )
 
         entry = MockConfigEntry(
@@ -987,12 +992,12 @@ class TestReconfigureFlowExtended:
 
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {},
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: "wrong_password"},
         )
 
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "reconfigure"
-        assert result["errors"]["base"] == "token_expired"
+        assert result["errors"]["base"] == "cannot_connect"
 
     async def test_reconfigure_connection_error(
         self,
@@ -1000,8 +1005,89 @@ class TestReconfigureFlowExtended:
         mock_api_config_flow: MagicMock,
     ) -> None:
         """Test reconfigure with connection error shows error."""
-        mock_api_config_flow.async_authenticate_with_tokens.side_effect = RequestError(
-            "Connection failed"
+        mock_api_config_flow.async_login.side_effect = RequestError("Connection failed")
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reconfigure"
+        assert result["errors"]["base"] == "cannot_connect"
+
+    async def test_reconfigure_unknown_error(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure with unexpected error shows error."""
+        mock_api_config_flow.async_login.side_effect = Exception("Unexpected error")
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reconfigure"
+        assert result["errors"]["base"] == "unknown"
+
+    async def test_reconfigure_with_mfa(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure triggers MFA flow when required."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="SOFTWARE_TOKEN_MFA",
+            mfa_tokens={"session": "mock_session"},
         )
 
         entry = MockConfigEntry(
@@ -1029,9 +1115,494 @@ class TestReconfigureFlowExtended:
 
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {},
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa_reconfigure"
+
+    async def test_reconfigure_with_custom_challenge_mfa(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure with CUSTOM_CHALLENGE MFA goes through delivery method."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="CUSTOM_CHALLENGE",
+            mfa_tokens={"session": "mock_session", "challenge": "custom"},
+        )
+        mock_api_config_flow.async_request_custom_challenge_code.return_value = {
+            "session": "updated_session",
+            "challenge": "custom",
+        }
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "custom_challenge_delivery_reconfigure"
+
+        # Select email delivery
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"delivery_method": "email"},
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "mfa_reconfigure"
+
+    async def test_reconfigure_mfa_success(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test full reconfigure MFA flow completes successfully."""
+        mock_api_config_flow.async_login.side_effect = MFAChallengeRequired(
+            mfa_type="SOFTWARE_TOKEN_MFA",
+            mfa_tokens={"session": "mock_session"},
+        )
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: "old_id",
+                CONF_ACCESS_TOKEN: "old_access",
+                CONF_REFRESH_TOKEN: "old_refresh",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["step_id"] == "mfa_reconfigure"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {"mfa_code": "123456"},
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reconfigure_successful"
+
+    async def test_reconfigure_with_save_password(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure with save_password stores the password."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {
+                    CONF_EMAIL: MOCK_EMAIL,
+                    CONF_PASSWORD: MOCK_PASSWORD,
+                    CONF_SAVE_PASSWORD: True,
+                },
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reconfigure_successful"
+        assert entry.data[CONF_STORED_PASSWORD] == MOCK_PASSWORD
+
+    async def test_reconfigure_without_save_password_clears_stored(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure without save_password clears any previously stored password."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+                CONF_STORED_PASSWORD: "old_password",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
+        )
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {
+                    CONF_EMAIL: MOCK_EMAIL,
+                    CONF_PASSWORD: MOCK_PASSWORD,
+                    CONF_SAVE_PASSWORD: False,
+                },
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reconfigure_successful"
+        # Stored password should be cleared (empty string)
+        assert entry.data[CONF_STORED_PASSWORD] == ""
+
+    async def test_reconfigure_prefills_email_and_save_password(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reconfigure form pre-fills email and save_password from existing entry."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+                CONF_STORED_PASSWORD: "saved_pw",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_RECONFIGURE,
+                "entry_id": entry.entry_id,
+            },
         )
 
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "reconfigure"
-        assert result["errors"]["base"] == "cannot_connect"
+        # Schema should have default values pre-filled
+        schema = result["data_schema"].schema
+        email_key = next(k for k in schema if str(k) == CONF_EMAIL)
+        save_pw_key = next(k for k in schema if str(k) == CONF_SAVE_PASSWORD)
+        assert email_key.default() == MOCK_EMAIL
+        assert save_pw_key.default() is True
+
+
+# =============================================================================
+# Save Password Tests
+# =============================================================================
+
+
+class TestSavePassword:
+    """Tests for optional password storage feature."""
+
+    async def test_user_flow_with_save_password_stores_password(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test user flow with save_password=True stores password in entry data."""
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_PASSWORD: MOCK_PASSWORD,
+                CONF_SAVE_PASSWORD: True,
+            },
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "select_home"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_HOME_ID: MOCK_HOME_ID},
+            )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"][CONF_STORED_PASSWORD] == MOCK_PASSWORD
+
+    async def test_user_flow_without_save_password_excludes_password(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test user flow with save_password=False does NOT store password."""
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_PASSWORD: MOCK_PASSWORD,
+                CONF_SAVE_PASSWORD: False,
+            },
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "select_home"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_HOME_ID: MOCK_HOME_ID},
+            )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert CONF_STORED_PASSWORD not in result["data"]
+
+    async def test_user_flow_default_save_password_is_false(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test user flow without explicit save_password defaults to False."""
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_PASSWORD: MOCK_PASSWORD,
+            },
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "select_home"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {CONF_HOME_ID: MOCK_HOME_ID},
+            )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert CONF_STORED_PASSWORD not in result["data"]
+
+    async def test_reauth_with_save_password_stores_password(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reauth flow with save_password=True stores password."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await entry.start_reauth_flow(hass)
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reauth_confirm"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {
+                    CONF_EMAIL: MOCK_EMAIL,
+                    CONF_PASSWORD: MOCK_PASSWORD,
+                    CONF_SAVE_PASSWORD: True,
+                },
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reauth_successful"
+        assert entry.data.get(CONF_STORED_PASSWORD) == MOCK_PASSWORD
+
+    async def test_reauth_without_save_password_removes_stored_password(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reauth with save_password=False removes previously stored password."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+                CONF_STORED_PASSWORD: "old_password",
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await entry.start_reauth_flow(hass)
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reauth_confirm"
+
+        with patch(
+            "custom_components.kwikset.async_setup_entry",
+            return_value=True,
+        ):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"],
+                {
+                    CONF_EMAIL: MOCK_EMAIL,
+                    CONF_PASSWORD: MOCK_PASSWORD,
+                    CONF_SAVE_PASSWORD: False,
+                },
+            )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "reauth_successful"
+        assert entry.data.get(CONF_STORED_PASSWORD) == ""
+
+    async def test_reauth_shows_existing_save_password_preference(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test reauth form pre-fills save_password based on existing stored password."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ID_TOKEN: MOCK_ID_TOKEN,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+                CONF_STORED_PASSWORD: MOCK_PASSWORD,
+            },
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        result = await entry.start_reauth_flow(hass)
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "reauth_confirm"
+
+        # The schema should contain the save_password field
+        schema = result["data_schema"]
+        assert schema is not None
+        schema_keys = [str(k) for k in schema.schema]
+        assert CONF_SAVE_PASSWORD in schema_keys
+
+    async def test_user_form_contains_save_password_field(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test that the user form includes the save_password checkbox."""
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "user"
+
+        schema = result["data_schema"]
+        assert schema is not None
+        schema_keys = [str(k) for k in schema.schema]
+        assert CONF_SAVE_PASSWORD in schema_keys

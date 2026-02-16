@@ -28,6 +28,21 @@
                     "90": "mdi:battery-90",
                     "100": "mdi:battery"
                 }
+            },
+            "last_lock_event": {
+                "default": "mdi:history"
+            },
+            "last_lock_user": {
+                "default": "mdi:account"
+            },
+            "last_lock_method": {
+                "default": "mdi:cellphone-key"
+            },
+            "last_lock_category": {
+                "default": "mdi:tag"
+            },
+            "home_user_count": {
+                "default": "mdi:account-group"
             }
         },
         "switch": {

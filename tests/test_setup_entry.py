@@ -23,11 +23,14 @@ from unittest.mock import patch
 import pytest
 from aiokwikset.api import Unauthenticated
 from aiokwikset.errors import RequestError
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.kwikset import PLATFORMS
 from custom_components.kwikset import KwiksetRuntimeData
@@ -39,6 +42,7 @@ from custom_components.kwikset.const import CONF_HOME_ID
 from custom_components.kwikset.const import CONF_ID_TOKEN
 from custom_components.kwikset.const import CONF_REFRESH_INTERVAL
 from custom_components.kwikset.const import CONF_REFRESH_TOKEN
+from custom_components.kwikset.const import CONF_STORED_PASSWORD
 from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
 from custom_components.kwikset.const import DOMAIN
 
@@ -48,9 +52,11 @@ from .conftest import MOCK_DEVICE_ID_2
 from .conftest import MOCK_DEVICE_INFO
 from .conftest import MOCK_DEVICE_INFO_2
 from .conftest import MOCK_DEVICES
+from .conftest import MOCK_EMAIL
 from .conftest import MOCK_ENTRY_DATA
 from .conftest import MOCK_ENTRY_OPTIONS
 from .conftest import MOCK_HOME_ID
+from .conftest import MOCK_PASSWORD
 from .conftest import MOCK_REFRESH_TOKEN
 
 # =============================================================================
@@ -68,6 +74,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup returns True on successful initialization."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -95,6 +102,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup creates KwiksetRuntimeData with correct structure."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -126,6 +134,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup calls API authentication methods."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -155,6 +164,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup fetches devices from API."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -182,6 +192,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup creates a coordinator for each discovered device."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -227,6 +238,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup forwards all platforms."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -261,6 +273,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup registers options update listener."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -290,6 +303,7 @@ class TestAsyncSetupEntry:
     ) -> None:
         """Test setup starts periodic device discovery timer."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -329,6 +343,7 @@ class TestSetupErrorHandling:
     ) -> None:
         """Test setup raises ConfigEntryAuthFailed on authentication failure."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -348,6 +363,7 @@ class TestSetupErrorHandling:
     ) -> None:
         """Test setup raises ConfigEntryNotReady on connection failure."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -377,6 +393,7 @@ class TestSetupErrorHandling:
             version=6,
         )
         entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
 
         # Capture the token_update_callback that will be passed to API
         captured_callback = None
@@ -427,6 +444,7 @@ class TestAsyncUnloadEntry:
     ) -> None:
         """Test unload returns True on successful cleanup."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -462,6 +480,7 @@ class TestAsyncUnloadEntry:
     ) -> None:
         """Test unload cancels device discovery timer."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -504,6 +523,7 @@ class TestAsyncUnloadEntry:
     ) -> None:
         """Test unload unloads all platforms."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -553,6 +573,7 @@ class TestAsyncMigrateEntry:
         """
         # Use MagicMock for v1 migration because source code directly sets version
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.version = 1
         entry.data = {
             CONF_HOME_ID: MOCK_HOME_ID,
@@ -714,9 +735,13 @@ class TestPlatformsConstant:
         """Test PLATFORMS includes switch platform."""
         assert Platform.SWITCH in PLATFORMS
 
+    def test_platforms_contains_event(self) -> None:
+        """Test PLATFORMS includes event platform."""
+        assert Platform.EVENT in PLATFORMS
+
     def test_platforms_count(self) -> None:
-        """Test PLATFORMS has exactly 3 platforms."""
-        assert len(PLATFORMS) == 3
+        """Test PLATFORMS has exactly 4 platforms."""
+        assert len(PLATFORMS) == 4
 
 
 # =============================================================================
@@ -732,12 +757,18 @@ class TestCoordinatorInterval:
         hass: HomeAssistant,
         mock_api: MagicMock,
     ) -> None:
-        """Test coordinators use default refresh interval."""
+        """Test coordinators use default refresh interval when websocket is off."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = {}  # No custom interval
         entry.async_on_unload = MagicMock()
+
+        # Disable websocket so interval stays at user config
+        mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
+            "disabled"
+        )
 
         with (
             patch(
@@ -762,13 +793,19 @@ class TestCoordinatorInterval:
         hass: HomeAssistant,
         mock_api: MagicMock,
     ) -> None:
-        """Test coordinators use custom refresh interval from options."""
+        """Test coordinators use custom refresh interval when websocket is off."""
         custom_interval = 45
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = {CONF_REFRESH_INTERVAL: custom_interval}
         entry.async_on_unload = MagicMock()
+
+        # Disable websocket so interval stays at user config
+        mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
+            "disabled"
+        )
 
         with (
             patch(
@@ -934,10 +971,16 @@ class TestOptionsUpdateCallback:
         from custom_components.kwikset import _async_options_updated
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
+
+        # Disable websocket so polling stays at user interval
+        mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
+            "disabled"
+        )
 
         with (
             patch(
@@ -952,7 +995,9 @@ class TestOptionsUpdateCallback:
         ):
             await async_setup_entry(hass, entry)
 
-        # Verify initial interval
+        assert entry.runtime_data.websocket_subscribed is False
+
+        # Verify initial interval is the user-configured default
         for coordinator in entry.runtime_data.devices.values():
             assert coordinator.update_interval == timedelta(
                 seconds=DEFAULT_REFRESH_INTERVAL
@@ -972,6 +1017,54 @@ class TestOptionsUpdateCallback:
         for coordinator in entry.runtime_data.devices.values():
             assert coordinator.update_interval == timedelta(seconds=new_interval)
 
+    async def test_options_update_skipped_when_websocket_active(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test _async_options_updated skips interval change when websocket is active."""
+        from custom_components.kwikset import _async_options_updated
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        assert entry.runtime_data.websocket_subscribed is True
+
+        # Coordinators should be at the websocket heartbeat interval
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
+        # Change options — should be saved but not applied
+        entry.options = {CONF_REFRESH_INTERVAL: 60}
+
+        await _async_options_updated(hass, entry)
+
+        # Interval should still be the websocket heartbeat
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
     async def test_options_update_no_devices_does_nothing(
         self,
         hass: HomeAssistant,
@@ -980,7 +1073,616 @@ class TestOptionsUpdateCallback:
         from custom_components.kwikset import _async_options_updated
 
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.runtime_data = KwiksetRuntimeData(client=MagicMock())
 
         # Should not raise
         await _async_options_updated(hass, entry)
+
+
+# =============================================================================
+# Auto-Relogin with Stored Password Tests
+# =============================================================================
+
+
+class TestAutoReloginWithStoredPassword:
+    """Tests for automatic re-login when tokens expire and password is stored."""
+
+    async def test_auto_relogin_succeeds_with_stored_password(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup succeeds via auto-relogin when tokens expire and password is stored."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            data={
+                **MOCK_ENTRY_DATA,
+                CONF_STORED_PASSWORD: MOCK_PASSWORD,
+            },
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            version=6,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
+
+        # First call (authenticate_with_tokens) fails, second call (async_login) succeeds
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+        mock_api.async_login = AsyncMock()  # succeeds
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await async_setup_entry(hass, entry)
+
+        assert result is True
+        mock_api.async_login.assert_called_once_with(MOCK_EMAIL, MOCK_PASSWORD)
+
+    async def test_auto_relogin_fails_raises_auth_failed(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup raises ConfigEntryAuthFailed when auto-relogin fails."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = {
+            **MOCK_ENTRY_DATA,
+            CONF_STORED_PASSWORD: MOCK_PASSWORD,
+        }
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.title = "Test Entry"
+
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+        mock_api.async_login.side_effect = Exception("Login failed")
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await async_setup_entry(hass, entry)
+
+    async def test_no_stored_password_raises_auth_failed(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup raises ConfigEntryAuthFailed when no stored password exists."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()  # No CONF_STORED_PASSWORD
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.title = "Test Entry"
+
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await async_setup_entry(hass, entry)
+
+    async def test_auto_relogin_updates_tokens_on_success(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test auto-relogin persists new tokens after successful re-login."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            entry_id="test_entry_id",
+            data={
+                **MOCK_ENTRY_DATA,
+                CONF_STORED_PASSWORD: MOCK_PASSWORD,
+            },
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            version=6,
+        )
+        entry.add_to_hass(hass)
+        entry._async_set_state(hass, ConfigEntryState.SETUP_IN_PROGRESS, None)
+
+        mock_api.async_authenticate_with_tokens.side_effect = Unauthenticated(
+            "Token expired"
+        )
+        mock_api.async_login = AsyncMock()
+
+        # Set new token values after re-login
+        mock_api.id_token = "new_id_token"
+        mock_api.access_token = "new_access_token"
+        mock_api.refresh_token = "new_refresh_token"
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await async_setup_entry(hass, entry)
+
+        assert result is True
+        assert entry.data[CONF_ID_TOKEN] == "new_id_token"
+        assert entry.data[CONF_ACCESS_TOKEN] == "new_access_token"
+        assert entry.data[CONF_REFRESH_TOKEN] == "new_refresh_token"
+
+
+# =============================================================================
+# WebSocket Subscription Tests
+# =============================================================================
+
+
+class TestWebSocketSubscription:
+    """Tests for WebSocket real-time event subscription."""
+
+    async def test_websocket_subscription_setup(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test WebSocket subscription is set up during entry setup."""
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await async_setup_entry(hass, entry)
+
+        assert result is True
+        mock_api.subscriptions.set_callback.assert_called_once()
+        mock_api.subscriptions.async_subscribe_device.assert_called_once_with(
+            MOCK_EMAIL
+        )
+        assert entry.runtime_data.websocket_subscribed is True
+
+        # Polling should be slowed to heartbeat interval
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
+        # Disconnect/reconnect callbacks should be registered
+        mock_api.subscriptions.set_on_disconnect.assert_called_once()
+        mock_api.subscriptions.set_on_reconnect.assert_called_once()
+
+    async def test_websocket_disconnect_restores_user_polling(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test that websocket disconnect restores the user-configured polling interval."""
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Verify WS is active and polling is at heartbeat
+        assert entry.runtime_data.websocket_subscribed is True
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
+        # Simulate disconnect by calling the registered callback
+        disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
+        disconnect_cb()
+
+        # websocket_subscribed should be False and polling restored to user interval
+        assert entry.runtime_data.websocket_subscribed is False
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
+
+    async def test_websocket_reconnect_restores_heartbeat_polling(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test that websocket reconnect switches back to heartbeat polling and refreshes."""
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Simulate disconnect first
+        disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
+        disconnect_cb()
+        assert entry.runtime_data.websocket_subscribed is False
+
+        # Mock async_request_refresh on coordinators to verify catch-up refresh
+        for coordinator in entry.runtime_data.devices.values():
+            coordinator.async_request_refresh = AsyncMock()
+
+        # Simulate reconnect
+        reconnect_cb = mock_api.subscriptions.set_on_reconnect.call_args[0][0]
+        reconnect_cb()
+
+        # websocket_subscribed should be True, polling at heartbeat, and refresh scheduled
+        assert entry.runtime_data.websocket_subscribed is True
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
+            )
+
+        # Give the event loop a chance to run the async_create_task calls
+        await hass.async_block_till_done()
+
+        for coordinator in entry.runtime_data.devices.values():
+            coordinator.async_request_refresh.assert_awaited_once()
+
+    async def test_websocket_disconnect_ignored_when_already_disconnected(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test that a duplicate disconnect callback is a no-op."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        # Disable websocket so subscription fails
+        mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
+            "disabled"
+        )
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        assert entry.runtime_data.websocket_subscribed is False
+
+        # Calling disconnect callback when already disconnected should be a no-op
+        disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
+        disconnect_cb()
+
+        # Should still be False, no crash
+        assert entry.runtime_data.websocket_subscribed is False
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
+
+    async def test_websocket_subscription_failure_falls_back_to_polling(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup succeeds even if WebSocket subscription fails."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        # Make subscription fail
+        mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
+            "WebSocket connection failed"
+        )
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await async_setup_entry(hass, entry)
+
+        # Setup should still succeed (polling fallback)
+        assert result is True
+        # WebSocket should not be marked as subscribed since subscription failed
+        assert entry.runtime_data.websocket_subscribed is False
+
+        # Polling interval should remain at user-configured value
+        for coordinator in entry.runtime_data.devices.values():
+            assert coordinator.update_interval == timedelta(
+                seconds=DEFAULT_REFRESH_INTERVAL
+            )
+
+    async def test_websocket_unsubscribe_on_unload(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test WebSocket subscription is cancelled during unload."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Verify subscription was set up
+        assert entry.runtime_data.websocket_subscribed is True
+
+        # Unload
+        with patch.object(
+            hass.config_entries, "async_unload_platforms", new_callable=AsyncMock
+        ) as mock_unload:
+            mock_unload.return_value = True
+            await async_unload_entry(hass, entry)
+
+        assert entry.runtime_data.websocket_subscribed is False
+        mock_api.subscriptions.async_unsubscribe.assert_awaited_once()
+
+    async def test_websocket_event_unknown_event_name(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Verify that events with a name other than onManageDevice are ignored."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        # Capture the callback registered with set_callback
+        callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
+
+        # Record coordinator data before the event
+        coordinator = entry.runtime_data.devices[MOCK_DEVICE_ID]
+        original_status = coordinator.data["door_status"]
+
+        # Send event with unknown name — should be silently ignored
+        callback_fn(
+            "unknownEvent",
+            {"unknownEvent": {"deviceid": MOCK_DEVICE_ID, "devicestatus": "Unlocked"}},
+        )
+
+        # Coordinator data should NOT have changed
+        assert coordinator.data["door_status"] == original_status
+
+    async def test_websocket_event_missing_device_id(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Verify that onManageDevice events without deviceid are handled gracefully."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
+
+        coordinator = entry.runtime_data.devices[MOCK_DEVICE_ID]
+        original_status = coordinator.data["door_status"]
+
+        # Send onManageDevice event WITHOUT deviceid — should be ignored
+        callback_fn(
+            "onManageDevice",
+            {"onManageDevice": {"devicestatus": "Unlocked"}},
+        )
+
+        assert coordinator.data["door_status"] == original_status
+
+    async def test_websocket_event_unknown_device_id(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Verify that events for an unknown device_id are handled gracefully."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
+
+        # Send event for a device_id not in the coordinator dict — should be ignored
+        callback_fn(
+            "onManageDevice",
+            {
+                "onManageDevice": {
+                    "deviceid": "nonexistent_device",
+                    "devicestatus": "Unlocked",
+                }
+            },
+        )
+
+        # No coordinator should have been updated (existing ones unchanged)
+        coordinator = entry.runtime_data.devices[MOCK_DEVICE_ID]
+        assert coordinator.data["door_status"] == "Locked"
+
+    async def test_websocket_event_nested_payload_unwrapped(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test real websocket payload with nested onManageDevice dict is unwrapped."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+
+        with (
+            patch(
+                "custom_components.kwikset.async_track_time_interval",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                hass.config_entries,
+                "async_forward_entry_setups",
+                new_callable=AsyncMock,
+            ),
+        ):
+            await async_setup_entry(hass, entry)
+
+        callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
+        coordinator = entry.runtime_data.devices[MOCK_DEVICE_ID]
+
+        # Real-world payload format: fields nested under event name key
+        callback_fn(
+            "onManageDevice",
+            {
+                "onManageDevice": {
+                    "deviceid": MOCK_DEVICE_ID,
+                    "devicestatus": "Unlocked",
+                    "batterypercentage": None,
+                    "audiostatus": "false",
+                    "ledstatus": None,
+                    "securescreenstatus": "true",
+                }
+            },
+        )
+
+        # devicestatus should be applied
+        assert coordinator.data["door_status"] == "Unlocked"
+        # None battery should NOT overwrite existing value
+        assert coordinator.data["battery_percentage"] == 85
+        # audiostatus "false" should be applied
+        assert coordinator.data["audio_status"] is False
+        # None ledstatus should NOT overwrite existing value
+        assert coordinator.data["led_status"] is True
+        # securescreenstatus "true" should be applied
+        assert coordinator.data["secure_screen_status"] is True
+
+        # Let the async_create_task from handle_realtime_event run so that
+        # async_request_refresh() executes and the debouncer timer is created.
+        await hass.async_block_till_done()
+
+        # Flush the debouncer timer created by the history refresh request
+        # triggered by the door status change (Locked → Unlocked).
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=15))
+        await hass.async_block_till_done()

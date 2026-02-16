@@ -1,5 +1,345 @@
 {
     "title": "Kwikset Smart Locks",
+    "services": {
+        "create_access_code": {
+            "name": "Create access code",
+            "description": "Create a new access code on a Kwikset smart lock.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device to create the access code on."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "A 4 to 8 digit numeric access code."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "A friendly name for the access code (e.g., 'Dog Walker')."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "Slot index on the lock (0 = auto-assign next available). Range: 0-255."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "When the code is active: all_day (always), date_range, weekly, one_time_unlimited, one_time_24_hour."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time for date_range or weekly schedules (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time for date_range or weekly schedules (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date for date_range schedule (YYYY-MM-DD format)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date for date_range schedule (YYYY-MM-DD format)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days for weekly schedule (e.g., monday, wednesday, friday)."
+                }
+            }
+        },
+        "edit_access_code": {
+            "name": "Edit access code",
+            "description": "Edit an existing access code on a Kwikset smart lock.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "The updated numeric access code (4-8 digits)."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "The updated friendly name for the access code."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "The slot index the code occupies on the lock (0-255)."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "The updated schedule type for the access code."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date (YYYY-MM-DD)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days for weekly schedule."
+                }
+            }
+        },
+        "disable_access_code": {
+            "name": "Disable access code",
+            "description": "Disable an existing access code on a Kwikset smart lock by slot number. If the code was created through Home Assistant, stored details are used automatically. For codes created outside HA, provide code, name, and schedule_type.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "The slot index the code occupies on the lock (0-255)."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "Optional. The numeric access code. Required only if the code was not created through Home Assistant."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "Optional. Override the stored friendly name."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "Optional. Override the stored schedule type."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date (YYYY-MM-DD)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days for weekly schedule."
+                }
+            }
+        },
+        "enable_access_code": {
+            "name": "Enable access code",
+            "description": "Re-enable a previously disabled access code on a Kwikset smart lock by slot number. If the code was created through Home Assistant, stored details are used automatically. For codes created outside HA, provide code, name, and schedule_type.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "Slot index (0-255)."
+                },
+                "code": {
+                    "name": "Code",
+                    "description": "Optional. The numeric access code. Required only if the code was not created through Home Assistant."
+                },
+                "name": {
+                    "name": "Name",
+                    "description": "Optional. Override the stored friendly name."
+                },
+                "schedule_type": {
+                    "name": "Schedule type",
+                    "description": "Optional. Override the stored schedule type."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Start time (HH:MM format)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "End time (HH:MM format)."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date (YYYY-MM-DD)."
+                },
+                "days_of_week": {
+                    "name": "Days of week",
+                    "description": "Active days."
+                }
+            }
+        },
+        "delete_access_code": {
+            "name": "Delete access code",
+            "description": "Delete a specific access code from a Kwikset smart lock by its slot number.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "slot": {
+                    "name": "Slot",
+                    "description": "Slot index of the access code to delete (0-255)."
+                }
+            }
+        },
+        "delete_all_access_codes": {
+            "name": "Delete all access codes",
+            "description": "Delete all access codes from a Kwikset smart lock. This action cannot be undone.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                }
+            }
+        },
+        "list_access_codes": {
+            "name": "List access codes",
+            "description": "List all known access codes on a Kwikset smart lock, including codes managed through Home Assistant and codes detected from the lock.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                }
+            }
+        },
+        "invite_user": {
+            "name": "Invite user",
+            "description": "Invite a new user to your Kwikset home with a specified access level.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                },
+                "email": {
+                    "name": "Email",
+                    "description": "Email address of the user to invite."
+                },
+                "access_level": {
+                    "name": "Access level",
+                    "description": "Access level for the user: Member or Admin."
+                },
+                "nickname": {
+                    "name": "Nickname",
+                    "description": "A friendly name for the invited user."
+                },
+                "allowed_devices": {
+                    "name": "Allowed devices",
+                    "description": "The Kwikset lock devices the user is allowed to access."
+                },
+                "access_time_type": {
+                    "name": "Access time type",
+                    "description": "Type of time-based access restriction: date_range for a fixed period, or weekly for a recurring schedule."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date for date range access (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date for date range access (YYYY-MM-DD)."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Daily start time for weekly access (HH:MM:SS)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "Daily end time for weekly access (HH:MM:SS)."
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Days of the week for weekly access (e.g., Mon, Tue, Wed)."
+                }
+            }
+        },
+        "update_user": {
+            "name": "Update user",
+            "description": "Update an existing user's access level or permissions in your Kwikset home.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                },
+                "email": {
+                    "name": "Email",
+                    "description": "Email address of the user to update."
+                },
+                "access_level": {
+                    "name": "Access level",
+                    "description": "Updated access level: Member or Admin."
+                },
+                "allowed_devices": {
+                    "name": "Allowed devices",
+                    "description": "The Kwikset lock devices the user is allowed to access."
+                },
+                "access_time_type": {
+                    "name": "Access time type",
+                    "description": "Type of time-based access restriction: date_range for a fixed period, or weekly for a recurring schedule."
+                },
+                "start_date": {
+                    "name": "Start date",
+                    "description": "Start date for date range access (YYYY-MM-DD)."
+                },
+                "end_date": {
+                    "name": "End date",
+                    "description": "End date for date range access (YYYY-MM-DD)."
+                },
+                "start_time": {
+                    "name": "Start time",
+                    "description": "Daily start time for weekly access (HH:MM:SS)."
+                },
+                "end_time": {
+                    "name": "End time",
+                    "description": "Daily end time for weekly access (HH:MM:SS)."
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Days of the week for weekly access (e.g., Mon, Tue, Wed)."
+                }
+            }
+        },
+        "delete_user": {
+            "name": "Delete user",
+            "description": "Remove a user from your Kwikset home.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                },
+                "email": {
+                    "name": "Email",
+                    "description": "Email address of the user to remove."
+                }
+            }
+        },
+        "list_users": {
+            "name": "List users",
+            "description": "List all users who have access to your Kwikset home.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Config entry",
+                    "description": "The Kwikset integration config entry for the home."
+                }
+            }
+        }
+    },
     "config": {
         "step": {
             "user": {
@@ -7,11 +347,13 @@
                 "description": "Geben Sie Ihre Kwikset-Kontodaten ein, um Ihre Smart Locks zu verbinden.",
                 "data": {
                     "email": "E-Mail",
-                    "password": "Passwort"
+                    "password": "Passwort",
+                    "save_password": "Passwort für automatische Reauthentifizierung speichern"
                 },
                 "data_description": {
                     "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
-                    "password": "Ihr Kwikset-Kontopasswort"
+                    "password": "Ihr Kwikset-Kontopasswort",
+                    "save_password": "Wenn aktiviert, wird Ihr Passwort gespeichert, um sich automatisch erneut zu authentifizieren, wenn Ihre Sitzung abläuft. Andernfalls müssen Sie sich manuell erneut authentifizieren."
                 }
             },
             "select_home": {
@@ -29,17 +371,28 @@
                 "description": "Die Kwikset-Integration muss Ihr Konto erneut authentifizieren. Bitte geben Sie Ihre Anmeldedaten ein.",
                 "data": {
                     "email": "E-Mail",
-                    "password": "Passwort"
+                    "password": "Passwort",
+                    "save_password": "Passwort für automatische Reauthentifizierung speichern"
                 },
                 "data_description": {
                     "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
-                    "password": "Ihr Kwikset-Kontopasswort"
+                    "password": "Ihr Kwikset-Kontopasswort",
+                    "save_password": "Wenn aktiviert, wird Ihr Passwort gespeichert, um sich automatisch erneut zu authentifizieren, wenn Ihre Sitzung abläuft. Andernfalls müssen Sie sich manuell erneut authentifizieren."
                 }
             },
             "reconfigure": {
                 "title": "Kwikset neu konfigurieren",
-                "description": "Dadurch wird die Integration neu geladen und alle neuen Geräte entdeckt, die zu Ihrem Kwikset-Zuhause hinzugefügt wurden.",
-                "submit": "Integration neu laden"
+                "description": "Geben Sie Ihre Kwikset-Kontodaten ein, um die Authentifizierung zu aktualisieren und neue Geräte zu entdecken.",
+                "data": {
+                    "email": "E-Mail",
+                    "password": "Passwort",
+                    "save_password": "Passwort für automatische Reauthentifizierung speichern"
+                },
+                "data_description": {
+                    "email": "Die E-Mail-Adresse für Ihr Kwikset-Konto",
+                    "password": "Ihr Kwikset-Kontopasswort",
+                    "save_password": "Wenn aktiviert, wird Ihr Passwort gespeichert, um sich automatisch erneut zu authentifizieren, wenn Ihre Sitzung abläuft. Andernfalls müssen Sie sich manuell erneut authentifizieren."
+                }
             },
             "mfa": {
                 "title": "Multi-Faktor-Authentifizierung",
@@ -72,6 +425,26 @@
                 }
             },
             "custom_challenge_delivery_reauth": {
+                "title": "Verification Code Delivery",
+                "description": "Choose how you would like to receive your verification code.",
+                "data": {
+                    "delivery_method": "Delivery method"
+                },
+                "data_description": {
+                    "delivery_method": "Select whether to receive the code via email or SMS"
+                }
+            },
+            "mfa_reconfigure": {
+                "title": "Multi-Faktor-Authentifizierung",
+                "description": "Geben Sie den Bestätigungscode von Ihrer {mfa_type} ein, um die Neukonfiguration abzuschließen.",
+                "data": {
+                    "mfa_code": "Bestätigungscode"
+                },
+                "data_description": {
+                    "mfa_code": "Der 6-stellige Code, der an Ihr Gerät gesendet wurde"
+                }
+            },
+            "custom_challenge_delivery_reconfigure": {
                 "title": "Verification Code Delivery",
                 "description": "Choose how you would like to receive your verification code.",
                 "data": {
@@ -115,6 +488,20 @@
         }
     },
     "entity": {
+        "event": {
+            "lock_event": {
+                "name": "Schloss-Ereignis",
+                "state_attributes": {
+                    "event_type": {
+                        "state": {
+                            "locked": "Gesperrt",
+                            "unlocked": "Entsperrt",
+                            "jammed": "Blockiert"
+                        }
+                    }
+                }
+            }
+        },
         "lock": {
             "lock": {
                 "name": "Schloss",
@@ -130,6 +517,24 @@
         "sensor": {
             "battery": {
                 "name": "Batterie"
+            },
+            "last_lock_event": {
+                "name": "Last Lock Event"
+            },
+            "access_code_count": {
+                "name": "Access Code Count"
+            },
+            "last_lock_user": {
+                "name": "Last Lock User"
+            },
+            "last_lock_method": {
+                "name": "Last Lock Method"
+            },
+            "last_lock_category": {
+                "name": "Last Lock Category"
+            },
+            "home_user_count": {
+                "name": "Home user count"
             }
         },
         "switch": {
@@ -171,6 +576,72 @@
         },
         "api_error": {
             "message": "Bei der Kommunikation mit dem Kwikset-Dienst ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut."
+        },
+        "websocket_subscription_failed": {
+            "message": "Real-time event subscription failed for {email}. Falling back to polling."
+        },
+        "edit_access_code_failed": {
+            "message": "Failed to edit access code on the lock. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "create_access_code_failed": {
+            "message": "Failed to create access code on the lock. The device may be offline or the code may be invalid. Please try again."
+        },
+        "disable_access_code_failed": {
+            "message": "Failed to disable access code. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "enable_access_code_failed": {
+            "message": "Failed to enable access code. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "delete_access_code_failed": {
+            "message": "Failed to delete access code. The device may be offline or the slot may be invalid. Please try again."
+        },
+        "delete_all_access_codes_failed": {
+            "message": "Failed to delete all access codes. The device may be offline. Please try again."
+        },
+        "device_not_found": {
+            "message": "Device not found: {device_id}. Please verify the device ID is correct."
+        },
+        "device_not_kwikset": {
+            "message": "Device {device_id} is not a Kwikset lock device."
+        },
+        "device_not_loaded": {
+            "message": "Device {device_id} is not currently loaded. The integration may need to be reloaded."
+        },
+        "invalid_schedule_params": {
+            "message": "Invalid schedule parameters. Date range schedules require start_date and end_date. Weekly schedules require days_of_week."
+        },
+        "access_code_not_tracked": {
+            "message": "Access code at slot {slot} was not created through Home Assistant and no code was provided. Provide the code, name, and schedule_type fields to disable or enable codes not managed by HA."
+        },
+        "cannot_delete_last_access_code": {
+            "message": "Der letzte Zugangscode kann nicht gelöscht werden. Jedes Schloss muss mindestens einen Zugangscode haben. Fügen Sie einen weiteren Code hinzu, bevor Sie diesen löschen."
+        },
+        "cannot_delete_all_access_codes": {
+            "message": "Alle Zugangscodes können nicht gelöscht werden. Jedes Schloss muss mindestens einen Zugangscode haben. Verwenden Sie den Dienst zum Löschen einzelner Zugangscodes."
+        },
+        "invite_user_failed": {
+            "message": "Failed to invite user. Please check the email address and try again."
+        },
+        "update_user_failed": {
+            "message": "Failed to update user. The user may not exist or there may be a connectivity issue. Please try again."
+        },
+        "delete_user_failed": {
+            "message": "Failed to remove user. The user may not exist or there may be a connectivity issue. Please try again."
+        },
+        "list_users_failed": {
+            "message": "Failed to retrieve user list. Please check your connection and try again."
+        },
+        "config_entry_not_found": {
+            "message": "Config entry not found. Please verify the config entry ID is correct."
+        },
+        "config_entry_not_loaded": {
+            "message": "Config entry is not loaded. The integration may need to be reloaded."
+        },
+        "missing_date_range_fields": {
+            "message": "Date range access requires both start_date and end_date to be provided."
+        },
+        "missing_weekly_fields": {
+            "message": "Weekly access requires start_time, end_time, and days to be provided."
         }
     },
     "issues": {

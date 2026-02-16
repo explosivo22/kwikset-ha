@@ -83,8 +83,10 @@ indent-style = "space"
 python_version = "3.12"
 # Enable strict optional checking
 strict_optional = true
-# Warn about unused ignores
-warn_unused_ignores = true
+# Warn about unused ignores — disabled because aiokwikset's type stubs
+# differ between local dev (full stubs) and CI (partial stubs), making
+# type: ignore comments needed in one environment but unused in the other.
+warn_unused_ignores = false
 # Warn about redundant casts
 warn_redundant_casts = true
 # Warn about missing return statements

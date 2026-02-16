@@ -33,7 +33,6 @@ from custom_components.kwikset import async_unload_entry
 from custom_components.kwikset.const import CONF_ACCESS_TOKEN
 from custom_components.kwikset.const import CONF_HOME_ID
 from custom_components.kwikset.const import CONF_REFRESH_TOKEN
-from custom_components.kwikset.const import DEFAULT_REFRESH_INTERVAL
 from custom_components.kwikset.const import DOMAIN
 
 from .conftest import MOCK_ACCESS_TOKEN
@@ -62,6 +61,7 @@ class TestEntrySetup:
     ) -> None:
         """Test successful entry setup creates runtime data and platforms."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -143,6 +143,7 @@ class TestEntrySetup:
     ) -> None:
         """Test authentication failure raises ConfigEntryAuthFailed."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -162,6 +163,7 @@ class TestEntrySetup:
     ) -> None:
         """Test connection failure raises ConfigEntryNotReady."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -244,6 +246,7 @@ class TestEntryUnload:
     ) -> None:
         """Test successful entry unload."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -279,6 +282,7 @@ class TestEntryUnload:
     ) -> None:
         """Test unload cancels device discovery timer."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -442,7 +446,10 @@ class TestOptionsUpdate:
         mock_api: MagicMock,
     ) -> None:
         """Test options update changes coordinator polling interval."""
+        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
+
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
@@ -461,10 +468,10 @@ class TestOptionsUpdate:
         ):
             await async_setup_entry(hass, entry)
 
-        # Verify initial interval
+        # With websocket active, polling is at the heartbeat interval
         for coordinator in entry.runtime_data.devices.values():
             assert coordinator.update_interval == timedelta(
-                seconds=DEFAULT_REFRESH_INTERVAL
+                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
             )
 
 
@@ -483,6 +490,7 @@ class TestPlatformSetup:
     ) -> None:
         """Test all platforms are forwarded during setup."""
         entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
