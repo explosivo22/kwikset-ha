@@ -437,17 +437,91 @@ class TestKwiksetLockOptimisticTimeout:
         # Check timer was NOT scheduled
         mock_loop.call_later.assert_not_called()
 
-    def test_coordinator_update_resets_optimistic_state(
+    def test_coordinator_update_resets_optimistic_state_when_expected_state_reached(
         self, lock_module, mock_coordinator: MagicMock
     ) -> None:
-        """Test coordinator update resets is_locking/is_unlocking to False."""
+        """Test coordinator update resets is_locking when status becomes Locked.
+
+        Issue #118: Optimistic state should only reset when the expected state
+        is confirmed, not on every coordinator update.
+        """
         lock = lock_module.KwiksetLock(mock_coordinator)
         # Mock hass and async_write_ha_state to avoid RuntimeError
         lock.hass = MagicMock()
         lock.async_write_ha_state = MagicMock()
 
-        # Simulate optimistic state being set
+        # Simulate optimistic state being set (locking only)
         lock._attr_is_locking = True
+        lock._attr_is_unlocking = False
+
+        # Create a mock timer
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Coordinator status is "Locked" (expected state reached)
+        # Trigger coordinator update
+        lock._handle_coordinator_update()
+
+        # Check optimistic state was reset because expected state was reached
+        assert lock._attr_is_locking is False
+        assert lock._attr_is_unlocking is False
+
+        # Check timer was cancelled
+        mock_timer.cancel.assert_called_once()
+        assert lock._optimistic_timer is None
+
+    def test_coordinator_update_preserves_optimistic_locking_on_stale_unlocked(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test coordinator update preserves is_locking when status is still Unlocked.
+
+        Issue #118: When a user locks, a stale poll might return "Unlocked"
+        before the API reflects the new state. The optimistic "locking" state
+        should be preserved until "Locked" is confirmed.
+        """
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # Simulate user triggered lock - optimistic state is locking
+        lock._attr_is_locking = True
+        lock._attr_is_unlocking = False
+
+        # Create a mock timer
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Coordinator status is "Unlocked" (stale data)
+        # Trigger coordinator update
+        lock._handle_coordinator_update()
+
+        # Check optimistic state is PRESERVED (not reset)
+        assert lock._attr_is_locking is True
+        assert lock._attr_is_unlocking is False
+
+        # Check timer was NOT cancelled
+        mock_timer.cancel.assert_not_called()
+        assert lock._optimistic_timer is mock_timer
+
+    def test_coordinator_update_preserves_optimistic_unlocking_on_stale_locked(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test coordinator update preserves is_unlocking when status is still Locked.
+
+        Issue #118: When a user unlocks, a stale poll might return "Locked"
+        before the API reflects the new state. The optimistic "unlocking" state
+        should be preserved until "Unlocked" is confirmed.
+        """
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # Simulate user triggered unlock - optimistic state is unlocking
+        lock._attr_is_locking = False
         lock._attr_is_unlocking = True
 
         # Create a mock timer
@@ -455,10 +529,41 @@ class TestKwiksetLockOptimisticTimeout:
         mock_timer.cancelled.return_value = False
         lock._optimistic_timer = mock_timer
 
+        # Coordinator status is "Locked" (stale data)
         # Trigger coordinator update
         lock._handle_coordinator_update()
 
-        # Check optimistic state was reset
+        # Check optimistic state is PRESERVED (not reset)
+        assert lock._attr_is_locking is False
+        assert lock._attr_is_unlocking is True
+
+        # Check timer was NOT cancelled
+        mock_timer.cancel.assert_not_called()
+        assert lock._optimistic_timer is mock_timer
+
+    def test_coordinator_update_resets_unlocking_when_unlocked(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test coordinator update resets is_unlocking when status becomes Unlocked."""
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        # Mock hass and async_write_ha_state to avoid RuntimeError
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # Simulate optimistic state being set (unlocking only)
+        lock._attr_is_locking = False
+        lock._attr_is_unlocking = True
+
+        # Create a mock timer
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Coordinator status is "Unlocked" (expected state reached)
+        # Trigger coordinator update
+        lock._handle_coordinator_update()
+
+        # Check optimistic state was reset because expected state was reached
         assert lock._attr_is_locking is False
         assert lock._attr_is_unlocking is False
 
