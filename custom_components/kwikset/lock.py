@@ -150,11 +150,30 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator.
 
-        When the coordinator provides new data, reset any optimistic state
-        since we now have the actual state from the device.
+        Only reset optimistic state when the expected state is confirmed.
+        This prevents race conditions where a stale poll update arrives
+        before the lock/unlock action is reflected in the API, which would
+        cause the state to briefly show the old state (issue #118).
+
+        - If is_locking is True, only reset when status is "locked"
+        - If is_unlocking is True, only reset when status is "unlocked"
+        - Otherwise, keep the optimistic state until timeout or confirmation
         """
-        # Reset optimistic state without writing (we'll write below)
-        self._reset_optimistic_state(write_state=False)
+        status = self.coordinator.status
+        normalized = _normalize_status(status)
+
+        # Only reset optimistic state when the expected state is confirmed
+        if self._attr_is_locking and normalized == _STATUS_LOCKED:
+            # Lock confirmed - reset optimistic state
+            self._reset_optimistic_state(write_state=False)
+        elif self._attr_is_unlocking and normalized == _STATUS_UNLOCKED:
+            # Unlock confirmed - reset optimistic state
+            self._reset_optimistic_state(write_state=False)
+        elif not self._attr_is_locking and not self._attr_is_unlocking:
+            # No optimistic state active - ensure it's reset
+            self._reset_optimistic_state(write_state=False)
+        # else: Keep optimistic state - waiting for expected state confirmation
+
         self._update_lock_state()
         super()._handle_coordinator_update()
 
