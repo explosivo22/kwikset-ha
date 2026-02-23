@@ -907,6 +907,9 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        # History is skipped on first refresh to speed up startup;
+        # a subsequent refresh fetches it.
+        await coordinator.async_refresh()
 
         assert len(coordinator.history_events) == 2
         assert coordinator.history_events[0]["event"] == "Locked"
@@ -932,6 +935,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert coordinator.last_event == "Locked"
 
@@ -956,6 +960,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert coordinator.last_event_user == "John Doe"
 
@@ -980,6 +985,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert coordinator.last_event_type == "Mobile ( WiFi, LTE, ETC)"
 
@@ -1004,6 +1010,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert coordinator.last_event_timestamp == 1770928208
 
@@ -1028,6 +1035,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert coordinator.last_event_category == "Lock Mechanism"
 
@@ -1052,6 +1060,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert coordinator.total_events == 2
 
@@ -1137,17 +1146,21 @@ class TestHistoryProperties:
             config_entry=mock_config_entry,
         )
 
-        # First refresh succeeds — populates cache
+        # First refresh skips history; second refresh populates cache
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
         assert len(coordinator.history_events) == 2
 
-        # Now make history time out
+        # Now make history time out (use short sleep; patch timeout to 0.1s)
         async def _slow_history(*args: object, **kwargs: object) -> None:
-            await asyncio.sleep(60)
+            await asyncio.sleep(5)
 
         api.device.get_device_history = _slow_history
 
-        await coordinator.async_refresh()
+        with patch(
+            "custom_components.kwikset.device.HISTORY_FETCH_TIMEOUT_SECONDS", 0.1
+        ):
+            await coordinator.async_refresh()
 
         # Core data still refreshed, history preserved from cache
         assert coordinator.data["door_status"] == "Locked"
@@ -1173,8 +1186,9 @@ class TestHistoryProperties:
             config_entry=mock_config_entry,
         )
 
-        # First refresh succeeds
+        # First refresh skips history; second refresh populates cache
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
         assert len(coordinator.history_events) == 2
 
         # Subsequent history fetch raises RequestError (e.g. 504)
@@ -1211,7 +1225,9 @@ class TestHistoryProperties:
             config_entry=mock_config_entry,
         )
 
+        # First refresh skips history; trigger a second refresh to exercise retries
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         # History should be called exactly HISTORY_MAX_RETRY_ATTEMPTS times
         assert history_mock.call_count == HISTORY_MAX_RETRY_ATTEMPTS
@@ -1237,6 +1253,7 @@ class TestHistoryProperties:
         )
 
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
         assert "history_events" in coordinator.data
         assert len(coordinator.data["history_events"]) == 2

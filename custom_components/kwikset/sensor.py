@@ -60,6 +60,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import CONF_HOME_ID
 from .const import DOMAIN
@@ -404,11 +405,15 @@ class KwiksetSensor(KwiksetEntity, SensorEntity):
         super()._handle_coordinator_update()
 
 
-class KwiksetHistorySensor(KwiksetEntity, SensorEntity):
+class KwiksetHistorySensor(KwiksetEntity, SensorEntity, RestoreEntity):
     """History sensor entity for Kwikset smart locks.
 
     Shows the last lock event (e.g., "Locked", "Unlocked", "Jammed") as
     its state with extra attributes for event details.
+
+    Uses RestoreEntity to restore the previous state on startup so that
+    history sensors do not spuriously transition from unknown to their
+    real value when history data arrives on the second poll cycle.
 
     Extra State Attributes:
         user: Name of user who triggered the event
@@ -419,7 +424,7 @@ class KwiksetHistorySensor(KwiksetEntity, SensorEntity):
         total_events: Number of events fetched in the last poll
     """
 
-    __slots__ = ()
+    __slots__ = ("_history_loaded", "_restored_attrs")
 
     entity_description: KwiksetHistorySensorEntityDescription
 
@@ -437,17 +442,65 @@ class KwiksetHistorySensor(KwiksetEntity, SensorEntity):
         """
         self.entity_description = description
         super().__init__(description.key, coordinator)
-        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        # Track whether history data has been received from the API.
+        # Until it has, we preserve the restored state from RestoreEntity.
+        self._history_loaded = bool(coordinator.history_events)
+        self._restored_attrs: dict[str, Any] | None = None
+        if self._history_loaded:
+            self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+
+    async def async_added_to_hass(self) -> None:
+        """Restore previous state when entity is added to HA.
+
+        On startup, history is not fetched during the first coordinator
+        refresh (to speed up integration loading).  Restoring the
+        previous state AND extra attributes avoids spurious state_changed
+        events when history data arrives on the next poll cycle.
+        """
+        await super().async_added_to_hass()
+        if (
+            not self._history_loaded
+            and (last_state := await self.async_get_last_state()) is not None
+            and last_state.state not in ("unknown", "unavailable")
+        ):
+            self._attr_native_value = last_state.state
+            # Cache the restored extra attributes so they are returned
+            # by extra_state_attributes until live history arrives.
+            # Filter out HA-internal keys that shouldn't be re-emitted.
+            self._restored_attrs = {
+                k: v
+                for k, v in last_state.attributes.items()
+                if k
+                not in (
+                    "friendly_name",
+                    "device_class",
+                    "icon",
+                    "unit_of_measurement",
+                    "state_class",
+                )
+            }
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return extra state attributes for the history sensor."""
+        """Return extra state attributes for the history sensor.
+
+        Before history data has been fetched from the API, return the
+        cached attributes restored from the previous HA run to prevent
+        spurious state_changed events.
+        """
+        if not self._history_loaded and self._restored_attrs is not None:
+            return self._restored_attrs
         return self.entity_description.attrs_fn(self.coordinator)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        if not self._history_loaded and self.coordinator.history_events:
+            self._history_loaded = True
+            self._restored_attrs = None  # drop cache, use live data
+        if self._history_loaded:
+            self._attr_native_value = self.entity_description.value_fn(self.coordinator)
+        # else: keep restored/None value — history hasn't arrived yet
         super()._handle_coordinator_update()
 
 

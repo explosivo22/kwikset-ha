@@ -166,26 +166,36 @@ class KwiksetLockEvent(KwiksetEntity, EventEntity):
         latest_id = latest.get("id")
 
         if latest_id != self._last_event_id:
-            # New event detected — map API event name to our event type
-            raw_event = latest.get("event", "")
-            event_type = _EVENT_MAP.get(raw_event, EVENT_LOCKED)
+            if self._last_event_id == _UNSET_EVENT_ID:
+                # First time history data arrived after startup — seed
+                # the event ID without firing to avoid spurious events
+                # for stale historical data.
+                LOGGER.debug(
+                    "Seeding initial event ID for %s: %s (not firing)",
+                    self.coordinator.device_name,
+                    latest_id,
+                )
+            else:
+                # New event detected — map API event name to our event type
+                raw_event = latest.get("event", "")
+                event_type = _EVENT_MAP.get(raw_event, EVENT_LOCKED)
 
-            self._trigger_event(
-                event_type,
-                {
-                    "user": latest.get("user"),
-                    "event_type": latest.get("eventtype"),
-                    "timestamp": latest.get("timestamp"),
-                    "event_category": latest.get("eventcategory"),
-                    "device_name": latest.get("devicename"),
-                },
-            )
-            LOGGER.debug(
-                "Lock event fired for %s: %s by %s",
-                self.coordinator.device_name,
-                event_type,
-                latest.get("user"),
-            )
+                self._trigger_event(
+                    event_type,
+                    {
+                        "user": latest.get("user"),
+                        "event_type": latest.get("eventtype"),
+                        "timestamp": latest.get("timestamp"),
+                        "event_category": latest.get("eventcategory"),
+                        "device_name": latest.get("devicename"),
+                    },
+                )
+                LOGGER.debug(
+                    "Lock event fired for %s: %s by %s",
+                    self.coordinator.device_name,
+                    event_type,
+                    latest.get("user"),
+                )
 
         self._last_event_id = latest_id
         super()._handle_coordinator_update()

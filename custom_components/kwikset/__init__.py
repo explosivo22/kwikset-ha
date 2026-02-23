@@ -489,8 +489,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
         DEVICE_DISCOVERY_INTERVAL,
     )
 
-    # Set up real-time websocket subscription
-    await _async_setup_websocket(hass, entry)
+    # Set up real-time websocket subscription in the background so it
+    # does not block HA startup.  The integration is fully functional with
+    # polling alone; the websocket is an optional real-time enhancement.
+    entry.async_create_background_task(
+        hass,
+        _async_setup_websocket(hass, entry),
+        name=f"kwikset_websocket_setup_{entry.entry_id}",
+    )
 
     return True
 

@@ -46,6 +46,21 @@ from .conftest import MOCK_ENTRY_OPTIONS
 from .conftest import MOCK_HOME_ID
 from .conftest import MOCK_REFRESH_TOKEN
 
+
+@pytest.fixture(autouse=True)
+def _patch_websocket_setup():
+    """Patch websocket setup in all e2e tests.
+
+    The websocket setup is now a background task; patching it avoids
+    'coroutine never awaited' warnings from mocked entries.
+    """
+    with patch(
+        "custom_components.kwikset._async_setup_websocket",
+        new_callable=AsyncMock,
+    ):
+        yield
+
+
 # =============================================================================
 # Entry Setup Tests
 # =============================================================================
@@ -446,8 +461,6 @@ class TestOptionsUpdate:
         mock_api: MagicMock,
     ) -> None:
         """Test options update changes coordinator polling interval."""
-        from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
-
         entry = MagicMock()
         entry.state = ConfigEntryState.SETUP_IN_PROGRESS
         entry.entry_id = "test_entry_id"
@@ -468,11 +481,11 @@ class TestOptionsUpdate:
         ):
             await async_setup_entry(hass, entry)
 
-        # With websocket active, polling is at the heartbeat interval
+        # Websocket setup now runs as a background task; immediately after
+        # setup the coordinators use the user-configured polling interval.
+        configured_interval = MOCK_ENTRY_OPTIONS.get("refresh_interval", 30)
         for coordinator in entry.runtime_data.devices.values():
-            assert coordinator.update_interval == timedelta(
-                seconds=WEBSOCKET_FALLBACK_POLL_INTERVAL
-            )
+            assert coordinator.update_interval == timedelta(seconds=configured_interval)
 
 
 # =============================================================================
