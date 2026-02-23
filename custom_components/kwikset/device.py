@@ -156,6 +156,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self._access_code_store_data: dict[str, dict[str, Any]] = access_code_data or {}
         self._device_reported_slots: dict[int, AccessCodeSlotData] = {}
         self._first_refresh_done: bool = False
+        self._preserve_door_status: bool = False
 
     # -------------------------------------------------------------------------
     # API Call Wrapper
@@ -344,9 +345,28 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self._device_reported_slots = self._discover_device_slots(info)
         self._log_access_code_fields(info)
 
+        # Determine door_status from API response
+        door_status = info.get(_KEY_DOOR_STATUS, "Unknown")
+
+        # If a WebSocket event just provided an authoritative door_status,
+        # preserve it instead of using potentially stale REST API data.
+        if self._preserve_door_status:
+            if self.data:
+                preserved_status = self.data.get("door_status", door_status)
+                LOGGER.debug(
+                    "Preserving WebSocket-provided door_status=%s for %s "
+                    "(REST API returned %s)",
+                    preserved_status,
+                    self.device_id,
+                    door_status,
+                )
+                door_status = preserved_status
+            # Always clear the flag after one use, even if no data to preserve
+            self._preserve_door_status = False
+
         return KwiksetDeviceData(
             device_info=info,
-            door_status=info.get(_KEY_DOOR_STATUS, "Unknown"),
+            door_status=door_status,
             battery_percentage=info.get(_KEY_BATTERY),
             model_number=info.get(_KEY_MODEL, "Unknown"),
             serial_number=info.get(_KEY_SERIAL, "Unknown"),
@@ -471,6 +491,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 original_door_status,
                 new_door_status,
             )
+            self._preserve_door_status = True  # Protect against stale REST data
             self.hass.async_create_task(self.async_request_refresh(), eager_start=False)
 
     # -------------------------------------------------------------------------

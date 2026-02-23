@@ -60,6 +60,13 @@ HISTORY_MAX_RETRY_ATTEMPTS: Final = 2
 # 30 seconds is used by the Matter lock integration as a safe default.
 OPTIMISTIC_TIMEOUT_SECONDS: Final = 30
 
+# Grace period after a lock/unlock state confirmation to prevent stale
+# REST API data from briefly reverting the confirmed state. During this
+# period, coordinator updates that would revert is_locked are suppressed.
+# 15 seconds is long enough for the REST API to reach consistency while
+# short enough that real physical state changes are not masked.
+CONFIRMATION_HOLD_SECONDS: Final = 15
+
 # Limit concurrent API calls per platform to prevent rate limiting
 # Each platform file uses this value to serialize entity operations
 PARALLEL_UPDATES: Final = 1

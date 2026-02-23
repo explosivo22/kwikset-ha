@@ -1656,3 +1656,323 @@ class TestHomeSensorDescriptions:
         desc = sensor_module.HOME_SENSOR_DESCRIPTIONS[0]
         value = desc.value_fn(mock_coordinator)
         assert value == 0
+
+
+# =============================================================================
+# Lock Confirmation Hold Tests
+# =============================================================================
+
+
+@pytest.mark.skipif(not _can_import_lock_module(), reason=LOCK_SKIP_REASON)
+class TestKwiksetLockConfirmationHold:
+    """Tests for the KwiksetLock confirmation hold functionality.
+
+    The confirmation hold prevents stale REST API data from briefly
+    reverting the just-confirmed lock state after a lock/unlock action.
+    """
+
+    def test_confirmation_hold_starts_on_lock_confirmation(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test confirmation hold starts when locking is confirmed."""
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        lock.hass = MagicMock()
+        mock_hold_timer = MagicMock()
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=mock_hold_timer)
+        lock.async_write_ha_state = MagicMock()
+
+        # Simulate locking optimistic state
+        lock._attr_is_locking = True
+        lock._attr_is_unlocking = False
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Coordinator now reports Locked (confirmation)
+        mock_coordinator_unlocked.status = "Locked"
+        lock._handle_coordinator_update()
+
+        # Optimistic state should be cleared
+        assert lock._attr_is_locking is False
+        assert lock._attr_is_unlocking is False
+
+        # Lock state should be updated
+        assert lock._attr_is_locked is True
+
+        # Confirmation hold timer should be started
+        assert lock._confirmation_hold_timer is not None
+
+    def test_confirmation_hold_starts_on_unlock_confirmation(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test confirmation hold starts when unlocking is confirmed."""
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock.hass = MagicMock()
+        mock_hold_timer = MagicMock()
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=mock_hold_timer)
+        lock.async_write_ha_state = MagicMock()
+
+        # Simulate unlocking optimistic state
+        lock._attr_is_locking = False
+        lock._attr_is_unlocking = True
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Coordinator now reports Unlocked (confirmation)
+        mock_coordinator.status = "Unlocked"
+        lock._handle_coordinator_update()
+
+        # Optimistic state should be cleared
+        assert lock._attr_is_locking is False
+        assert lock._attr_is_unlocking is False
+
+        # Lock state should be updated
+        assert lock._attr_is_locked is False
+
+        # Confirmation hold timer should be started
+        assert lock._confirmation_hold_timer is not None
+
+    def test_confirmation_hold_prevents_stale_revert_after_lock(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test confirmation hold prevents stale Unlocked from reverting Locked state."""
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock.hass = MagicMock()
+        mock_hold_timer = MagicMock()
+        mock_hold_timer.cancelled.return_value = False
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=mock_hold_timer)
+        lock.async_write_ha_state = MagicMock()
+
+        # Step 1: Simulate lock confirmation
+        lock._attr_is_locking = True
+        lock._attr_is_unlocking = False
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+        mock_coordinator.status = "Locked"
+        lock._handle_coordinator_update()
+
+        # State is now locked with confirmation hold active
+        assert lock._attr_is_locked is True
+        assert lock._is_confirmation_hold_active
+
+        # Step 2: Stale REST API data reports Unlocked
+        mock_coordinator.status = "Unlocked"
+        lock._handle_coordinator_update()
+
+        # State should still be Locked (hold prevents revert)
+        assert lock._attr_is_locked is True
+
+    def test_confirmation_hold_prevents_stale_revert_after_unlock(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test confirmation hold prevents stale Locked from reverting Unlocked state."""
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        lock.hass = MagicMock()
+        mock_hold_timer = MagicMock()
+        mock_hold_timer.cancelled.return_value = False
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=mock_hold_timer)
+        lock.async_write_ha_state = MagicMock()
+
+        # Step 1: Simulate unlock confirmation
+        lock._attr_is_locking = False
+        lock._attr_is_unlocking = True
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+        mock_coordinator_unlocked.status = "Unlocked"
+        lock._handle_coordinator_update()
+
+        # State is now unlocked with confirmation hold active
+        assert lock._attr_is_locked is False
+        assert lock._is_confirmation_hold_active
+
+        # Step 2: Stale REST API data reports Locked
+        mock_coordinator_unlocked.status = "Locked"
+        lock._handle_coordinator_update()
+
+        # State should still be Unlocked (hold prevents revert)
+        assert lock._attr_is_locked is False
+
+    def test_confirmation_hold_allows_jammed_through(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test jammed status passes through during confirmation hold."""
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock.hass = MagicMock()
+        mock_hold_timer = MagicMock()
+        mock_hold_timer.cancelled.return_value = False
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=mock_hold_timer)
+        lock.async_write_ha_state = MagicMock()
+
+        # Step 1: Simulate lock confirmation to start hold
+        lock._attr_is_locking = True
+        lock._attr_is_unlocking = False
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+        mock_coordinator.status = "Locked"
+        lock._handle_coordinator_update()
+
+        assert lock._is_confirmation_hold_active
+
+        # Step 2: Jammed status arrives during hold
+        mock_coordinator.status = "Jammed"
+        lock._handle_coordinator_update()
+
+        # Jammed should pass through and cancel the hold
+        assert lock._attr_is_jammed is True
+        assert lock._attr_is_locked is None
+        assert not lock._is_confirmation_hold_active
+
+    def test_confirmation_hold_expiry_syncs_state(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test _end_confirmation_hold syncs state and writes HA state."""
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # Set up a mock hold timer
+        mock_hold_timer = MagicMock()
+        mock_hold_timer.cancelled.return_value = False
+        lock._confirmation_hold_timer = mock_hold_timer
+
+        # Directly call _end_confirmation_hold
+        lock._end_confirmation_hold()
+
+        # Timer should be cleared
+        assert lock._confirmation_hold_timer is None
+
+        # async_write_ha_state should be called to push state update
+        lock.async_write_ha_state.assert_called_once()
+
+    async def test_confirmation_hold_cancelled_on_removal(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test confirmation hold timer is cancelled when entity is removed."""
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # Start a confirmation hold
+        mock_hold_timer = MagicMock()
+        mock_hold_timer.cancelled.return_value = False
+        lock._confirmation_hold_timer = mock_hold_timer
+
+        # Also set an optimistic timer
+        mock_opt_timer = MagicMock()
+        mock_opt_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_opt_timer
+
+        # Remove entity
+        await lock.async_will_remove_from_hass()
+
+        # Both timers should be cancelled
+        mock_hold_timer.cancel.assert_called()
+        assert lock._confirmation_hold_timer is None
+
+    def test_optimistic_state_skips_lock_state_update(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test optimistic state skips lock state update when not confirmed."""
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # Set is_locked to False initially (unlocked)
+        assert lock._attr_is_locked is False
+
+        # Simulate locking optimistic state
+        lock._attr_is_locking = True
+        lock._attr_is_unlocking = False
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Coordinator still reports Unlocked (stale)
+        mock_coordinator_unlocked.status = "Unlocked"
+        lock._handle_coordinator_update()
+
+        # is_locking should be preserved, is_locked should NOT have been
+        # updated to False by _update_lock_state (it was already False)
+        assert lock._attr_is_locking is True
+        # Timer should NOT be cancelled
+        mock_timer.cancel.assert_not_called()
+
+    def test_no_hold_during_normal_updates(
+        self, lock_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Test normal coordinator updates work without hold interference."""
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        # No optimistic state, no hold
+        assert not lock._attr_is_locking
+        assert not lock._attr_is_unlocking
+        assert not lock._is_confirmation_hold_active
+
+        # Coordinator reports Locked
+        mock_coordinator.status = "Locked"
+        lock._handle_coordinator_update()
+        assert lock._attr_is_locked is True
+
+        # Coordinator reports Unlocked
+        mock_coordinator.status = "Unlocked"
+        lock._handle_coordinator_update()
+        assert lock._attr_is_locked is False
+
+        # No hold should have been started
+        assert not lock._is_confirmation_hold_active
+
+    def test_full_lock_state_transition_no_revert(
+        self, lock_module, mock_coordinator_unlocked: MagicMock
+    ) -> None:
+        """Test full lock state transition: unlocked → locking → confirmed → stale → still locked."""
+        lock = lock_module.KwiksetLock(mock_coordinator_unlocked)
+        lock.hass = MagicMock()
+        mock_hold_timer = MagicMock()
+        mock_hold_timer.cancelled.return_value = False
+        lock.hass.loop = MagicMock()
+        lock.hass.loop.call_later = MagicMock(return_value=mock_hold_timer)
+        lock.async_write_ha_state = MagicMock()
+
+        # Initial state: unlocked
+        assert lock._attr_is_locked is False
+
+        # Step 1: User initiates lock → optimistic locking state
+        lock._attr_is_locking = True
+        mock_timer = MagicMock()
+        mock_timer.cancelled.return_value = False
+        lock._optimistic_timer = mock_timer
+
+        # Step 2: WebSocket confirms Locked
+        mock_coordinator_unlocked.status = "Locked"
+        lock._handle_coordinator_update()
+
+        # State: locked, optimistic cleared, hold started
+        assert lock._attr_is_locked is True
+        assert lock._attr_is_locking is False
+        assert lock._is_confirmation_hold_active
+
+        # Step 3: Stale REST API data reports Unlocked
+        mock_coordinator_unlocked.status = "Unlocked"
+        lock._handle_coordinator_update()
+
+        # State should still be Locked (hold prevents revert)
+        assert lock._attr_is_locked is True
+
+        # Step 4: Hold expires — sync with coordinator
+        # Coordinator now reports Locked again (eventually consistent)
+        mock_coordinator_unlocked.status = "Locked"
+        lock._end_confirmation_hold()
+
+        assert lock._attr_is_locked is True
+        assert not lock._is_confirmation_hold_active
