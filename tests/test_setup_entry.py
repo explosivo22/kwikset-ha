@@ -1053,8 +1053,8 @@ class TestOptionsUpdateCallback:
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
         # Wire up background task so _async_setup_websocket actually runs
-        entry.async_create_background_task = (
-            lambda h, coro, name=None, **kw: h.async_create_task(coro)
+        entry.async_create_background_task = lambda h, coro, name=None, **kw: (
+            h.async_create_task(coro)
         )
 
         with (
@@ -1268,8 +1268,8 @@ class TestWebSocketSubscription:
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
-        entry.async_create_background_task = (
-            lambda h, coro, name=None, **kw: h.async_create_task(coro)
+        entry.async_create_background_task = lambda h, coro, name=None, **kw: (
+            h.async_create_task(coro)
         )
         return entry
 
