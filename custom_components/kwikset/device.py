@@ -155,6 +155,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self._access_code_store: Store | None = access_code_store
         self._access_code_store_data: dict[str, dict[str, Any]] = access_code_data or {}
         self._device_reported_slots: dict[int, AccessCodeSlotData] = {}
+        self._first_refresh_done: bool = False
 
     # -------------------------------------------------------------------------
     # API Call Wrapper
@@ -315,15 +316,27 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         """Fetch current device state."""
         assert self.api_client.device is not None  # Set after authentication
 
-        # Fetch device info and history concurrently to reduce update time.
-        # History is supplemental; its failure is handled inside _async_fetch_history.
-        result, history_events = await asyncio.gather(
-            self._api_call_with_retry(
+        # On the very first refresh (during async_setup_entry) skip the
+        # history fetch so we don't block HA startup with 30-second
+        # timeouts.  History will be fetched on the next poll cycle.
+        if not self._first_refresh_done:
+            self._first_refresh_done = True
+            result = await self._api_call_with_retry(
                 self.api_client.device.get_device_info,
                 self.device_id,
-            ),
-            self._async_fetch_history(),
-        )
+            )
+            history_events: list[dict[str, Any]] = []
+        else:
+            # Fetch device info and history concurrently to reduce
+            # update time.  History is supplemental; its failure is
+            # handled inside _async_fetch_history.
+            result, history_events = await asyncio.gather(
+                self._api_call_with_retry(
+                    self.api_client.device.get_device_info,
+                    self.device_id,
+                ),
+                self._async_fetch_history(),
+            )
         info = result if result is not None else {}
         self._device_info = info
 

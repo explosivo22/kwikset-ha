@@ -59,6 +59,25 @@ from .conftest import MOCK_HOME_ID
 from .conftest import MOCK_PASSWORD
 from .conftest import MOCK_REFRESH_TOKEN
 
+
+@pytest.fixture(autouse=True)
+def _patch_websocket_setup(request):
+    """Patch websocket setup unless the test needs the real implementation.
+
+    The websocket setup is now a background task; patching it avoids
+    'coroutine never awaited' warnings from mocked entries.
+    Tests marked with ``needs_real_websocket`` get the real function.
+    """
+    if "needs_real_websocket" in {m.name for m in request.node.iter_markers()}:
+        yield
+        return
+    with patch(
+        "custom_components.kwikset._async_setup_websocket",
+        new_callable=AsyncMock,
+    ):
+        yield
+
+
 # =============================================================================
 # Setup Entry Tests
 # =============================================================================
@@ -1017,6 +1036,7 @@ class TestOptionsUpdateCallback:
         for coordinator in entry.runtime_data.devices.values():
             assert coordinator.update_interval == timedelta(seconds=new_interval)
 
+    @pytest.mark.needs_real_websocket
     async def test_options_update_skipped_when_websocket_active(
         self,
         hass: HomeAssistant,
@@ -1032,6 +1052,10 @@ class TestOptionsUpdateCallback:
         entry.data = MOCK_ENTRY_DATA.copy()
         entry.options = MOCK_ENTRY_OPTIONS.copy()
         entry.async_on_unload = MagicMock()
+        # Wire up background task so _async_setup_websocket actually runs
+        entry.async_create_background_task = lambda h, coro, name=None, **kw: (
+            h.async_create_task(coro)
+        )
 
         with (
             patch(
@@ -1045,6 +1069,7 @@ class TestOptionsUpdateCallback:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         assert entry.runtime_data.websocket_subscribed is True
 
@@ -1226,8 +1251,27 @@ class TestAutoReloginWithStoredPassword:
 # =============================================================================
 
 
+@pytest.mark.needs_real_websocket
 class TestWebSocketSubscription:
     """Tests for WebSocket real-time event subscription."""
+
+    @staticmethod
+    def _make_entry(hass: HomeAssistant) -> MagicMock:
+        """Create a MagicMock entry that can schedule background tasks.
+
+        ``async_create_background_task`` is wired to ``hass.async_create_task``
+        so that ``_async_setup_websocket`` actually runs during the test.
+        """
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+        entry.async_on_unload = MagicMock()
+        entry.async_create_background_task = lambda h, coro, name=None, **kw: (
+            h.async_create_task(coro)
+        )
+        return entry
 
     async def test_websocket_subscription_setup(
         self,
@@ -1237,12 +1281,7 @@ class TestWebSocketSubscription:
         """Test WebSocket subscription is set up during entry setup."""
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1256,6 +1295,7 @@ class TestWebSocketSubscription:
             ),
         ):
             result = await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         assert result is True
         mock_api.subscriptions.set_callback.assert_called_once()
@@ -1282,12 +1322,7 @@ class TestWebSocketSubscription:
         """Test that websocket disconnect restores the user-configured polling interval."""
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1301,6 +1336,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         # Verify WS is active and polling is at heartbeat
         assert entry.runtime_data.websocket_subscribed is True
@@ -1328,12 +1364,7 @@ class TestWebSocketSubscription:
         """Test that websocket reconnect switches back to heartbeat polling and refreshes."""
         from custom_components.kwikset.const import WEBSOCKET_FALLBACK_POLL_INTERVAL
 
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1347,6 +1378,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         # Simulate disconnect first
         disconnect_cb = mock_api.subscriptions.set_on_disconnect.call_args[0][0]
@@ -1380,12 +1412,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Test that a duplicate disconnect callback is a no-op."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         # Disable websocket so subscription fails
         mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
@@ -1404,6 +1431,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         assert entry.runtime_data.websocket_subscribed is False
 
@@ -1424,12 +1452,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Test setup succeeds even if WebSocket subscription fails."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         # Make subscription fail
         mock_api.subscriptions.async_subscribe_device.side_effect = Exception(
@@ -1448,6 +1471,7 @@ class TestWebSocketSubscription:
             ),
         ):
             result = await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         # Setup should still succeed (polling fallback)
         assert result is True
@@ -1466,12 +1490,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Test WebSocket subscription is cancelled during unload."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1485,6 +1504,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         # Verify subscription was set up
         assert entry.runtime_data.websocket_subscribed is True
@@ -1505,12 +1525,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Verify that events with a name other than onManageDevice are ignored."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1524,6 +1539,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         # Capture the callback registered with set_callback
         callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
@@ -1547,12 +1563,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Verify that onManageDevice events without deviceid are handled gracefully."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1566,6 +1577,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
 
@@ -1586,12 +1598,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Verify that events for an unknown device_id are handled gracefully."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1605,6 +1612,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
 
@@ -1629,12 +1637,7 @@ class TestWebSocketSubscription:
         mock_api: MagicMock,
     ) -> None:
         """Test real websocket payload with nested onManageDevice dict is unwrapped."""
-        entry = MagicMock()
-        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
-        entry.entry_id = "test_entry_id"
-        entry.data = MOCK_ENTRY_DATA.copy()
-        entry.options = MOCK_ENTRY_OPTIONS.copy()
-        entry.async_on_unload = MagicMock()
+        entry = self._make_entry(hass)
 
         with (
             patch(
@@ -1648,6 +1651,7 @@ class TestWebSocketSubscription:
             ),
         ):
             await async_setup_entry(hass, entry)
+            await hass.async_block_till_done()
 
         callback_fn = mock_api.subscriptions.set_callback.call_args[0][0]
         coordinator = entry.runtime_data.devices[MOCK_DEVICE_ID]

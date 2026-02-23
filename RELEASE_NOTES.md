@@ -1,3 +1,45 @@
+# Release Notes — v0.6.3
+
+## 🐛 Bug Fixes
+
+### Lock State Transitions (#119, fixes #118)
+- **Optimistic lock/unlock state no longer briefly reverts** to the prior state before reflecting the new state
+- The optimistic state timer now only resets when the expected target state is confirmed by a coordinator update, preventing a flash of the old state
+
+### Startup Performance — No Longer Blocks Home Assistant Setup
+- **WebSocket subscription now runs as a background task** instead of blocking `async_setup_entry`
+- **History fetch is deferred** to the second poll cycle — the first coordinator refresh only fetches device info, eliminating 30–60s+ startup delays when the Kwikset API is slow to respond
+- This resolves `Waiting for integrations to complete setup: kwikset` warnings in HA logs
+
+### Event Entity — No Spurious Firing on Startup
+- **Lock event entity no longer fires a false event** when loading history data for the first time after HA restart or integration reload
+- First history arrival now seeds the event ID without triggering `_trigger_event()`, preventing phantom automation triggers
+
+### Diagnostic History Sensors — No State Changes on Startup
+- **Last Lock Event, User, Method, and Category sensors** no longer produce `state_changed` events when the integration loads
+- These sensors now extend `RestoreEntity` to restore their previous state and attributes from the last HA run
+- Live coordinator data only takes over once the history fetch completes, preventing `unknown → value` transitions and attribute flicker
+
+## 🧪 Testing
+
+- **418 tests** — all passing
+- Updated coordinator history tests to account for deferred history fetch (second refresh required)
+- Added WebSocket background task patching fixtures to E2E and setup tests
+- New lock state transition tests for optimistic state reset logic
+- Expanded history sensor tests covering RestoreEntity behavior and attribute caching
+
+## 📊 Stats
+
+- **10 files changed** | **354 insertions** | **114 deletions**
+
+---
+
+**Full Changelog**: https://github.com/explosivo22/kwikset-ha/compare/0.6.1...0.6.3
+
+---
+
+# Release Notes — v0.6.1
+
 ## ⚠️ Breaking Changes
 
 - **Dependency upgrade**: `aiokwikset` bumped from `0.4.0` to `0.6.1`
