@@ -493,6 +493,7 @@
                 "name": "Evento da Fechadura",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Tipo de evento",
                         "state": {
                             "locked": "Trancado",
                             "unlocked": "Destrancado",

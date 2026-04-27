@@ -493,6 +493,7 @@
                 "name": "Slot Gebeurtenis",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Gebeurtenistype",
                         "state": {
                             "locked": "Vergrendeld",
                             "unlocked": "Ontgrendeld",

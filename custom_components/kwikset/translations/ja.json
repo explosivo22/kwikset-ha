@@ -493,6 +493,7 @@
                 "name": "ロックイベント",
                 "state_attributes": {
                     "event_type": {
+                        "name": "イベントタイプ",
                         "state": {
                             "locked": "施錠",
                             "unlocked": "解錠",

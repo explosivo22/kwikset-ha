@@ -493,6 +493,7 @@
                 "name": "门锁事件",
                 "state_attributes": {
                     "event_type": {
+                        "name": "事件类型",
                         "state": {
                             "locked": "已锁定",
                             "unlocked": "已解锁",

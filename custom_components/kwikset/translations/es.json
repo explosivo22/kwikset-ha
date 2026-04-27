@@ -493,6 +493,7 @@
                 "name": "Evento de Cerradura",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Tipo de evento",
                         "state": {
                             "locked": "Bloqueado",
                             "unlocked": "Desbloqueado",

@@ -111,6 +111,25 @@ class TestUserFlow:
         assert result["type"] == FlowResultType.ABORT
         assert result["reason"] == "cannot_connect"
 
+    async def test_user_flow_auth_timeout(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test user flow surfaces cannot_connect on auth TimeoutError (#122)."""
+        mock_api_config_flow.async_login.side_effect = TimeoutError()
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD},
+        )
+
+        assert result["type"] == FlowResultType.ABORT
+        assert result["reason"] == "cannot_connect"
+
     async def test_user_flow_unknown_error(
         self,
         hass: HomeAssistant,

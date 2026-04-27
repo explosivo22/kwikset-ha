@@ -493,6 +493,7 @@
                 "name": "Evento Serratura",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Tipo di evento",
                         "state": {
                             "locked": "Bloccato",
                             "unlocked": "Sbloccato",

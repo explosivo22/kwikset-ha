@@ -493,6 +493,7 @@
                 "name": "Lock Event",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Event type",
                         "state": {
                             "locked": "Locked",
                             "unlocked": "Unlocked",

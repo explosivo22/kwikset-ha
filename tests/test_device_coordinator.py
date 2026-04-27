@@ -253,6 +253,81 @@ class TestRetryLogic:
                 MOCK_DEVICE_ID,
             )
 
+    async def test_timeout_treated_as_transient(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """A TimeoutError in API call must retry, not escalate to reauth (#122)."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(side_effect=TimeoutError())
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        with patch(
+            "custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock
+        ):
+            with pytest.raises(HomeAssistantError) as exc_info:
+                await coordinator._api_call_with_retry(
+                    api.device.get_device_info,
+                    MOCK_DEVICE_ID,
+                )
+
+        assert exc_info.value.translation_key == "api_error"
+        assert api.device.get_device_info.call_count == MAX_RETRY_ATTEMPTS
+
+    async def test_relogin_attempted_before_reauth_when_password_stored(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """First TokenExpiredError triggers relogin if stored password set (#122)."""
+        from custom_components.kwikset.const import CONF_STORED_PASSWORD
+
+        # Add stored password to entry data
+        hass.config_entries.async_update_entry(
+            mock_config_entry,
+            data={**mock_config_entry.data, CONF_STORED_PASSWORD: "stored_pw"},
+        )
+
+        api = MagicMock()
+        api.device = MagicMock()
+        # First call raises TokenExpired, second call succeeds
+        api.device.get_device_info = AsyncMock(
+            side_effect=[TokenExpiredError("expired"), MOCK_DEVICE_INFO]
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        with patch(
+            "custom_components.kwikset.async_relogin_with_stored_password",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as mock_relogin:
+            result = await coordinator._api_call_with_retry(
+                api.device.get_device_info,
+                MOCK_DEVICE_ID,
+            )
+
+        assert result == MOCK_DEVICE_INFO
+        mock_relogin.assert_awaited_once()
+        assert api.device.get_device_info.call_count == 2
+
 
 # =============================================================================
 # Device Property Tests

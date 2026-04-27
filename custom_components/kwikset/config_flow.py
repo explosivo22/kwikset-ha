@@ -20,6 +20,8 @@ Architecture:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import Mapping
 from typing import Any
 
@@ -46,6 +48,7 @@ from homeassistant.helpers.selector import SelectSelector
 from homeassistant.helpers.selector import SelectSelectorConfig
 from homeassistant.helpers.selector import SelectSelectorMode
 
+from .const import AUTH_CALL_TIMEOUT_SECONDS
 from .const import CONF_ACCESS_TOKEN
 from .const import CONF_HOME_ID
 from .const import CONF_ID_TOKEN
@@ -154,15 +157,25 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """
         if not self.username or not self.password:
             return "invalid_auth"
+        # Defensive cleanup: a prior abandoned attempt may have left an api
+        # instance with leaked aiohttp/boto sessions.  Close it before reuse.
+        await self._async_close_api()
         try:
             self.api = API(websession=async_get_clientsession(self.hass))
-            await self.api.async_login(self.username, self.password)
+            async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                await self.api.async_login(self.username, self.password)
             return None  # Success
         except MFAChallengeRequired as mfa_error:
             LOGGER.debug("MFA challenge required: %s", mfa_error.mfa_type)
             self.mfa_type = mfa_error.mfa_type
             self.mfa_tokens = mfa_error.mfa_tokens
             return None  # MFA needed, but not an error
+        except TimeoutError:
+            LOGGER.error(
+                "Kwikset authentication timed out after %ss; Cognito may be slow",
+                AUTH_CALL_TIMEOUT_SECONDS,
+            )
+            return "cannot_connect"
         except Unauthenticated:
             LOGGER.error("Invalid credentials")
             return "invalid_auth"
@@ -179,6 +192,16 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             LOGGER.exception("Unexpected authentication error")
             return "unknown"
 
+    async def _async_close_api(self) -> None:
+        """Close any prior API instance to release leaked sessions."""
+        if self.api is None:
+            return
+        close = getattr(self.api, "async_close", None)
+        if close is not None:
+            with contextlib.suppress(Exception):
+                await close()
+        self.api = None
+
     async def _async_request_custom_challenge_code(self) -> None:
         """Request custom challenge code delivery.
 
@@ -189,12 +212,19 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         assert self.api is not None  # Set during authentication
         code_type = self.delivery_method or "email"
         try:
-            updated_tokens = await self.api.async_request_custom_challenge_code(
-                code_type=code_type,
-                mfa_tokens=self.mfa_tokens,
-            )
+            async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                updated_tokens = await self.api.async_request_custom_challenge_code(
+                    code_type=code_type,
+                    mfa_tokens=self.mfa_tokens,
+                )
             self.mfa_tokens = updated_tokens
             LOGGER.debug("Custom challenge code requested via %s", code_type)
+        except TimeoutError:
+            LOGGER.error(
+                "Custom challenge code request timed out after %ss",
+                AUTH_CALL_TIMEOUT_SECONDS,
+            )
+            # Continue with existing tokens; user may still complete MFA
         except Exception:
             LOGGER.exception("Failed to request custom challenge code")
             # Continue with existing tokens; user may still complete MFA
@@ -203,16 +233,23 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Complete MFA verification. Returns error key or None on success."""
         assert self.api is not None  # Set during authentication
         try:
-            await self.api.async_respond_to_mfa_challenge(
-                mfa_code=mfa_code,
-                mfa_type=self.mfa_type,
-                mfa_tokens=self.mfa_tokens,
-            )
+            async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                await self.api.async_respond_to_mfa_challenge(
+                    mfa_code=mfa_code,
+                    mfa_type=self.mfa_type,
+                    mfa_tokens=self.mfa_tokens,
+                )
             LOGGER.debug("MFA authentication successful")
             # Clear MFA state after successful verification
             self.mfa_type = None
             self.mfa_tokens = None
             return None  # Success
+        except TimeoutError:
+            LOGGER.error(
+                "MFA verification timed out after %ss",
+                AUTH_CALL_TIMEOUT_SECONDS,
+            )
+            return "cannot_connect"
         except (RequestError, Unauthenticated):
             LOGGER.error("MFA verification failed")
             return "invalid_mfa"
@@ -406,7 +443,15 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             ]
             assert self.api is not None  # Set during authentication
             assert self.api.user is not None  # Set after successful authentication
-            homes = await self.api.user.get_homes()
+            try:
+                async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                    homes = await self.api.user.get_homes()
+            except TimeoutError:
+                LOGGER.error(
+                    "Fetching homes timed out after %ss",
+                    AUTH_CALL_TIMEOUT_SECONDS,
+                )
+                return self.async_abort(reason="cannot_connect")
             homes_options = {
                 home["homeid"]: home["homename"]
                 for home in homes
@@ -520,6 +565,15 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Create config entry at completion of flow."""
         assert self.api is not None  # Set during authentication
         assert self.api.user is not None  # Set after successful authentication
+        try:
+            async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                homes = await self.api.user.get_homes()
+        except TimeoutError:
+            LOGGER.error(
+                "Fetching homes timed out after %ss",
+                AUTH_CALL_TIMEOUT_SECONDS,
+            )
+            return self.async_abort(reason="cannot_connect")
         entry_data: dict[str, Any] = {
             CONF_EMAIL: self.username,
             CONF_HOME_ID: self.home_id,
@@ -533,7 +587,6 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             entry_data[CONF_STORED_PASSWORD] = self.password
             LOGGER.debug("Password will be stored for auto re-auth")
 
-        homes = await self.api.user.get_homes()
         home_name = next(
             (home["homename"] for home in homes if home["homeid"] == self.home_id),
             f"Kwikset Home {self.home_id}",

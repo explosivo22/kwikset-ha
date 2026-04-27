@@ -493,6 +493,7 @@
                 "name": "Schloss-Ereignis",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Ereignistyp",
                         "state": {
                             "locked": "Gesperrt",
                             "unlocked": "Entsperrt",

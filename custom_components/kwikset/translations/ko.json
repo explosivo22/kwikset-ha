@@ -493,6 +493,7 @@
                 "name": "잠금 이벤트",
                 "state_attributes": {
                     "event_type": {
+                        "name": "이벤트 유형",
                         "state": {
                             "locked": "잠김",
                             "unlocked": "열림",

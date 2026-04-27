@@ -493,6 +493,7 @@
                 "name": "Événement de Serrure",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Type d'évènement",
                         "state": {
                             "locked": "Verrouillé",
                             "unlocked": "Déverrouillé",

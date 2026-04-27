@@ -493,6 +493,7 @@
                 "name": "Событие Замка",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Тип события",
                         "state": {
                             "locked": "Заперт",
                             "unlocked": "Открыт",

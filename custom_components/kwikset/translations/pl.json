@@ -493,6 +493,7 @@
                 "name": "Zdarzenie Zamka",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Typ zdarzenia",
                         "state": {
                             "locked": "Zablokowany",
                             "unlocked": "Odblokowany",

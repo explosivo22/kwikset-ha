@@ -493,6 +493,7 @@
                 "name": "Låshändelse",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Händelsetyp",
                         "state": {
                             "locked": "Låst",
                             "unlocked": "Olåst",

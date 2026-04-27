@@ -42,6 +42,11 @@ MAX_REFRESH_INTERVAL: Final = 900
 MAX_RETRY_ATTEMPTS: Final = 3
 RETRY_DELAY_SECONDS: Final = 2
 
+# Timeout for blocking Cognito SRP / token refresh calls.
+# boto3/botocore inside aiokwikset has no usable upper bound on these calls,
+# so we wrap them in asyncio.timeout to prevent indefinite hangs (issue #122).
+AUTH_CALL_TIMEOUT_SECONDS: Final = 30
+
 # History API fetch timeout per attempt (non-critical supplemental data).
 # Kwikset's history_v4 endpoint can be slow; this must be long enough for the
 # aiokwikset library's own request + retry cycle to complete.  A value equal to

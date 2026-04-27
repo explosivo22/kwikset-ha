@@ -43,6 +43,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .const import AUTH_CALL_TIMEOUT_SECONDS
 from .const import DOMAIN
 from .const import HISTORY_FETCH_TIMEOUT_SECONDS
 from .const import HISTORY_MAX_RETRY_ATTEMPTS
@@ -173,26 +174,39 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         Token refresh is handled automatically by the aiokwikset library.
         """
         last_error: Exception | None = None
+        relogin_attempted = False
 
         for attempt in range(MAX_RETRY_ATTEMPTS):
             try:
-                return await api_call(*args, **kwargs)
-            except (TokenExpiredError, Unauthenticated) as err:
-                # Create repair issue to notify user of authentication expiry
-                ir.async_create_issue(
-                    self.hass,
-                    DOMAIN,
-                    f"auth_expired_{self.config_entry.entry_id}",
-                    is_fixable=True,
-                    is_persistent=True,
-                    severity=ir.IssueSeverity.ERROR,
-                    translation_key="auth_expired",
-                    translation_placeholders={"entry_title": self.config_entry.title},
-                )
-                raise ConfigEntryAuthFailed(
-                    translation_domain=DOMAIN,
-                    translation_key="auth_failed",
-                ) from err
+                async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                    return await api_call(*args, **kwargs)
+            except TokenExpiredError as err:
+                # Try one in-place re-login using a stored password before
+                # forcing the user through the reauth flow (issue #122).
+                if not relogin_attempted:
+                    relogin_attempted = True
+                    # Local import avoids a circular import at module load.
+                    from . import async_relogin_with_stored_password  # noqa: PLC0415
+
+                    if await async_relogin_with_stored_password(
+                        self.hass, self.config_entry, self.api_client
+                    ):
+                        continue
+                self._raise_auth_failed(err)
+            except Unauthenticated as err:
+                self._raise_auth_failed(err)
+            except TimeoutError as err:
+                # Treat as transient: retry, then escalate to UpdateFailed via
+                # HomeAssistantError mapping below.
+                last_error = err
+                if attempt < MAX_RETRY_ATTEMPTS - 1:
+                    LOGGER.debug(
+                        "API call timed out after %ss (attempt %d/%d)",
+                        AUTH_CALL_TIMEOUT_SECONDS,
+                        attempt + 1,
+                        MAX_RETRY_ATTEMPTS,
+                    )
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
             except (RequestError, KwiksetConnectionError) as err:
                 last_error = err
                 if attempt < MAX_RETRY_ATTEMPTS - 1:
@@ -208,6 +222,23 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             translation_domain=DOMAIN,
             translation_key="api_error",
         ) from last_error
+
+    def _raise_auth_failed(self, err: Exception) -> None:
+        """Raise ConfigEntryAuthFailed and create a repair issue."""
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            f"auth_expired_{self.config_entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="auth_expired",
+            translation_placeholders={"entry_title": self.config_entry.title},
+        )
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN,
+            translation_key="auth_failed",
+        ) from err
 
     # -------------------------------------------------------------------------
     # Coordinator Lifecycle
