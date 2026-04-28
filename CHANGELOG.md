@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.1] - 2026-04-27
+
+### Fixed
+- **Config flow hang on slow/unreachable Cognito** ([#122](https://github.com/explosivo22/kwikset-ha/issues/122)): When AWS Cognito was slow or a network path was broken, the synchronous boto3 calls inside `aiokwikset` would block a Home Assistant executor thread for ~10 minutes (boto3's default 60s connect/read timeouts × 5 retries), leaving the config flow spinning indefinitely and producing a `SyncWorker is still running at shutdown` warning pointing into `_authenticate_srp`. The `asyncio.timeout` wrapper around `async_login` could not cancel the in-flight executor work.
+
+### Changed
+- **aiokwikset**: Bumped to **0.7.3**, which:
+  - Caps boto3 Cognito calls at `connect_timeout=10s`, `read_timeout=15s`, `max_attempts=2` — worst-case auth attempt is now ~50s instead of ~10 min.
+  - Surfaces botocore `ConnectTimeoutError`, `ReadTimeoutError`, and `EndpointConnectionError` as `KwiksetConnectionError` from all auth code paths (login, MFA response, custom-challenge code request, token refresh) so the integration's existing connection-error handling (`cannot_connect`, `ConfigEntryNotReady`) kicks in instead of `unknown`.
+
+---
+
 ## [0.4.0] - 2025-12-03
 
 ### ⚠️ BREAKING CHANGES
