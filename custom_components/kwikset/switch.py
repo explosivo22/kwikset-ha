@@ -71,6 +71,14 @@ SWITCH_DESCRIPTIONS: tuple[KwiksetSwitchEntityDescription, ...] = (
         turn_on_fn=lambda c: c.set_secure_screen(True),
         turn_off_fn=lambda c: c.set_secure_screen(False),
     ),
+    KwiksetSwitchEntityDescription(
+        key="autolock_switch",
+        translation_key="autolock_switch",
+        entity_category=EntityCategory.CONFIG,
+        value_fn=lambda c: c.autolock_status,
+        turn_on_fn=lambda c: c.set_autolock(True),
+        turn_off_fn=lambda c: c.set_autolock(False),
+    ),
 )
 
 

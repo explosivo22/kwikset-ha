@@ -36,6 +36,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 
+from .const import AUTH_CALL_TIMEOUT_SECONDS
 from .const import CONF_ACCESS_TOKEN
 from .const import CONF_HOME_ID
 from .const import CONF_ID_TOKEN
@@ -146,6 +147,48 @@ async def _async_update_tokens(
         },
     )
     LOGGER.debug("Tokens refreshed and saved to config entry")
+
+
+async def async_relogin_with_stored_password(
+    hass: HomeAssistant,
+    entry: KwiksetConfigEntry,
+    client: API,
+) -> bool:
+    """Attempt automatic re-login using a stored password.
+
+    Returns ``True`` if re-login succeeded and tokens were persisted, ``False``
+    if no stored password is available or the attempt failed.  Used both during
+    initial setup and from the coordinator on first ``TokenExpiredError`` to
+    avoid forcing the user through the reauth flow when credentials are saved.
+    """
+    stored_password = entry.data.get(CONF_STORED_PASSWORD)
+    if not stored_password:
+        return False
+    LOGGER.info("Attempting automatic re-login with stored password")
+    try:
+        async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+            await client.async_login(entry.data[CONF_EMAIL], stored_password)
+        assert client.user is not None
+        async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+            await client.user.get_info()
+    except TimeoutError:
+        LOGGER.error(
+            "Automatic re-login timed out after %ss",
+            AUTH_CALL_TIMEOUT_SECONDS,
+        )
+        return False
+    except Exception as login_err:
+        LOGGER.error("Automatic re-login failed: %s", login_err)
+        return False
+    LOGGER.info("Automatic re-login successful")
+    await _async_update_tokens(
+        hass,
+        entry,
+        client.id_token or "",
+        client.access_token or "",
+        client.refresh_token or "",
+    )
+    return True
 
 
 def _create_coordinator(
@@ -400,39 +443,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
 
     # Authenticate and validate tokens using session restoration
     try:
-        await client.async_authenticate_with_tokens(
-            id_token=entry.data.get(CONF_ID_TOKEN, ""),
-            access_token=entry.data[CONF_ACCESS_TOKEN],
-            refresh_token=entry.data[CONF_REFRESH_TOKEN],
-        )
+        async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+            await client.async_authenticate_with_tokens(
+                id_token=entry.data.get(CONF_ID_TOKEN, ""),
+                access_token=entry.data[CONF_ACCESS_TOKEN],
+                refresh_token=entry.data[CONF_REFRESH_TOKEN],
+            )
         assert client.user is not None  # Set after authentication
-        await client.user.get_info()
+        async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+            await client.user.get_info()
+    except TimeoutError as err:
+        raise ConfigEntryNotReady(
+            f"Kwikset auth timed out after {AUTH_CALL_TIMEOUT_SECONDS}s"
+        ) from err
     except (TokenExpiredError, Unauthenticated) as err:
         LOGGER.warning("Token refresh failed: %s", err)
 
         # Attempt automatic re-login if password is stored
-        stored_password = entry.data.get(CONF_STORED_PASSWORD)
-        if stored_password:
-            LOGGER.info("Attempting automatic re-login with stored password")
-            try:
-                await client.async_login(entry.data[CONF_EMAIL], stored_password)
-                assert client.user is not None
-                await client.user.get_info()
-                LOGGER.info("Automatic re-login successful")
-
-                # Persist the new tokens
-                await _async_update_tokens(
-                    hass,
-                    entry,
-                    client.id_token or "",
-                    client.access_token or "",
-                    client.refresh_token or "",
-                )
-            except Exception as login_err:
-                LOGGER.error("Automatic re-login failed: %s", login_err)
-                _create_auth_issue(hass, entry)
-                raise ConfigEntryAuthFailed(login_err) from login_err
-        else:
+        if not await async_relogin_with_stored_password(hass, entry, client):
             _create_auth_issue(hass, entry)
             raise ConfigEntryAuthFailed(err) from err
     except (RequestError, KwiksetConnectionError) as err:

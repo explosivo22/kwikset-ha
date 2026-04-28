@@ -43,6 +43,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .const import AUTH_CALL_TIMEOUT_SECONDS
 from .const import DOMAIN
 from .const import HISTORY_FETCH_TIMEOUT_SECONDS
 from .const import HISTORY_MAX_RETRY_ATTEMPTS
@@ -66,6 +67,7 @@ _KEY_FIRMWARE = "firmwarebundleversion"
 _KEY_LED = "ledstatus"
 _KEY_AUDIO = "audiostatus"
 _KEY_SECURE_SCREEN = "securescreenstatus"
+_KEY_AUTOLOCK = "autolockstate"
 
 # API response keys for access code fields
 _KEY_ACCESS_CODE_CRC = "accesscodecrc"
@@ -110,6 +112,7 @@ class KwiksetDeviceData(TypedDict, total=False):
     led_status: bool | None
     audio_status: bool | None
     secure_screen_status: bool | None
+    autolock_status: bool | None
     history_events: list[dict[str, Any]]
 
 
@@ -156,6 +159,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self._access_code_store_data: dict[str, dict[str, Any]] = access_code_data or {}
         self._device_reported_slots: dict[int, AccessCodeSlotData] = {}
         self._first_refresh_done: bool = False
+        self._preserve_door_status: bool = False
 
     # -------------------------------------------------------------------------
     # API Call Wrapper
@@ -172,26 +176,39 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         Token refresh is handled automatically by the aiokwikset library.
         """
         last_error: Exception | None = None
+        relogin_attempted = False
 
         for attempt in range(MAX_RETRY_ATTEMPTS):
             try:
-                return await api_call(*args, **kwargs)
-            except (TokenExpiredError, Unauthenticated) as err:
-                # Create repair issue to notify user of authentication expiry
-                ir.async_create_issue(
-                    self.hass,
-                    DOMAIN,
-                    f"auth_expired_{self.config_entry.entry_id}",
-                    is_fixable=True,
-                    is_persistent=True,
-                    severity=ir.IssueSeverity.ERROR,
-                    translation_key="auth_expired",
-                    translation_placeholders={"entry_title": self.config_entry.title},
-                )
-                raise ConfigEntryAuthFailed(
-                    translation_domain=DOMAIN,
-                    translation_key="auth_failed",
-                ) from err
+                async with asyncio.timeout(AUTH_CALL_TIMEOUT_SECONDS):
+                    return await api_call(*args, **kwargs)
+            except TokenExpiredError as err:
+                # Try one in-place re-login using a stored password before
+                # forcing the user through the reauth flow (issue #122).
+                if not relogin_attempted:
+                    relogin_attempted = True
+                    # Local import avoids a circular import at module load.
+                    from . import async_relogin_with_stored_password  # noqa: PLC0415
+
+                    if await async_relogin_with_stored_password(
+                        self.hass, self.config_entry, self.api_client
+                    ):
+                        continue
+                self._raise_auth_failed(err)
+            except Unauthenticated as err:
+                self._raise_auth_failed(err)
+            except TimeoutError as err:
+                # Treat as transient: retry, then escalate to UpdateFailed via
+                # HomeAssistantError mapping below.
+                last_error = err
+                if attempt < MAX_RETRY_ATTEMPTS - 1:
+                    LOGGER.debug(
+                        "API call timed out after %ss (attempt %d/%d)",
+                        AUTH_CALL_TIMEOUT_SECONDS,
+                        attempt + 1,
+                        MAX_RETRY_ATTEMPTS,
+                    )
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
             except (RequestError, KwiksetConnectionError) as err:
                 last_error = err
                 if attempt < MAX_RETRY_ATTEMPTS - 1:
@@ -207,6 +224,23 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             translation_domain=DOMAIN,
             translation_key="api_error",
         ) from last_error
+
+    def _raise_auth_failed(self, err: Exception) -> None:
+        """Raise ConfigEntryAuthFailed and create a repair issue."""
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            f"auth_expired_{self.config_entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="auth_expired",
+            translation_placeholders={"entry_title": self.config_entry.title},
+        )
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN,
+            translation_key="auth_failed",
+        ) from err
 
     # -------------------------------------------------------------------------
     # Coordinator Lifecycle
@@ -344,9 +378,28 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self._device_reported_slots = self._discover_device_slots(info)
         self._log_access_code_fields(info)
 
+        # Determine door_status from API response
+        door_status = info.get(_KEY_DOOR_STATUS, "Unknown")
+
+        # If a WebSocket event just provided an authoritative door_status,
+        # preserve it instead of using potentially stale REST API data.
+        if self._preserve_door_status:
+            if self.data:
+                preserved_status = self.data.get("door_status", door_status)
+                LOGGER.debug(
+                    "Preserving WebSocket-provided door_status=%s for %s "
+                    "(REST API returned %s)",
+                    preserved_status,
+                    self.device_id,
+                    door_status,
+                )
+                door_status = preserved_status
+            # Always clear the flag after one use, even if no data to preserve
+            self._preserve_door_status = False
+
         return KwiksetDeviceData(
             device_info=info,
-            door_status=info.get(_KEY_DOOR_STATUS, "Unknown"),
+            door_status=door_status,
             battery_percentage=info.get(_KEY_BATTERY),
             model_number=info.get(_KEY_MODEL, "Unknown"),
             serial_number=info.get(_KEY_SERIAL, "Unknown"),
@@ -354,6 +407,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             led_status=self._parse_bool(info.get(_KEY_LED)),
             audio_status=self._parse_bool(info.get(_KEY_AUDIO)),
             secure_screen_status=self._parse_bool(info.get(_KEY_SECURE_SCREEN)),
+            autolock_status=self._parse_bool(info.get(_KEY_AUTOLOCK)),
             history_events=history_events,
         )
 
@@ -371,7 +425,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     # -------------------------------------------------------------------------
 
     @callback
-    def handle_realtime_event(self, event_data: dict[str, Any]) -> None:
+    def handle_realtime_event(self, event_data: dict[str, Any]) -> None:  # noqa: PLR0912
         """Handle a real-time websocket event and update coordinator data.
 
         Merges the event data into the current coordinator data and
@@ -417,6 +471,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         secure_screen = event_data.get(_KEY_SECURE_SCREEN)
         if secure_screen is not None:
             updated["secure_screen_status"] = self._parse_bool(secure_screen)
+
+        autolock = event_data.get(_KEY_AUTOLOCK)
+        if autolock is not None:
+            updated["autolock_status"] = self._parse_bool(autolock)
 
         # Also check for the websocket-specific device status key
         device_status = event_data.get(WEBSOCKET_FIELD_DEVICE_STATUS)
@@ -471,6 +529,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 original_door_status,
                 new_door_status,
             )
+            self._preserve_door_status = True  # Protect against stale REST data
             self.hass.async_create_task(self.async_request_refresh(), eager_start=False)
 
     # -------------------------------------------------------------------------
@@ -540,6 +599,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         if self.data:
             return self.data.get("secure_screen_status")
         return self._parse_bool(self._device_info.get(_KEY_SECURE_SCREEN))
+
+    @property
+    def autolock_status(self) -> bool | None:
+        """Return autolock status."""
+        if self.data:
+            return self.data.get("autolock_status")
+        return self._parse_bool(self._device_info.get(_KEY_AUTOLOCK))
 
     # -------------------------------------------------------------------------
     # History Properties (for history sensor entity)
@@ -1140,6 +1206,29 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             enabled,
         )
         LOGGER.debug("Secure screen set to %s for %s", enabled, self.device_id)
+        await self.async_request_refresh()
+
+    async def set_autolock(self, enabled: bool, delay: int | None = None) -> None:
+        """Set autolock status using convenience method.
+
+        Args:
+            enabled: Whether auto-lock should be on.
+            delay: Optional delay in seconds; must be one of
+                ``AUTOLOCK_DELAY_VALID``. Ignored when ``enabled`` is False
+                (the lock receives a 0-second delay). When omitted, the
+                upstream library applies its default (30s).
+
+        """
+        assert self.api_client.device is not None  # Set after authentication
+        await self._api_call_with_retry(
+            self.api_client.device.set_autolock_enabled,
+            self._device_info,
+            enabled,
+            delay,
+        )
+        LOGGER.debug(
+            "Autolock set to %s (delay=%s) for %s", enabled, delay, self.device_id
+        )
         await self.async_request_refresh()
 
     # -------------------------------------------------------------------------

@@ -38,6 +38,7 @@ from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import CONFIRMATION_HOLD_SECONDS
 from .const import DOMAIN
 from .const import LOGGER
 from .const import OPTIMISTIC_TIMEOUT_SECONDS
@@ -132,7 +133,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     """
 
     # Platinum tier: __slots__ reduces memory footprint
-    __slots__ = ("_optimistic_timer",)
+    __slots__ = ("_confirmation_hold_timer", "_optimistic_timer")
 
     # Bronze tier: has_entity_name - entity is the primary device entity
     # Setting name to None means the entity will use the device name
@@ -143,6 +144,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         """Initialize the lock entity."""
         super().__init__("lock", coordinator)
         self._optimistic_timer: asyncio.TimerHandle | None = None
+        self._confirmation_hold_timer: asyncio.TimerHandle | None = None
         # Set initial lock state from coordinator
         self._update_lock_state()
 
@@ -150,31 +152,48 @@ class KwiksetLock(KwiksetEntity, LockEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator.
 
-        Only reset optimistic state when the expected state is confirmed.
-        This prevents race conditions where a stale poll update arrives
-        before the lock/unlock action is reflected in the API, which would
-        cause the state to briefly show the old state (issue #118).
-
-        - If is_locking is True, only reset when status is "locked"
-        - If is_unlocking is True, only reset when status is "unlocked"
-        - Otherwise, keep the optimistic state until timeout or confirmation
+        State update logic:
+        1. Optimistic confirmation: API confirms expected state → clear optimistic,
+           update lock state, start confirmation hold to prevent stale reverts.
+        2. Optimistic active (not confirmed): Keep optimistic indicators, skip lock
+           state update (is_locking/is_unlocking takes precedence in HA state machine).
+        3. Confirmation hold active: Skip lock state update to prevent stale REST API
+           data from reverting the just-confirmed state. Jammed state always passes.
+        4. Normal: No special state, update lock state from coordinator.
         """
         status = self.coordinator.status
         normalized = _normalize_status(status)
 
-        # Only reset optimistic state when the expected state is confirmed
         if self._attr_is_locking and normalized == _STATUS_LOCKED:
-            # Lock confirmed - reset optimistic state
+            # Lock confirmed — clear optimistic, update state, start hold
             self._reset_optimistic_state(write_state=False)
+            self._update_lock_state()
+            self._start_confirmation_hold()
         elif self._attr_is_unlocking and normalized == _STATUS_UNLOCKED:
-            # Unlock confirmed - reset optimistic state
+            # Unlock confirmed — clear optimistic, update state, start hold
             self._reset_optimistic_state(write_state=False)
-        elif not self._attr_is_locking and not self._attr_is_unlocking:
-            # No optimistic state active - ensure it's reset
-            self._reset_optimistic_state(write_state=False)
-        # else: Keep optimistic state - waiting for expected state confirmation
+            self._update_lock_state()
+            self._start_confirmation_hold()
+        elif self._attr_is_locking or self._attr_is_unlocking:
+            # Optimistic active, not yet confirmed — skip lock state update.
+            # is_locking/is_unlocking takes precedence in HA LockEntity state machine.
+            pass
+        elif self._is_confirmation_hold_active:
+            # Recently confirmed — suppress stale reverts, but allow jammed through
+            if _is_jammed(status):
+                self._cancel_confirmation_hold()
+                self._update_lock_state()
+            else:
+                LOGGER.debug(
+                    "Skipping state update during confirmation hold for %s "
+                    "(API reports %r, holding confirmed state)",
+                    self.entity_id,
+                    status,
+                )
+        else:
+            # Normal — no optimistic state, no hold
+            self._update_lock_state()
 
-        self._update_lock_state()
         super()._handle_coordinator_update()
 
     def _update_lock_state(self) -> None:
@@ -200,6 +219,52 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         )
 
     @callback
+    def _start_confirmation_hold(self) -> None:
+        """Start a hold period after state confirmation.
+
+        Prevents stale REST API data from briefly reverting the
+        just-confirmed lock state. The hold auto-expires after
+        CONFIRMATION_HOLD_SECONDS, at which point normal coordinator
+        updates resume.
+        """
+        self._cancel_confirmation_hold()
+        self._confirmation_hold_timer = self.hass.loop.call_later(
+            CONFIRMATION_HOLD_SECONDS, self._end_confirmation_hold
+        )
+        LOGGER.debug(
+            "Confirmation hold started for %s (%ds)",
+            self.entity_id,
+            CONFIRMATION_HOLD_SECONDS,
+        )
+
+    @callback
+    def _end_confirmation_hold(self) -> None:
+        """End the confirmation hold and sync with coordinator state."""
+        self._confirmation_hold_timer = None
+        self._update_lock_state()
+        self.async_write_ha_state()
+        LOGGER.debug(
+            "Confirmation hold ended for %s, synced with coordinator",
+            self.entity_id,
+        )
+
+    @callback
+    def _cancel_confirmation_hold(self) -> None:
+        """Cancel the confirmation hold timer if active."""
+        timer = self._confirmation_hold_timer
+        if timer and not timer.cancelled():
+            timer.cancel()
+        self._confirmation_hold_timer = None
+
+    @property
+    def _is_confirmation_hold_active(self) -> bool:
+        """Return whether the confirmation hold is currently active."""
+        return (
+            self._confirmation_hold_timer is not None
+            and not self._confirmation_hold_timer.cancelled()
+        )
+
+    @callback
     def _reset_optimistic_state(self, write_state: bool = True) -> None:
         """Reset the optimistic locking/unlocking state.
 
@@ -212,6 +277,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
             write_state: Whether to write state to HA after reset.
 
         """
+        self._cancel_confirmation_hold()
         if self._optimistic_timer and not self._optimistic_timer.cancelled():
             self._optimistic_timer.cancel()
         self._optimistic_timer = None
@@ -222,6 +288,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is being removed."""
+        self._cancel_confirmation_hold()
         self._reset_optimistic_state(write_state=False)
         await super().async_will_remove_from_hass()
 

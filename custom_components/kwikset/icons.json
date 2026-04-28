@@ -66,6 +66,13 @@
                     "on": "mdi:shield-lock",
                     "off": "mdi:shield-lock-outline"
                 }
+            },
+            "autolock_switch": {
+                "default": "mdi:timer-lock-outline",
+                "state": {
+                    "on": "mdi:timer-lock",
+                    "off": "mdi:timer-lock-outline"
+                }
             }
         }
     }

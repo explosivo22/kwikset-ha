@@ -209,7 +209,7 @@ class TestSwitchPlatformImports:
 
         assert SWITCH_DESCRIPTIONS is not None
         assert isinstance(SWITCH_DESCRIPTIONS, tuple)
-        assert len(SWITCH_DESCRIPTIONS) == 3
+        assert len(SWITCH_DESCRIPTIONS) == 4
 
     def test_switch_has_entity_description_class(self) -> None:
         """Test switch module exports KwiksetSwitchEntityDescription."""

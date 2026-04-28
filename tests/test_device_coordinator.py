@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from aiokwikset.errors import ConnectionError as KwiksetConnectionError
 from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
@@ -253,6 +254,81 @@ class TestRetryLogic:
                 MOCK_DEVICE_ID,
             )
 
+    async def test_timeout_treated_as_transient(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """A TimeoutError in API call must retry, not escalate to reauth (#122)."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(side_effect=TimeoutError())
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        with patch(
+            "custom_components.kwikset.device.asyncio.sleep", new_callable=AsyncMock
+        ):
+            with pytest.raises(HomeAssistantError) as exc_info:
+                await coordinator._api_call_with_retry(
+                    api.device.get_device_info,
+                    MOCK_DEVICE_ID,
+                )
+
+        assert exc_info.value.translation_key == "api_error"
+        assert api.device.get_device_info.call_count == MAX_RETRY_ATTEMPTS
+
+    async def test_relogin_attempted_before_reauth_when_password_stored(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """First TokenExpiredError triggers relogin if stored password set (#122)."""
+        from custom_components.kwikset.const import CONF_STORED_PASSWORD
+
+        # Add stored password to entry data
+        hass.config_entries.async_update_entry(
+            mock_config_entry,
+            data={**mock_config_entry.data, CONF_STORED_PASSWORD: "stored_pw"},
+        )
+
+        api = MagicMock()
+        api.device = MagicMock()
+        # First call raises TokenExpired, second call succeeds
+        api.device.get_device_info = AsyncMock(
+            side_effect=[TokenExpiredError("expired"), MOCK_DEVICE_INFO]
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        with patch(
+            "custom_components.kwikset.async_relogin_with_stored_password",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as mock_relogin:
+            result = await coordinator._api_call_with_retry(
+                api.device.get_device_info,
+                MOCK_DEVICE_ID,
+            )
+
+        assert result == MOCK_DEVICE_INFO
+        mock_relogin.assert_awaited_once()
+        assert api.device.get_device_info.call_count == 2
+
 
 # =============================================================================
 # Device Property Tests
@@ -473,6 +549,72 @@ class TestDeviceActions:
         api.device.set_secure_screen_enabled.assert_called_once()
         call_args = api.device.set_secure_screen_enabled.call_args
         assert call_args[0][1] is True
+
+    async def test_set_autolock_action(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test set autolock action calls API with correct value."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.set_autolock_enabled = AsyncMock()
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.set_autolock(True)
+
+        api.device.set_autolock_enabled.assert_called_once()
+        call_args = api.device.set_autolock_enabled.call_args
+        assert call_args[0][1] is True
+
+    async def test_set_autolock_raises_home_assistant_error(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test set autolock surfaces API failures as HomeAssistantError."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.set_autolock_enabled = AsyncMock(
+            side_effect=KwiksetConnectionError("boom")
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        with (
+            patch(
+                "custom_components.kwikset.device.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+            patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock),
+            pytest.raises(HomeAssistantError) as exc_info,
+        ):
+            await coordinator.set_autolock(False)
+
+        assert exc_info.value.translation_key == "api_error"
 
 
 # =============================================================================
@@ -2111,3 +2253,168 @@ class TestSlotParsing:
         assert 3 in result
         assert 5 in result
         assert result[5]["occupied"] is False  # None value = not occupied
+
+
+# =============================================================================
+# Preserve Door Status Tests
+# =============================================================================
+
+
+class TestPreserveDoorStatus:
+    """Tests for the _preserve_door_status flag in the coordinator.
+
+    When a WebSocket event provides an authoritative door_status,
+    the subsequent REST API refresh should not overwrite it with stale data.
+    """
+
+    async def test_preserve_door_status_on_websocket_then_refresh(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test preserved door_status overrides stale REST API data."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(
+            return_value={"data": [], "total": 0, "issues": []}
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        # Initial state: Locked (from MOCK_DEVICE_INFO)
+        assert coordinator.data["door_status"] == "Locked"
+
+        # Simulate WebSocket event that changed status to Unlocked
+        # (This sets the data directly as handle_realtime_event would)
+        updated = dict(coordinator.data)
+        updated["door_status"] = "Unlocked"
+        coordinator.async_set_updated_data(updated)
+        assert coordinator.data["door_status"] == "Unlocked"
+
+        # Set the preserve flag (as handle_realtime_event would)
+        coordinator._preserve_door_status = True
+
+        # REST API still returns stale "Locked"
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+
+        # Trigger a refresh and capture the return value
+        result = await coordinator._async_update_data()
+
+        # The returned door_status should be preserved as "Unlocked"
+        assert result["door_status"] == "Unlocked"
+
+        # Flag should be cleared after use
+        assert coordinator._preserve_door_status is False
+
+    async def test_preserve_door_status_flag_set_by_realtime_event(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test handle_realtime_event sets _preserve_door_status on door change."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(
+            return_value={"data": [], "total": 0, "issues": []}
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        # Initially False
+        assert coordinator._preserve_door_status is False
+
+        # Simulate door status change via websocket
+        event_data = {
+            "devicestatus": "Unlocked",
+        }
+
+        with patch.object(coordinator, "async_request_refresh"):
+            coordinator.handle_realtime_event(event_data)
+
+        # Flag should be set because door status changed
+        assert coordinator._preserve_door_status is True
+
+    async def test_preserve_door_status_not_set_without_change(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test handle_realtime_event does not set flag when door status unchanged."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.get_device_history = AsyncMock(
+            return_value={"data": [], "total": 0, "issues": []}
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        # Initially Locked, send event without door status change
+        event_data = {
+            "batterypercentage": 50,
+        }
+
+        coordinator.handle_realtime_event(event_data)
+
+        # Flag should NOT be set (no door status change)
+        assert coordinator._preserve_door_status is False
+
+    async def test_preserve_door_status_no_existing_data(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test _preserve_door_status with no existing data uses API data."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        # Set preserve flag before first refresh (no existing data)
+        coordinator._preserve_door_status = True
+
+        # First refresh — self.data is None at this point
+        result = await coordinator._async_update_data()
+
+        # Should use API data since there's no previous data to preserve
+        assert result["door_status"] == "Locked"
+
+        # Flag should still be cleared even though no data was preserved
+        assert coordinator._preserve_door_status is False

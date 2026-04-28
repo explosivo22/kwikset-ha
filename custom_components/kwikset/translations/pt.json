@@ -338,6 +338,24 @@
                     "description": "The Kwikset integration config entry for the home."
                 }
             }
+        },
+        "set_autolock": {
+            "name": "Set auto-lock",
+            "description": "Enable or disable auto-lock on a Kwikset smart lock and choose how long the lock waits before re-locking.",
+            "fields": {
+                "device_id": {
+                    "name": "Device",
+                    "description": "The Kwikset lock device."
+                },
+                "enabled": {
+                    "name": "Enabled",
+                    "description": "Turn auto-lock on or off."
+                },
+                "delay": {
+                    "name": "Delay",
+                    "description": "How long (in seconds) the lock waits before automatically re-locking. Only applied when auto-lock is enabled. Defaults to 30 seconds."
+                }
+            }
         }
     },
     "config": {
@@ -493,6 +511,7 @@
                 "name": "Evento da Fechadura",
                 "state_attributes": {
                     "event_type": {
+                        "name": "Tipo de evento",
                         "state": {
                             "locked": "Trancado",
                             "unlocked": "Destrancado",
@@ -546,6 +565,9 @@
             },
             "secure_screen_switch": {
                 "name": "Ecrã seguro"
+            },
+            "autolock_switch": {
+                "name": "Auto Lock"
             }
         }
     },
@@ -642,6 +664,9 @@
         },
         "missing_weekly_fields": {
             "message": "Weekly access requires start_time, end_time, and days to be provided."
+        },
+        "set_autolock_failed": {
+            "message": "Failed to update auto-lock settings. The device may be offline. Please try again."
         }
     },
     "issues": {

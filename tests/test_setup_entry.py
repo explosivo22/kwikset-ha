@@ -394,6 +394,23 @@ class TestSetupErrorHandling:
         with pytest.raises(ConfigEntryNotReady):
             await async_setup_entry(hass, entry)
 
+    async def test_setup_raises_not_ready_on_auth_timeout(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Test setup raises ConfigEntryNotReady on auth TimeoutError (#122)."""
+        entry = MagicMock()
+        entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        entry.entry_id = "test_entry_id"
+        entry.data = MOCK_ENTRY_DATA.copy()
+        entry.options = MOCK_ENTRY_OPTIONS.copy()
+
+        mock_api.async_authenticate_with_tokens.side_effect = TimeoutError()
+
+        with pytest.raises(ConfigEntryNotReady):
+            await async_setup_entry(hass, entry)
+
     async def test_setup_updates_tokens_when_refreshed(
         self,
         hass: HomeAssistant,

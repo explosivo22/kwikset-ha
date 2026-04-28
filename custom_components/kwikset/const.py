@@ -42,6 +42,11 @@ MAX_REFRESH_INTERVAL: Final = 900
 MAX_RETRY_ATTEMPTS: Final = 3
 RETRY_DELAY_SECONDS: Final = 2
 
+# Timeout for blocking Cognito SRP / token refresh calls.
+# boto3/botocore inside aiokwikset has no usable upper bound on these calls,
+# so we wrap them in asyncio.timeout to prevent indefinite hangs (issue #122).
+AUTH_CALL_TIMEOUT_SECONDS: Final = 30
+
 # History API fetch timeout per attempt (non-critical supplemental data).
 # Kwikset's history_v4 endpoint can be slow; this must be long enough for the
 # aiokwikset library's own request + retry cycle to complete.  A value equal to
@@ -60,6 +65,13 @@ HISTORY_MAX_RETRY_ATTEMPTS: Final = 2
 # 30 seconds is used by the Matter lock integration as a safe default.
 OPTIMISTIC_TIMEOUT_SECONDS: Final = 30
 
+# Grace period after a lock/unlock state confirmation to prevent stale
+# REST API data from briefly reverting the confirmed state. During this
+# period, coordinator updates that would revert is_locked are suppressed.
+# 15 seconds is long enough for the REST API to reach consistency while
+# short enough that real physical state changes are not masked.
+CONFIRMATION_HOLD_SECONDS: Final = 15
+
 # Limit concurrent API calls per platform to prevent rate limiting
 # Each platform file uses this value to serialize entity operations
 PARALLEL_UPDATES: Final = 1
@@ -72,6 +84,11 @@ SERVICE_ENABLE_ACCESS_CODE: Final = "enable_access_code"
 SERVICE_DELETE_ACCESS_CODE: Final = "delete_access_code"
 SERVICE_DELETE_ALL_ACCESS_CODES: Final = "delete_all_access_codes"
 SERVICE_LIST_ACCESS_CODES: Final = "list_access_codes"
+SERVICE_SET_AUTOLOCK: Final = "set_autolock"
+
+# Auto-lock delay options (seconds) — must match aiokwikset.const.AUTOLOCK_DELAY_VALID
+AUTOLOCK_DELAY_VALID: Final[tuple[int, ...]] = (15, 30, 60, 180, 300, 600, 1500)
+AUTOLOCK_DELAY_DEFAULT: Final = 30
 
 # Access code persistent store
 STORAGE_KEY: Final = f"{DOMAIN}_access_codes"

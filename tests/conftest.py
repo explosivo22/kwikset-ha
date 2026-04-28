@@ -100,6 +100,7 @@ MOCK_DEVICE_INFO = {
     "ledstatus": "true",
     "audiostatus": True,
     "securescreenstatus": "false",
+    "autolockstate": "true",
 }
 
 MOCK_DEVICE_INFO_2 = {
@@ -113,6 +114,7 @@ MOCK_DEVICE_INFO_2 = {
     "ledstatus": "false",
     "audiostatus": False,
     "securescreenstatus": "true",
+    "autolockstate": "false",
 }
 
 MOCK_USER_INFO = {
@@ -274,6 +276,7 @@ def mock_api() -> Generator[MagicMock, None, None]:
             api.device.set_led_enabled = AsyncMock()
             api.device.set_audio_enabled = AsyncMock()
             api.device.set_secure_screen_enabled = AsyncMock()
+            api.device.set_autolock_enabled = AsyncMock()
             # Legacy methods for backwards compatibility
             api.device.set_ledstatus = AsyncMock()
             api.device.set_audiostatus = AsyncMock()
@@ -398,6 +401,7 @@ def mock_api_device() -> Generator[MagicMock, None, None]:
         api.device.set_led_enabled = AsyncMock()
         api.device.set_audio_enabled = AsyncMock()
         api.device.set_secure_screen_enabled = AsyncMock()
+        api.device.set_autolock_enabled = AsyncMock()
         # Legacy methods for backwards compatibility
         api.device.set_ledstatus = AsyncMock()
         api.device.set_audiostatus = AsyncMock()
@@ -449,6 +453,7 @@ def mock_coordinator() -> MagicMock:
     coordinator.led_status = True
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
+    coordinator.autolock_status = True
     coordinator.history_events = MOCK_DEVICE_HISTORY["data"]
     coordinator.last_event = "Locked"
     coordinator.last_event_user = "John Doe"
@@ -478,6 +483,7 @@ def mock_coordinator() -> MagicMock:
         "led_status": True,
         "audio_status": True,
         "secure_screen_status": False,
+        "autolock_status": True,
         "history_events": MOCK_DEVICE_HISTORY["data"],
     }
 
@@ -487,6 +493,7 @@ def mock_coordinator() -> MagicMock:
     coordinator.set_led = AsyncMock()
     coordinator.set_audio = AsyncMock()
     coordinator.set_secure_screen = AsyncMock()
+    coordinator.set_autolock = AsyncMock()
     coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
     coordinator.disable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
     coordinator.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
@@ -514,6 +521,7 @@ def mock_coordinator_unlocked() -> MagicMock:
     coordinator.led_status = True
     coordinator.audio_status = True
     coordinator.secure_screen_status = False
+    coordinator.autolock_status = False
     coordinator.history_events = MOCK_DEVICE_HISTORY["data"]
     coordinator.last_event = "Locked"
     coordinator.last_event_user = "John Doe"
@@ -533,6 +541,7 @@ def mock_coordinator_unlocked() -> MagicMock:
         "led_status": True,
         "audio_status": True,
         "secure_screen_status": False,
+        "autolock_status": False,
         "history_events": MOCK_DEVICE_HISTORY["data"],
     }
 
@@ -541,6 +550,7 @@ def mock_coordinator_unlocked() -> MagicMock:
     coordinator.set_led = AsyncMock()
     coordinator.set_audio = AsyncMock()
     coordinator.set_secure_screen = AsyncMock()
+    coordinator.set_autolock = AsyncMock()
     coordinator.create_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
     coordinator.disable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
     coordinator.enable_access_code = AsyncMock(return_value=MOCK_ACCESS_CODE_RESULT)
