@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from aiokwikset.errors import ConnectionError as KwiksetConnectionError
 from aiokwikset.errors import RequestError
 from aiokwikset.errors import TokenExpiredError
 from aiokwikset.errors import Unauthenticated
@@ -548,6 +549,72 @@ class TestDeviceActions:
         api.device.set_secure_screen_enabled.assert_called_once()
         call_args = api.device.set_secure_screen_enabled.call_args
         assert call_args[0][1] is True
+
+    async def test_set_autolock_action(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test set autolock action calls API with correct value."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.set_autolock_enabled = AsyncMock()
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        # Mock async_request_refresh to avoid lingering debouncer timers
+        with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock):
+            await coordinator.set_autolock(True)
+
+        api.device.set_autolock_enabled.assert_called_once()
+        call_args = api.device.set_autolock_enabled.call_args
+        assert call_args[0][1] is True
+
+    async def test_set_autolock_raises_home_assistant_error(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """Test set autolock surfaces API failures as HomeAssistantError."""
+        api = MagicMock()
+        api.device = MagicMock()
+        api.device.get_device_info = AsyncMock(return_value=MOCK_DEVICE_INFO)
+        api.device.set_autolock_enabled = AsyncMock(
+            side_effect=KwiksetConnectionError("boom")
+        )
+
+        coordinator = KwiksetDeviceDataUpdateCoordinator(
+            hass=hass,
+            api_client=api,
+            device_id=MOCK_DEVICE_ID,
+            device_name=MOCK_DEVICE_NAME,
+            update_interval=30,
+            config_entry=mock_config_entry,
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        with (
+            patch(
+                "custom_components.kwikset.device.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+            patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock),
+            pytest.raises(HomeAssistantError) as exc_info,
+        ):
+            await coordinator.set_autolock(False)
+
+        assert exc_info.value.translation_key == "api_error"
 
 
 # =============================================================================

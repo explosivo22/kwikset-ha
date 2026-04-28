@@ -893,6 +893,16 @@ class TestSwitchDescriptions:
         assert secure_desc.translation_key == "secure_screen_switch"
         assert secure_desc.entity_category == EntityCategory.CONFIG
 
+    def test_autolock_switch_description(self, switch_module) -> None:
+        """Test autolock switch description properties."""
+        desc = next(
+            d for d in switch_module.SWITCH_DESCRIPTIONS if d.key == "autolock_switch"
+        )
+        assert desc.translation_key == "autolock_switch"
+        assert desc.entity_category == EntityCategory.CONFIG
+        # Enabled by default (unlike secure_screen_switch)
+        assert desc.entity_registry_enabled_default is True
+
     def test_switch_descriptions_are_frozen(self, switch_module) -> None:
         """Test switch descriptions are frozen dataclasses."""
         for desc in switch_module.SWITCH_DESCRIPTIONS:
@@ -908,13 +918,11 @@ class TestSwitchDescriptions:
         self, switch_module, mock_coordinator: MagicMock
     ) -> None:
         """Test value_fn is callable and returns correct values."""
-        led_desc = switch_module.SWITCH_DESCRIPTIONS[0]
-        audio_desc = switch_module.SWITCH_DESCRIPTIONS[1]
-        secure_desc = switch_module.SWITCH_DESCRIPTIONS[2]
-
-        assert led_desc.value_fn(mock_coordinator) is True
-        assert audio_desc.value_fn(mock_coordinator) is True
-        assert secure_desc.value_fn(mock_coordinator) is False
+        descs = {d.key: d for d in switch_module.SWITCH_DESCRIPTIONS}
+        assert descs["led_switch"].value_fn(mock_coordinator) is True
+        assert descs["audio_switch"].value_fn(mock_coordinator) is True
+        assert descs["secure_screen_switch"].value_fn(mock_coordinator) is False
+        assert descs["autolock_switch"].value_fn(mock_coordinator) is True
 
 
 # =============================================================================

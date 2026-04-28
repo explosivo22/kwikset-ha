@@ -1742,3 +1742,151 @@ class TestListUsers:
             )
 
         assert exc_info.value.translation_key == "config_entry_not_found"
+
+
+# =============================================================================
+# Set Auto-lock Service Tests
+# =============================================================================
+
+
+class TestSetAutolockService:
+    """Tests for kwikset.set_autolock service."""
+
+    async def test_enable_with_default_delay(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test enabling auto-lock with no delay applies the 30s default."""
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_AUTOLOCK,
+            {"device_id": ha_device_id, "enabled": True},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result == {"enabled": True, "delay": 30}
+        mock_api.device.set_autolock_enabled.assert_awaited_once()
+        args = mock_api.device.set_autolock_enabled.await_args.args
+        assert args[1] is True
+        assert args[2] == 30
+
+    async def test_enable_with_explicit_delay(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test enabling auto-lock with an explicit valid delay."""
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_AUTOLOCK,
+            {"device_id": ha_device_id, "enabled": True, "delay": 600},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result == {"enabled": True, "delay": 600}
+        args = mock_api.device.set_autolock_enabled.await_args.args
+        assert args[2] == 600
+
+    async def test_disable_ignores_delay(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test disabling auto-lock reports delay=0 even with delay supplied."""
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_AUTOLOCK,
+            {"device_id": ha_device_id, "enabled": False, "delay": 600},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result == {"enabled": False, "delay": 0}
+
+    @pytest.mark.parametrize("delay", [15, 30, 60, 180, 300, 600, 1500])
+    async def test_all_valid_delays_accepted(
+        self, hass: HomeAssistant, mock_api: MagicMock, delay: int
+    ) -> None:
+        """Test every supported delay value passes validation."""
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_AUTOLOCK,
+            {"device_id": ha_device_id, "enabled": True, "delay": delay},
+            blocking=True,
+        )
+
+        args = mock_api.device.set_autolock_enabled.await_args.args
+        assert args[2] == delay
+
+    async def test_invalid_delay_rejected_by_schema(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test unsupported delay values raise vol.Invalid via schema."""
+        import voluptuous as vol
+
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(vol.Invalid):
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_SET_AUTOLOCK,
+                {"device_id": ha_device_id, "enabled": True, "delay": 45},
+                blocking=True,
+            )
+
+        mock_api.device.set_autolock_enabled.assert_not_called()
+
+    async def test_api_error_raises_home_assistant_error(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test API failures surface as HomeAssistantError with translation key."""
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
+
+        mock_api.device.set_autolock_enabled = AsyncMock(
+            side_effect=Exception("network down")
+        )
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_SET_AUTOLOCK,
+                {"device_id": ha_device_id, "enabled": True},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "set_autolock_failed"
+
+    async def test_invalid_device_raises(
+        self, hass: HomeAssistant, mock_api: MagicMock
+    ) -> None:
+        """Test unknown device_id raises HomeAssistantError."""
+        from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
+
+        await _setup_entry_with_device(hass, mock_api)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_SET_AUTOLOCK,
+                {"device_id": "nonexistent", "enabled": True},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "device_not_found"

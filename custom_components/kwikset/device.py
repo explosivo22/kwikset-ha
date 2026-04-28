@@ -67,6 +67,7 @@ _KEY_FIRMWARE = "firmwarebundleversion"
 _KEY_LED = "ledstatus"
 _KEY_AUDIO = "audiostatus"
 _KEY_SECURE_SCREEN = "securescreenstatus"
+_KEY_AUTOLOCK = "autolockstate"
 
 # API response keys for access code fields
 _KEY_ACCESS_CODE_CRC = "accesscodecrc"
@@ -111,6 +112,7 @@ class KwiksetDeviceData(TypedDict, total=False):
     led_status: bool | None
     audio_status: bool | None
     secure_screen_status: bool | None
+    autolock_status: bool | None
     history_events: list[dict[str, Any]]
 
 
@@ -405,6 +407,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             led_status=self._parse_bool(info.get(_KEY_LED)),
             audio_status=self._parse_bool(info.get(_KEY_AUDIO)),
             secure_screen_status=self._parse_bool(info.get(_KEY_SECURE_SCREEN)),
+            autolock_status=self._parse_bool(info.get(_KEY_AUTOLOCK)),
             history_events=history_events,
         )
 
@@ -422,7 +425,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     # -------------------------------------------------------------------------
 
     @callback
-    def handle_realtime_event(self, event_data: dict[str, Any]) -> None:
+    def handle_realtime_event(self, event_data: dict[str, Any]) -> None:  # noqa: PLR0912
         """Handle a real-time websocket event and update coordinator data.
 
         Merges the event data into the current coordinator data and
@@ -468,6 +471,10 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         secure_screen = event_data.get(_KEY_SECURE_SCREEN)
         if secure_screen is not None:
             updated["secure_screen_status"] = self._parse_bool(secure_screen)
+
+        autolock = event_data.get(_KEY_AUTOLOCK)
+        if autolock is not None:
+            updated["autolock_status"] = self._parse_bool(autolock)
 
         # Also check for the websocket-specific device status key
         device_status = event_data.get(WEBSOCKET_FIELD_DEVICE_STATUS)
@@ -592,6 +599,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         if self.data:
             return self.data.get("secure_screen_status")
         return self._parse_bool(self._device_info.get(_KEY_SECURE_SCREEN))
+
+    @property
+    def autolock_status(self) -> bool | None:
+        """Return autolock status."""
+        if self.data:
+            return self.data.get("autolock_status")
+        return self._parse_bool(self._device_info.get(_KEY_AUTOLOCK))
 
     # -------------------------------------------------------------------------
     # History Properties (for history sensor entity)
@@ -1192,6 +1206,29 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             enabled,
         )
         LOGGER.debug("Secure screen set to %s for %s", enabled, self.device_id)
+        await self.async_request_refresh()
+
+    async def set_autolock(self, enabled: bool, delay: int | None = None) -> None:
+        """Set autolock status using convenience method.
+
+        Args:
+            enabled: Whether auto-lock should be on.
+            delay: Optional delay in seconds; must be one of
+                ``AUTOLOCK_DELAY_VALID``. Ignored when ``enabled`` is False
+                (the lock receives a 0-second delay). When omitted, the
+                upstream library applies its default (30s).
+
+        """
+        assert self.api_client.device is not None  # Set after authentication
+        await self._api_call_with_retry(
+            self.api_client.device.set_autolock_enabled,
+            self._device_info,
+            enabled,
+            delay,
+        )
+        LOGGER.debug(
+            "Autolock set to %s (delay=%s) for %s", enabled, delay, self.device_id
+        )
         await self.async_request_refresh()
 
     # -------------------------------------------------------------------------

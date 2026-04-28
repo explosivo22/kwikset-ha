@@ -37,6 +37,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
+from .const import AUTOLOCK_DELAY_DEFAULT
+from .const import AUTOLOCK_DELAY_VALID
 from .const import CONF_HOME_ID
 from .const import DOMAIN
 from .const import LOGGER
@@ -55,6 +57,7 @@ from .const import SERVICE_ENABLE_ACCESS_CODE
 from .const import SERVICE_INVITE_USER
 from .const import SERVICE_LIST_ACCESS_CODES
 from .const import SERVICE_LIST_USERS
+from .const import SERVICE_SET_AUTOLOCK
 from .const import SERVICE_UPDATE_USER
 
 if TYPE_CHECKING:
@@ -205,6 +208,14 @@ SERVICE_DELETE_USER_SCHEMA = vol.Schema(
 SERVICE_LIST_USERS_SCHEMA = vol.Schema(
     {
         vol.Required("config_entry_id"): cv.string,
+    }
+)
+
+SERVICE_SET_AUTOLOCK_SCHEMA = vol.Schema(
+    {
+        vol.Required("device_id"): cv.string,
+        vol.Required("enabled"): cv.boolean,
+        vol.Optional("delay"): vol.All(vol.Coerce(int), vol.In(AUTOLOCK_DELAY_VALID)),
     }
 )
 
@@ -957,6 +968,50 @@ async def async_handle_list_users(
 
 
 # =============================================================================
+# Lock Settings Handlers
+# =============================================================================
+
+
+async def async_handle_set_autolock(
+    hass: HomeAssistant, call: ServiceCall
+) -> ServiceResponse:
+    """Handle set_autolock service call.
+
+    Enables or disables auto-lock on a Kwikset smart lock and, when
+    enabling, optionally sets the delay in seconds. Valid delay values
+    are defined by ``AUTOLOCK_DELAY_VALID``.
+    """
+    data = call.data
+    device_id = data["device_id"]
+    enabled = data["enabled"]
+    delay = data.get("delay", AUTOLOCK_DELAY_DEFAULT if enabled else None)
+
+    coordinator = _resolve_coordinator(hass, device_id)
+
+    try:
+        await coordinator.set_autolock(enabled, delay)
+    except HomeAssistantError:
+        raise
+    except Exception as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="set_autolock_failed",
+        ) from err
+
+    LOGGER.info(
+        "Auto-lock set to %s (delay=%s) on %s",
+        enabled,
+        delay if enabled else 0,
+        coordinator.device_name,
+    )
+
+    return {
+        "enabled": enabled,
+        "delay": delay if enabled else 0,
+    }
+
+
+# =============================================================================
 # Service Registration
 # =============================================================================
 
@@ -1026,6 +1081,12 @@ _SERVICE_HANDLERS: list[tuple[str, vol.Schema, Any, SupportsResponse]] = [
         SERVICE_LIST_USERS_SCHEMA,
         async_handle_list_users,
         SupportsResponse.ONLY,
+    ),
+    (
+        SERVICE_SET_AUTOLOCK,
+        SERVICE_SET_AUTOLOCK_SCHEMA,
+        async_handle_set_autolock,
+        SupportsResponse.OPTIONAL,
     ),
 ]
 

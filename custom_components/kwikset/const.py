@@ -84,6 +84,11 @@ SERVICE_ENABLE_ACCESS_CODE: Final = "enable_access_code"
 SERVICE_DELETE_ACCESS_CODE: Final = "delete_access_code"
 SERVICE_DELETE_ALL_ACCESS_CODES: Final = "delete_all_access_codes"
 SERVICE_LIST_ACCESS_CODES: Final = "list_access_codes"
+SERVICE_SET_AUTOLOCK: Final = "set_autolock"
+
+# Auto-lock delay options (seconds) — must match aiokwikset.const.AUTOLOCK_DELAY_VALID
+AUTOLOCK_DELAY_VALID: Final[tuple[int, ...]] = (15, 30, 60, 180, 300, 600, 1500)
+AUTOLOCK_DELAY_DEFAULT: Final = 30
 
 # Access code persistent store
 STORAGE_KEY: Final = f"{DOMAIN}_access_codes"
