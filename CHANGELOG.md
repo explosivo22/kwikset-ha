@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Update listener deprecation** ([#129](https://github.com/explosivo22/kwikset-ha/issues/129)): Home Assistant warns that integrations with an update listener that does not schedule a reload will stop working in 2026.12.0. The options flow now uses `OptionsFlowWithReload` and the update listener is removed, so changing the refresh interval reloads the entry (which briefly reconnects the websocket).
+- **Deprecated device registry lookup**: Replaced `device_registry.async_get_device` with `async_get_device_by_identifier` when removing devices that disappear from the account.
+
+### Changed
+- **Minimum Home Assistant version** is now 2025.8.0 (required for `OptionsFlowWithReload`). CI and development now target Python 3.14 and Home Assistant 2026.10.
+
 ---
 
 ## [0.7.1] - 2026-04-27

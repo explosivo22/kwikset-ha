@@ -5,7 +5,7 @@
 name = "kwikset-ha"
 version = "0.4.0"
 description = "Kwikset Smart Locks integration for Home Assistant"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 
 [tool.ruff]
 # Target Python 3.12 (Home Assistant minimum version)

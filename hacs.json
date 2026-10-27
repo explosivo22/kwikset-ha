@@ -1,4 +1,5 @@
 {
     "name": "Kwikset Smart Locks",
-    "content_in_root": false
+    "content_in_root": false,
+    "homeassistant": "2025.8.0"
 }

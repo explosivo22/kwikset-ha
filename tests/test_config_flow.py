@@ -29,6 +29,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.kwikset.config_flow import KwiksetFlowHandler
+from custom_components.kwikset.config_flow import KwiksetOptionsFlow
 from custom_components.kwikset.const import CONF_ACCESS_TOKEN
 from custom_components.kwikset.const import CONF_HOME_ID
 from custom_components.kwikset.const import CONF_ID_TOKEN
@@ -793,6 +794,41 @@ class TestOptionsFlow:
 
         assert result["type"] == FlowResultType.CREATE_ENTRY
         assert result["data"][CONF_REFRESH_INTERVAL] == 45
+
+    async def test_options_flow_reloads_entry(
+        self,
+        hass: HomeAssistant,
+        mock_api_config_flow: MagicMock,
+    ) -> None:
+        """Test saving options schedules an entry reload (no update listener)."""
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_EMAIL: MOCK_EMAIL,
+                CONF_HOME_ID: MOCK_HOME_ID,
+                CONF_ACCESS_TOKEN: MOCK_ACCESS_TOKEN,
+                CONF_REFRESH_TOKEN: MOCK_REFRESH_TOKEN,
+            },
+            options={CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL},
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        assert issubclass(KwiksetOptionsFlow, config_entries.OptionsFlowWithReload)
+
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        with patch.object(
+            hass.config_entries, "async_schedule_reload"
+        ) as mock_schedule_reload:
+            result = await hass.config_entries.options.async_configure(
+                result["flow_id"],
+                {CONF_REFRESH_INTERVAL: 45},
+            )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        mock_schedule_reload.assert_called_once_with(entry.entry_id)
 
 
 # =============================================================================

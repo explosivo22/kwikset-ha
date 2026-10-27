@@ -80,8 +80,8 @@ async def _setup_entry_with_device(
 
     # Look up the HA device registry ID
     device_registry = dr.async_get(hass)
-    device_entry = device_registry.async_get_device(
-        identifiers={(DOMAIN, MOCK_DEVICE_ID)}
+    device_entry = device_registry.async_get_device_by_identifier(
+        (DOMAIN, MOCK_DEVICE_ID), entry.entry_id
     )
     assert device_entry is not None
 

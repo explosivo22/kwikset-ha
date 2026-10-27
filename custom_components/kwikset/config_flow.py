@@ -611,7 +611,7 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return KwiksetOptionsFlow()
 
 
-class KwiksetOptionsFlow(config_entries.OptionsFlow):
+class KwiksetOptionsFlow(config_entries.OptionsFlowWithReload):
     """Handle options flow for Kwikset integration.
 
     Allows configuration of:

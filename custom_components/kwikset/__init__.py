@@ -504,9 +504,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: KwiksetConfigEntry) -> b
     # Register access code management services (idempotent — safe for multiple entries)
     async_setup_services(hass)
 
-    # Register listeners
-    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
-
     async def _async_check_devices(_now) -> None:
         """Periodically check for new or removed devices."""
         await _async_update_devices(hass, entry)
@@ -632,7 +629,9 @@ async def _async_remove_stale_devices(
 
     for device_id in removed_device_ids:
         # Remove from device registry (cascades to entity removal)
-        device = device_registry.async_get_device(identifiers={(DOMAIN, device_id)})
+        device = device_registry.async_get_device_by_identifier(
+            (DOMAIN, device_id), entry.entry_id
+        )
         if device:
             device_registry.async_update_device(
                 device_id=device.id,
@@ -698,47 +697,6 @@ async def _async_update_devices(hass: HomeAssistant, entry: KwiksetConfigEntry) 
 # =============================================================================
 # Options & Device Removal
 # =============================================================================
-
-
-async def _async_options_updated(
-    hass: HomeAssistant, entry: KwiksetConfigEntry
-) -> None:
-    """Handle options update by applying new polling interval to coordinators.
-
-    If the websocket is active, the user's new interval is saved but not
-    applied until the websocket disconnects. The safety-net heartbeat
-    interval remains in effect.
-    """
-    devices = entry.runtime_data.devices
-    if not devices:
-        return
-
-    # When websocket is active, keep the heartbeat interval — the user's
-    # preference is persisted in options and will be applied if websocket drops.
-    if entry.runtime_data.websocket_subscribed:
-        LOGGER.debug(
-            "WebSocket active — user interval saved but heartbeat polling unchanged"
-        )
-        return
-
-    new_interval = _get_update_interval(entry)
-    new_interval_td = timedelta(seconds=new_interval)
-
-    for coordinator in devices.values():
-        if coordinator.update_interval != new_interval_td:
-            old_seconds = (
-                coordinator.update_interval.total_seconds()
-                if coordinator.update_interval
-                else None
-            )
-            coordinator.set_update_interval(new_interval_td)
-            LOGGER.debug(
-                "Updated refresh interval for %s from %s to %s seconds",
-                coordinator.device_name,
-                old_seconds,
-                new_interval,
-            )
-            await coordinator.async_request_refresh()
 
 
 async def async_remove_config_entry_device(
