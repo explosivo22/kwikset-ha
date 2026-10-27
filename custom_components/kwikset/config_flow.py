@@ -25,7 +25,7 @@ import contextlib
 from collections.abc import Mapping
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from aiokwikset import API
 from aiokwikset.errors import ConnectionError as KwiksetConnectionError
 from aiokwikset.errors import MFAChallengeRequired
@@ -69,7 +69,7 @@ from .const import MIN_REFRESH_INTERVAL
 def _get_credentials_schema(
     default_email: str = "",
     default_save_password: bool = DEFAULT_SAVE_PASSWORD,
-) -> vol.Schema:
+) -> probatio.Schema:
     """Get the credentials schema with optional save password checkbox.
 
     Args:
@@ -80,22 +80,22 @@ def _get_credentials_schema(
         Schema for credentials form.
 
     """
-    return vol.Schema(
+    return probatio.Schema(
         {
-            vol.Required(CONF_EMAIL, default=default_email): str,
-            vol.Required(CONF_PASSWORD): str,
-            vol.Optional(CONF_SAVE_PASSWORD, default=default_save_password): bool,
+            probatio.Required(CONF_EMAIL, default=default_email): str,
+            probatio.Required(CONF_PASSWORD): str,
+            probatio.Optional(CONF_SAVE_PASSWORD, default=default_save_password): bool,
         }
     )
 
 
 CREDENTIALS_SCHEMA = _get_credentials_schema()
 
-MFA_SCHEMA = vol.Schema({vol.Required("mfa_code"): str})
+MFA_SCHEMA = probatio.Schema({probatio.Required("mfa_code"): str})
 
-DELIVERY_METHOD_SCHEMA = vol.Schema(
+DELIVERY_METHOD_SCHEMA = probatio.Schema(
     {
-        vol.Required("delivery_method", default="email"): SelectSelector(
+        probatio.Required("delivery_method", default="email"): SelectSelector(
             SelectSelectorConfig(
                 options=[
                     SelectOptionDict(value="email", label="Email"),
@@ -463,8 +463,8 @@ class KwiksetFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
             return self.async_show_form(
                 step_id="select_home",
-                data_schema=vol.Schema(
-                    {vol.Required(CONF_HOME_ID): vol.In(homes_options)}
+                data_schema=probatio.Schema(
+                    {probatio.Required(CONF_HOME_ID): probatio.In(homes_options)}
                 ),
             )
 
@@ -627,9 +627,9 @@ class KwiksetOptionsFlow(config_entries.OptionsFlowWithReload):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
+            data_schema=probatio.Schema(
                 {
-                    vol.Optional(
+                    probatio.Optional(
                         CONF_REFRESH_INTERVAL,
                         default=self.config_entry.options.get(
                             CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL

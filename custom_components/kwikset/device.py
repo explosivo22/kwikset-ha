@@ -131,6 +131,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     def __init__(
         self,
         hass: HomeAssistant,
+        *,
         api_client: API,
         device_id: str,
         device_name: str,

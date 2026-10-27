@@ -17,14 +17,14 @@ Quality Scale:
 from __future__ import annotations
 
 import calendar
-import datetime
+import datetime as dt
 import functools
 from functools import reduce
 from operator import or_
 from typing import TYPE_CHECKING
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from aiokwikset.access_code import AccessCodeSchedule
 from aiokwikset.access_code import DayOfWeek
 from aiokwikset.access_code import ScheduleType
@@ -90,76 +90,92 @@ _VALID_SCHEDULE_TYPES: list[str] = list(SCHEDULE_TYPE_MAP.keys())
 _VALID_DAYS: list[str] = list(DAY_OF_WEEK_MAP.keys())
 
 # =============================================================================
-# Voluptuous Schemas
+# Probatio Schemas
 # =============================================================================
 
-_SCHEDULE_FIELDS: dict[vol.Optional, Any] = {
-    vol.Optional("start_time"): cv.time,
-    vol.Optional("end_time"): cv.time,
-    vol.Optional("start_date"): cv.date,
-    vol.Optional("end_date"): cv.date,
-    vol.Optional("days_of_week"): vol.All(
+_SCHEDULE_FIELDS: dict[probatio.Optional, Any] = {
+    probatio.Optional("start_time"): cv.time,
+    probatio.Optional("end_time"): cv.time,
+    probatio.Optional("start_date"): cv.date,
+    probatio.Optional("end_date"): cv.date,
+    probatio.Optional("days_of_week"): probatio.All(
         cv.ensure_list,
-        [vol.In(_VALID_DAYS)],
+        [probatio.In(_VALID_DAYS)],
     ),
 }
 
-SERVICE_CREATE_ACCESS_CODE_SCHEMA = vol.Schema(
+SERVICE_CREATE_ACCESS_CODE_SCHEMA = probatio.Schema(
     {  # type: ignore[misc]
-        vol.Required("device_id"): cv.string,
-        vol.Required("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
-        vol.Required("name"): cv.string,
-        vol.Required("schedule_type"): vol.In(_VALID_SCHEDULE_TYPES),
-        vol.Optional("slot", default=0): vol.All(
-            vol.Coerce(int), vol.Range(min=0, max=255)
+        probatio.Required("device_id"): cv.string,
+        probatio.Required("code"): probatio.All(
+            cv.string, probatio.Match(r"^\d{4,8}$")
+        ),
+        probatio.Required("name"): cv.string,
+        probatio.Required("schedule_type"): probatio.In(_VALID_SCHEDULE_TYPES),
+        probatio.Optional("slot", default=0): probatio.All(
+            probatio.Coerce(int), probatio.Range(min=0, max=255)
         ),
         **_SCHEDULE_FIELDS,
     }
 )
 
-SERVICE_EDIT_ACCESS_CODE_SCHEMA = vol.Schema(
+SERVICE_EDIT_ACCESS_CODE_SCHEMA = probatio.Schema(
     {  # type: ignore[misc]
-        vol.Required("device_id"): cv.string,
-        vol.Required("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
-        vol.Required("name"): cv.string,
-        vol.Required("schedule_type"): vol.In(_VALID_SCHEDULE_TYPES),
-        vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+        probatio.Required("device_id"): cv.string,
+        probatio.Required("code"): probatio.All(
+            cv.string, probatio.Match(r"^\d{4,8}$")
+        ),
+        probatio.Required("name"): cv.string,
+        probatio.Required("schedule_type"): probatio.In(_VALID_SCHEDULE_TYPES),
+        probatio.Required("slot"): probatio.All(
+            probatio.Coerce(int), probatio.Range(min=0, max=255)
+        ),
         **_SCHEDULE_FIELDS,
     }
 )
 
-SERVICE_DISABLE_ACCESS_CODE_SCHEMA = vol.Schema(
+SERVICE_DISABLE_ACCESS_CODE_SCHEMA = probatio.Schema(
     {  # type: ignore[misc]
-        vol.Required("device_id"): cv.string,
-        vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
-        vol.Optional("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
-        vol.Optional("name"): cv.string,
-        vol.Optional("schedule_type"): vol.In(_VALID_SCHEDULE_TYPES),
+        probatio.Required("device_id"): cv.string,
+        probatio.Required("slot"): probatio.All(
+            probatio.Coerce(int), probatio.Range(min=0, max=255)
+        ),
+        probatio.Optional("code"): probatio.All(
+            cv.string, probatio.Match(r"^\d{4,8}$")
+        ),
+        probatio.Optional("name"): cv.string,
+        probatio.Optional("schedule_type"): probatio.In(_VALID_SCHEDULE_TYPES),
         **_SCHEDULE_FIELDS,
     }
 )
 
-SERVICE_ENABLE_ACCESS_CODE_SCHEMA = vol.Schema(
+SERVICE_ENABLE_ACCESS_CODE_SCHEMA = probatio.Schema(
     {  # type: ignore[misc]
-        vol.Required("device_id"): cv.string,
-        vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
-        vol.Optional("code"): vol.All(cv.string, vol.Match(r"^\d{4,8}$")),
-        vol.Optional("name"): cv.string,
-        vol.Optional("schedule_type"): vol.In(_VALID_SCHEDULE_TYPES),
+        probatio.Required("device_id"): cv.string,
+        probatio.Required("slot"): probatio.All(
+            probatio.Coerce(int), probatio.Range(min=0, max=255)
+        ),
+        probatio.Optional("code"): probatio.All(
+            cv.string, probatio.Match(r"^\d{4,8}$")
+        ),
+        probatio.Optional("name"): cv.string,
+        probatio.Optional("schedule_type"): probatio.In(_VALID_SCHEDULE_TYPES),
         **_SCHEDULE_FIELDS,
     }
 )
 
-SERVICE_DELETE_ACCESS_CODE_SCHEMA = vol.Schema(
+SERVICE_DELETE_ACCESS_CODE_SCHEMA = probatio.Schema(
     {
-        vol.Required("device_id"): cv.string,
-        vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+        probatio.Required("device_id"): cv.string,
+        probatio.Required("slot"): probatio.All(
+            probatio.Coerce(int), probatio.Range(min=0, max=255)
+        ),
     }
 )
 
-SERVICE_DELETE_ALL_ACCESS_CODES_SCHEMA = vol.Schema(
+SERVICE_DELETE_ALL_ACCESS_CODES_SCHEMA = probatio.Schema(
     {
-        vol.Required("device_id"): cv.string,
+        probatio.Required("device_id"): cv.string,
     }
 )
 
@@ -167,55 +183,61 @@ SERVICE_DELETE_ALL_ACCESS_CODES_SCHEMA = vol.Schema(
 _VALID_SHORT_DAYS: list[str] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 # Home user management schemas (config-entry-scoped)
-SERVICE_INVITE_USER_SCHEMA = vol.Schema(
+SERVICE_INVITE_USER_SCHEMA = probatio.Schema(
     {
-        vol.Required("config_entry_id"): cv.string,
-        vol.Required("email"): cv.string,
-        vol.Required("access_level"): vol.In(["Member", "Admin"]),
-        vol.Required("nickname"): cv.string,
-        vol.Required("allowed_devices"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("access_time_type"): vol.In(["date_range", "weekly"]),
-        vol.Optional("start_date"): cv.date,
-        vol.Optional("end_date"): cv.date,
-        vol.Optional("start_time"): cv.time,
-        vol.Optional("end_time"): cv.time,
-        vol.Optional("days"): vol.All(cv.ensure_list, [vol.In(_VALID_SHORT_DAYS)]),
+        probatio.Required("config_entry_id"): cv.string,
+        probatio.Required("email"): cv.string,
+        probatio.Required("access_level"): probatio.In(["Member", "Admin"]),
+        probatio.Required("nickname"): cv.string,
+        probatio.Required("allowed_devices"): probatio.All(cv.ensure_list, [cv.string]),
+        probatio.Optional("access_time_type"): probatio.In(["date_range", "weekly"]),
+        probatio.Optional("start_date"): cv.date,
+        probatio.Optional("end_date"): cv.date,
+        probatio.Optional("start_time"): cv.time,
+        probatio.Optional("end_time"): cv.time,
+        probatio.Optional("days"): probatio.All(
+            cv.ensure_list, [probatio.In(_VALID_SHORT_DAYS)]
+        ),
     }
 )
 
-SERVICE_UPDATE_USER_SCHEMA = vol.Schema(
+SERVICE_UPDATE_USER_SCHEMA = probatio.Schema(
     {
-        vol.Required("config_entry_id"): cv.string,
-        vol.Required("email"): cv.string,
-        vol.Required("access_level"): vol.In(["Member", "Admin"]),
-        vol.Required("allowed_devices"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("access_time_type"): vol.In(["date_range", "weekly"]),
-        vol.Optional("start_date"): cv.date,
-        vol.Optional("end_date"): cv.date,
-        vol.Optional("start_time"): cv.time,
-        vol.Optional("end_time"): cv.time,
-        vol.Optional("days"): vol.All(cv.ensure_list, [vol.In(_VALID_SHORT_DAYS)]),
+        probatio.Required("config_entry_id"): cv.string,
+        probatio.Required("email"): cv.string,
+        probatio.Required("access_level"): probatio.In(["Member", "Admin"]),
+        probatio.Required("allowed_devices"): probatio.All(cv.ensure_list, [cv.string]),
+        probatio.Optional("access_time_type"): probatio.In(["date_range", "weekly"]),
+        probatio.Optional("start_date"): cv.date,
+        probatio.Optional("end_date"): cv.date,
+        probatio.Optional("start_time"): cv.time,
+        probatio.Optional("end_time"): cv.time,
+        probatio.Optional("days"): probatio.All(
+            cv.ensure_list, [probatio.In(_VALID_SHORT_DAYS)]
+        ),
     }
 )
 
-SERVICE_DELETE_USER_SCHEMA = vol.Schema(
+SERVICE_DELETE_USER_SCHEMA = probatio.Schema(
     {
-        vol.Required("config_entry_id"): cv.string,
-        vol.Required("email"): cv.string,
+        probatio.Required("config_entry_id"): cv.string,
+        probatio.Required("email"): cv.string,
     }
 )
 
-SERVICE_LIST_USERS_SCHEMA = vol.Schema(
+SERVICE_LIST_USERS_SCHEMA = probatio.Schema(
     {
-        vol.Required("config_entry_id"): cv.string,
+        probatio.Required("config_entry_id"): cv.string,
     }
 )
 
-SERVICE_SET_AUTOLOCK_SCHEMA = vol.Schema(
+SERVICE_SET_AUTOLOCK_SCHEMA = probatio.Schema(
     {
-        vol.Required("device_id"): cv.string,
-        vol.Required("enabled"): cv.boolean,
-        vol.Optional("delay"): vol.All(vol.Coerce(int), vol.In(AUTOLOCK_DELAY_VALID)),
+        probatio.Required("device_id"): cv.string,
+        probatio.Required("enabled"): cv.boolean,
+        probatio.Optional("delay"): probatio.All(
+            probatio.Coerce(int), probatio.In(AUTOLOCK_DELAY_VALID)
+        ),
     }
 )
 
@@ -396,9 +418,9 @@ def _build_home_user_access_time(data: dict[str, Any]) -> dict[str, Any] | None:
                 translation_key="missing_weekly_fields",
             )
         # Convert time objects to epoch using a reference date
-        ref_date = datetime.date(2026, 1, 1)
-        start_dt = datetime.datetime.combine(ref_date, start_time)
-        end_dt = datetime.datetime.combine(ref_date, end_time)
+        ref_date = dt.date(2026, 1, 1)
+        start_dt = dt.datetime.combine(ref_date, start_time)
+        end_dt = dt.datetime.combine(ref_date, end_time)
         start_epoch = str(int(calendar.timegm(start_dt.timetuple())))
         end_epoch = str(int(calendar.timegm(end_dt.timetuple())))
         return {
@@ -429,8 +451,8 @@ def _build_schedule(data: dict[str, Any]) -> AccessCodeSchedule:
     kwargs: dict[str, Any] = {"schedule_type": schedule_type}
 
     # Parse time fields (cv.time returns datetime.time objects)
-    start_time: datetime.time | None = data.get("start_time")
-    end_time: datetime.time | None = data.get("end_time")
+    start_time: dt.time | None = data.get("start_time")
+    end_time: dt.time | None = data.get("end_time")
 
     if start_time is not None:
         kwargs["start_hour"] = start_time.hour
@@ -441,8 +463,8 @@ def _build_schedule(data: dict[str, Any]) -> AccessCodeSchedule:
         kwargs["end_minute"] = end_time.minute
 
     # Parse date fields (cv.date returns datetime.date objects)
-    start_date: datetime.date | None = data.get("start_date")
-    end_date: datetime.date | None = data.get("end_date")
+    start_date: dt.date | None = data.get("start_date")
+    end_date: dt.date | None = data.get("end_date")
 
     if start_date is not None:
         kwargs["start_month"] = start_date.month
@@ -812,9 +834,9 @@ async def async_handle_list_access_codes(
     }
 
 
-SERVICE_LIST_ACCESS_CODES_SCHEMA = vol.Schema(
+SERVICE_LIST_ACCESS_CODES_SCHEMA = probatio.Schema(
     {
-        vol.Required("device_id"): cv.string,
+        probatio.Required("device_id"): cv.string,
     }
 )
 
@@ -1015,7 +1037,7 @@ async def async_handle_set_autolock(
 # Service Registration
 # =============================================================================
 
-_SERVICE_HANDLERS: list[tuple[str, vol.Schema, Any, SupportsResponse]] = [
+_SERVICE_HANDLERS: list[tuple[str, probatio.Schema, Any, SupportsResponse]] = [
     (
         SERVICE_CREATE_ACCESS_CODE,
         SERVICE_CREATE_ACCESS_CODE_SCHEMA,

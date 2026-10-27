@@ -197,6 +197,7 @@ def _create_coordinator(
     device: dict[str, Any],
     update_interval: int,
     entry: KwiksetConfigEntry,
+    *,
     access_code_store: Store | None = None,
     access_code_data: dict[str, dict[str, Any]] | None = None,
 ) -> KwiksetDeviceDataUpdateCoordinator:
@@ -232,6 +233,7 @@ async def _build_device_coordinators(
     entry: KwiksetConfigEntry,
     client: API,
     api_devices: list[dict[str, Any]],
+    *,
     access_code_store: Store | None = None,
     access_code_data: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, KwiksetDeviceDataUpdateCoordinator]:

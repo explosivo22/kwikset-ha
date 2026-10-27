@@ -5,14 +5,14 @@ All notable changes to the Kwikset Smart Locks integration for Home Assistant ar
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 2026-10-27
 
 ### Fixed
 - **Update listener deprecation** ([#129](https://github.com/explosivo22/kwikset-ha/issues/129)): Home Assistant warns that integrations with an update listener that does not schedule a reload will stop working in 2026.12.0. The options flow now uses `OptionsFlowWithReload` and the update listener is removed, so changing the refresh interval reloads the entry (which briefly reconnects the websocket).
 - **Deprecated device registry lookup**: Replaced `device_registry.async_get_device` with `async_get_device_by_identifier` when removing devices that disappear from the account.
 
 ### Changed
-- **Minimum Home Assistant version** is now 2025.8.0 (required for `OptionsFlowWithReload`). CI and development now target Python 3.14 and Home Assistant 2026.10.
+- **Minimum Home Assistant version** is now **2026.10.0** (**breaking**). Home Assistant 2026.10 replaced `voluptuous` with `probatio` as its validation engine, and `config_flow.py` and `services.py` now import `probatio` directly, as core integrations do ([#131](https://github.com/explosivo22/kwikset-ha/issues/131)). This clears the 12 `mypy` `arg-type` errors against the new Home Assistant types and no longer relies on the `voluptuous` compatibility shim. Users on older Home Assistant versions should stay on 0.7.x. (2025.8.0 was previously required for `OptionsFlowWithReload`.) CI and development now target Python 3.14 and Home Assistant 2026.10.
 
 ---
 

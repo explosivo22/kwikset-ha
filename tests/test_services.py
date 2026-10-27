@@ -8,7 +8,7 @@ Quality Scale: Platinum tier - comprehensive service testing infrastructure.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
@@ -171,10 +171,10 @@ class TestScheduleBuilder:
         """Test building a date-range schedule with dates and times."""
         data = {
             "schedule_type": "date_range",
-            "start_date": datetime.date(2026, 3, 1),
-            "end_date": datetime.date(2026, 3, 7),
-            "start_time": datetime.time(8, 0),
-            "end_time": datetime.time(22, 0),
+            "start_date": dt.date(2026, 3, 1),
+            "end_date": dt.date(2026, 3, 7),
+            "start_time": dt.time(8, 0),
+            "end_time": dt.time(22, 0),
         }
         schedule = _build_schedule(data)
         assert schedule.schedule_type == ScheduleType.DATE_RANGE
@@ -192,8 +192,8 @@ class TestScheduleBuilder:
         data = {
             "schedule_type": "weekly",
             "days_of_week": ["monday", "wednesday", "friday"],
-            "start_time": datetime.time(9, 0),
-            "end_time": datetime.time(17, 0),
+            "start_time": dt.time(9, 0),
+            "end_time": dt.time(17, 0),
         }
         schedule = _build_schedule(data)
         assert schedule.schedule_type == ScheduleType.WEEKLY
@@ -1834,14 +1834,14 @@ class TestSetAutolockService:
     async def test_invalid_delay_rejected_by_schema(
         self, hass: HomeAssistant, mock_api: MagicMock
     ) -> None:
-        """Test unsupported delay values raise vol.Invalid via schema."""
-        import voluptuous as vol
+        """Test unsupported delay values raise probatio.Invalid via schema."""
+        import probatio
 
         from custom_components.kwikset.const import SERVICE_SET_AUTOLOCK
 
         ha_device_id, _coordinator = await _setup_entry_with_device(hass, mock_api)
 
-        with pytest.raises(vol.Invalid):
+        with pytest.raises(probatio.Invalid):
             await hass.services.async_call(
                 DOMAIN,
                 SERVICE_SET_AUTOLOCK,

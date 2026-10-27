@@ -193,7 +193,7 @@ To enable: **Settings** → **Devices & Services** → **Kwikset** → Select yo
 
 1. **Kwikset Account**: A valid Kwikset account with your locks registered
 2. **Kwikset Home**: You must create a "Home" in the Kwikset app and add your locks to it
-3. **Home Assistant**: Version 2024.1.0 or newer recommended
+3. **Home Assistant**: Version 2026.10.0 or newer
 4. **HACS**: For easy installation (optional but recommended)
 
 ### Important Notes
