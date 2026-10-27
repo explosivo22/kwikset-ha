@@ -536,6 +536,14 @@ automation:
 3. Check lock battery level
 4. Restart the integration
 
+#### Halo Touch Screen shows "Locking"/"Unlocking" but the lock does not move
+
+**Cause**: Halo Touch Screen locks on firmware `02.09.00.10` accept commands from the Kwikset cloud but do not act on them. The Kwikset app still works, and nothing is logged in Home Assistant ([#124](https://github.com/explosivo22/kwikset-ha/issues/124)).
+
+**Solutions**:
+1. Open the Kwikset (or Weiser) app and update the lock to firmware `02.09.10.10` or later
+2. After the update, lock/unlock from Home Assistant works again, with no integration change needed
+
 #### Actions fail with "Failed to lock/unlock"
 
 **Cause**: API error or lock offline
