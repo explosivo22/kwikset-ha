@@ -569,6 +569,11 @@
             "autolock_switch": {
                 "name": "Auto Lock"
             }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Connectivity"
+            }
         }
     },
     "exceptions": {
@@ -667,6 +672,9 @@
         },
         "set_autolock_failed": {
             "message": "Failed to update auto-lock settings. The device may be offline. Please try again."
+        },
+        "lock_offline": {
+            "message": "The lock is offline. Check its batteries and connection, then try again."
         }
     },
     "issues": {

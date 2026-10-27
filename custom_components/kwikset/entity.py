@@ -29,7 +29,8 @@ class KwiksetEntity(CoordinatorEntity["KwiksetDeviceDataUpdateCoordinator"]):
         - Automatic state updates via DataUpdateCoordinator
         - Consistent device_info for device registry grouping
         - Unique ID format: {device_id}_{entity_type}
-        - Availability based on coordinator.last_update_success
+        - Availability based on coordinator.last_update_success and the
+          lock reporting itself online (is_online)
 
     Subclasses must set _attr_translation_key and call super().__init__().
     """
@@ -65,3 +66,13 @@ class KwiksetEntity(CoordinatorEntity["KwiksetDeviceDataUpdateCoordinator"]):
             name=coordinator.device_name,
             sw_version=coordinator.firmware_version,
         )
+
+    @property
+    def available(self) -> bool:
+        """Return False while the lock is offline or the last update failed.
+
+        A lock that has lost power or connectivity keeps its last known state
+        in the Kwikset cloud, so the cloud poll still succeeds; the lock's own
+        connectivity flag is what tells us that state can't be trusted.
+        """
+        return super().available and self.coordinator.is_online

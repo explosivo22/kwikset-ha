@@ -58,6 +58,7 @@ from .services import async_setup_services
 from .services import async_unload_services
 
 PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
     Platform.EVENT,
     Platform.LOCK,
     Platform.SENSOR,

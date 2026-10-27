@@ -569,6 +569,11 @@
             "autolock_switch": {
                 "name": "Auto Lock"
             }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Connectivity"
+            }
         }
     },
     "exceptions": {
@@ -667,6 +672,9 @@
         },
         "missing_weekly_fields": {
             "message": "Weekly access requires start_time, end_time, and days to be provided."
+        },
+        "lock_offline": {
+            "message": "The lock is offline. Check its batteries and connection, then try again."
         }
     },
     "issues": {

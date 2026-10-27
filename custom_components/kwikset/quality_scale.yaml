@@ -154,6 +154,8 @@ rules:
       - Auth errors raise ConfigEntryAuthFailed (triggers reauth flow)
       - LOGGER.debug/info/warning/error used at appropriate levels
       - Entity availability reflects coordinator.last_update_success
+      - Lock going offline logs one warning, coming back logs one info
+        (device.py:_track_connectivity)
       Location: custom_components/kwikset/device.py:_api_call_with_retry
 
   parallel_updates:
@@ -179,14 +181,17 @@ rules:
     comment: |
       KwiksetEntity inherits from CoordinatorEntity which provides
       automatic availability based on coordinator.last_update_success.
-      Entities show as unavailable when API calls fail.
-      Location: custom_components/kwikset/entity.py (via CoordinatorEntity)
+      Entities show as unavailable when API calls fail, and when the lock
+      itself reports connectivitystatus offline (powered off / out of range).
+      The connectivity binary sensor stays available to show why.
+      Location: custom_components/kwikset/entity.py:available
 
   action_exceptions:
     status: done
     comment: |
       All actions raise HomeAssistantError with translation_key:
       - Lock: "lock_failed", "unlock_failed" (lock.py)
+      - Lock: "lock_offline" when the lock reports itself offline (lock.py)
       - Switch: "switch_on_failed", "switch_off_failed" (switch.py)
       - Coordinator: "api_error" for retry exhaustion (device.py)
       - Auth errors: ConfigEntryAuthFailed triggers reauth

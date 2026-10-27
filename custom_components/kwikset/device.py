@@ -68,6 +68,13 @@ _KEY_LED = "ledstatus"
 _KEY_AUDIO = "audiostatus"
 _KEY_SECURE_SCREEN = "securescreenstatus"
 _KEY_AUTOLOCK = "autolockstate"
+_KEY_CONNECTIVITY = "connectivitystatus"
+
+# connectivitystatus values meaning the lock is unreachable.  Anything else
+# (including a missing field) counts as online so an unexpected payload never
+# makes a working lock unavailable.
+_OFFLINE_VALUES: frozenset[str] = frozenset({"offline", "disconnected", "false"})
+_ONLINE_VALUES: frozenset[str] = frozenset({"online", "connected", "true"})
 
 # API response keys for access code fields
 _KEY_ACCESS_CODE_CRC = "accesscodecrc"
@@ -113,6 +120,7 @@ class KwiksetDeviceData(TypedDict, total=False):
     audio_status: bool | None
     secure_screen_status: bool | None
     autolock_status: bool | None
+    online: bool
     history_events: list[dict[str, Any]]
 
 
@@ -161,6 +169,8 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         self._device_reported_slots: dict[int, AccessCodeSlotData] = {}
         self._first_refresh_done: bool = False
         self._preserve_door_status: bool = False
+        self._logged_unknown_connectivity: bool = False
+        self._last_online: bool = True
 
     # -------------------------------------------------------------------------
     # API Call Wrapper
@@ -374,6 +384,14 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             )
         info = result if result is not None else {}
         self._device_info = info
+        raw_connectivity = info.get(_KEY_CONNECTIVITY)
+        if raw_connectivity is None and self.data:
+            # The poll didn't report connectivity; keep what a websocket event
+            # last told us rather than flipping an offline lock back to online.
+            online = self.data.get("online", True)
+        else:
+            online = self._parse_online(raw_connectivity)
+        self._track_connectivity(online)
 
         # Parse access code slot data from device info
         self._device_reported_slots = self._discover_device_slots(info)
@@ -409,6 +427,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
             audio_status=self._parse_bool(info.get(_KEY_AUDIO)),
             secure_screen_status=self._parse_bool(info.get(_KEY_SECURE_SCREEN)),
             autolock_status=self._parse_bool(info.get(_KEY_AUTOLOCK)),
+            online=online,
             history_events=history_events,
         )
 
@@ -420,6 +439,38 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         if isinstance(value, bool):
             return value
         return str(value).lower() in ("true", "1", "yes", "on")
+
+    def _parse_online(self, value: Any) -> bool:
+        """Parse connectivitystatus; only a clearly offline value is False."""
+        if value is None:
+            return True
+        normalized = str(value).strip().lower()
+        if normalized in _OFFLINE_VALUES:
+            return False
+        if normalized not in _ONLINE_VALUES and not self._logged_unknown_connectivity:
+            self._logged_unknown_connectivity = True
+            LOGGER.debug(
+                "Unrecognized connectivitystatus %r for %s; treating as online",
+                value,
+                self.device_id,
+            )
+        return True
+
+    def _track_connectivity(self, online: bool) -> bool:
+        """Log connectivity transitions once; return True on a reconnect."""
+        previous = self._last_online
+        self._last_online = online
+        if online == previous:
+            return False
+        if online:
+            LOGGER.info("Lock %s is back online", self.device_id)
+            return True
+        LOGGER.warning(
+            "Lock %s is offline (no battery power or out of range); "
+            "its entities are unavailable until it reconnects",
+            self.device_id,
+        )
+        return False
 
     # -------------------------------------------------------------------------
     # Real-Time Event Handling
@@ -482,6 +533,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
         if device_status is not None:
             updated["door_status"] = device_status
 
+        reconnected = False
+        connectivity = event_data.get(_KEY_CONNECTIVITY)
+        if connectivity is not None:
+            online = self._parse_online(connectivity)
+            updated["online"] = online
+            reconnected = self._track_connectivity(online)
+
         # Detect whether door status changed so we can request a history
         # refresh from the REST API.  The websocket does not carry event
         # history, so the only reliable source for the Event entity and
@@ -531,6 +589,7 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
                 new_door_status,
             )
             self._preserve_door_status = True  # Protect against stale REST data
+        if door_status_changed or reconnected:
             self.hass.async_create_task(self.async_request_refresh(), eager_start=False)
 
     # -------------------------------------------------------------------------
@@ -579,6 +638,13 @@ class KwiksetDeviceDataUpdateCoordinator(DataUpdateCoordinator[KwiksetDeviceData
     def status(self) -> str:
         """Return lock status (Locked/Unlocked/Jammed/Unknown)."""
         return self._get_value("door_status", _KEY_DOOR_STATUS)
+
+    @property
+    def is_online(self) -> bool:
+        """Return True unless the lock reports itself offline."""
+        if self.data:
+            return self.data.get("online", True)
+        return self._parse_online(self._device_info.get(_KEY_CONNECTIVITY))
 
     @property
     def led_status(self) -> bool | None:

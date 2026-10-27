@@ -19,6 +19,7 @@ APIs not available in all versions (e.g., AddConfigEntryEntitiesCallback).
 from __future__ import annotations
 
 import pytest
+from homeassistant.const import Platform
 
 
 def _can_import_lock_module() -> bool:
@@ -462,7 +463,8 @@ class TestInitModuleImports:
         from custom_components.kwikset import PLATFORMS
 
         assert PLATFORMS is not None
-        assert len(PLATFORMS) == 4
+        assert len(PLATFORMS) == 5
+        assert Platform.BINARY_SENSOR in PLATFORMS
 
 
 # =============================================================================

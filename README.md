@@ -57,6 +57,7 @@ A custom Home Assistant integration for [Kwikset Smart Locks](https://www.kwikse
 - **Lock/Unlock**: Control your Kwikset smart locks remotely
 - **Real-time Status**: View lock state (locked/unlocked) with automatic polling
 - **Battery Monitoring**: Track battery percentage with low battery alerts
+- **Offline Detection**: A lock that loses power or connectivity (for example dead batteries) is shown as unavailable instead of its last known state
 
 ### Device Settings
 - **LED Indicator**: Toggle the LED status light on/off
@@ -172,6 +173,7 @@ This section describes known limitations of the integration (not bugs).
 
 | Limitation | Description |
 |------------|-------------|
+| **Offline Detection** | Offline status relies on the connectivity flag the Kwikset cloud reports for the lock. If the cloud does not report it, the lock is treated as online. |
 | **WiFi Required** | Locks must be connected to WiFi (directly or via bridge) for remote control. |
 | **Home Required** | Locks must be assigned to a "Home" in the Kwikset app before they appear in this integration. |
 | **Single Account** | Each Home Assistant instance should use one Kwikset account per home to avoid token conflicts. |
@@ -343,6 +345,13 @@ Each Kwikset lock creates the following entities:
 | Entity | Type | Category | Description |
 |--------|------|----------|-------------|
 | `sensor.<device_name>_battery` | Sensor | Diagnostic | Battery percentage (0-100%) |
+
+### Binary Sensor Entities
+| Entity | Type | Category | Description |
+|--------|------|----------|-------------|
+| `binary_sensor.<device_name>_connectivity` | Binary sensor | Diagnostic | Whether the lock is connected. Turns off when the lock is offline, while it stays available so you can automate on it |
+
+> **Offline locks**: when the lock reports itself offline, all of its other entities become `unavailable` and lock/unlock requests are rejected. They recover automatically when the lock reconnects.
 
 ### Switch Entities
 | Entity | Type | Category | Description |

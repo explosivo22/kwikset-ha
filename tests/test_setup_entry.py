@@ -745,8 +745,9 @@ class TestPlatformsConstant:
         assert Platform.EVENT in PLATFORMS
 
     def test_platforms_count(self) -> None:
-        """Test PLATFORMS has exactly 4 platforms."""
-        assert len(PLATFORMS) == 4
+        """Test PLATFORMS has exactly 5 platforms."""
+        assert len(PLATFORMS) == 5
+        assert Platform.BINARY_SENSOR in PLATFORMS
 
 
 # =============================================================================

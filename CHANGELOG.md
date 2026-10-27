@@ -5,6 +5,16 @@ All notable changes to the Kwikset Smart Locks integration for Home Assistant ar
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-10-27
+
+### Fixed
+- **Offline lock reported as locked** ([#127](https://github.com/explosivo22/kwikset-ha/issues/127)): When a lock lost power (for example dead batteries) the Kwikset cloud kept returning its last known door state, so Home Assistant showed "locked" and an unlock attempt sat in "unlocking" for 30 seconds before reverting. The integration now reads the lock's `connectivitystatus` (from polling and websocket events). While the lock is offline every entity is `unavailable` and lock/unlock raises a translated `lock_offline` error. One warning is logged when the lock goes offline and one message when it returns, followed by an immediate refresh. A missing or unrecognized value is treated as online.
+
+### Added
+- **Connectivity binary sensor**: New diagnostic `binary_sensor.<device_name>_connectivity` shows whether the lock is connected and stays available while the lock is offline.
+
+---
+
 ## [0.8.0] - 2026-10-27
 
 ### Fixed

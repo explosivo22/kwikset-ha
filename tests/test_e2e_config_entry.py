@@ -532,3 +532,52 @@ class TestPlatformSetup:
         assert "switch" in [
             p.value if hasattr(p, "value") else str(p) for p in platforms
         ]
+
+
+# =============================================================================
+# Offline Lock Tests (issue #127)
+# =============================================================================
+
+
+class TestOfflineLock:
+    """A lock that lost power is shown unavailable, not as its last state."""
+
+    async def test_offline_lock_is_unavailable_and_connectivity_off(
+        self,
+        hass: HomeAssistant,
+        mock_api: MagicMock,
+    ) -> None:
+        """Full setup against an offline payload reproduces the reporter's case."""
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        mock_api.device.get_device_info = AsyncMock(
+            return_value={**MOCK_DEVICE_INFO, "connectivitystatus": "Offline"}
+        )
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data=MOCK_ENTRY_DATA.copy(),
+            options=MOCK_ENTRY_OPTIONS.copy(),
+            title="Test Home",
+            unique_id=MOCK_HOME_ID,
+            version=6,
+        )
+        entry.add_to_hass(hass)
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert entry.state is ConfigEntryState.LOADED
+        registry = er.async_get(hass)
+
+        def state_of(domain: str, suffix: str) -> str:
+            entity_id = registry.async_get_entity_id(
+                domain, DOMAIN, f"{MOCK_DEVICE_ID}_{suffix}"
+            )
+            assert entity_id is not None
+            state = hass.states.get(entity_id)
+            assert state is not None
+            return state.state
+
+        assert state_of("lock", "lock") == "unavailable"
+        assert state_of("binary_sensor", "connectivity") == "off"

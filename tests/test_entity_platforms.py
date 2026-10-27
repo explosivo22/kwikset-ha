@@ -1984,3 +1984,202 @@ class TestKwiksetLockConfirmationHold:
 
         assert lock._attr_is_locked is True
         assert not lock._is_confirmation_hold_active
+
+
+# =============================================================================
+# Offline Availability Tests (issue #127)
+# =============================================================================
+
+
+def _build_entity(kind: str, coordinator: MagicMock):
+    """Build one entity of each platform type against ``coordinator``."""
+    from custom_components.kwikset import event
+    from custom_components.kwikset import lock
+    from custom_components.kwikset import sensor
+    from custom_components.kwikset import switch
+
+    builders = {
+        "lock": lambda: lock.KwiksetLock(coordinator),
+        "event": lambda: event.KwiksetLockEvent(coordinator),
+        "sensor": lambda: sensor.KwiksetSensor(
+            coordinator, sensor.SENSOR_DESCRIPTIONS[0]
+        ),
+        "history_sensor": lambda: sensor.KwiksetHistorySensor(
+            coordinator, sensor.HISTORY_SENSOR_DESCRIPTIONS[0]
+        ),
+        "access_code_sensor": lambda: sensor.KwiksetAccessCodeSensor(
+            coordinator, sensor.ACCESS_CODE_SENSOR_DESCRIPTIONS[0]
+        ),
+        "home_sensor": lambda: sensor.KwiksetHomeSensor(
+            coordinator, sensor.HOME_SENSOR_DESCRIPTIONS[0], MOCK_HOME_ID
+        ),
+        "switch": lambda: switch.KwiksetSwitch(
+            coordinator, switch.SWITCH_DESCRIPTIONS[0]
+        ),
+    }
+    return builders[kind]()
+
+
+ENTITY_KINDS = [
+    "lock",
+    "event",
+    "sensor",
+    "history_sensor",
+    "access_code_sensor",
+    "home_sensor",
+    "switch",
+]
+
+
+class TestOfflineAvailability:
+    """Every Kwikset entity is unavailable while the lock is offline."""
+
+    @pytest.mark.parametrize("kind", ENTITY_KINDS)
+    def test_unavailable_when_lock_offline(
+        self, kind: str, mock_coordinator: MagicMock
+    ) -> None:
+        """An offline lock makes the entity unavailable."""
+        mock_coordinator.is_online = False
+        assert _build_entity(kind, mock_coordinator).available is False
+
+    @pytest.mark.parametrize("kind", ENTITY_KINDS)
+    def test_available_when_lock_online(
+        self, kind: str, mock_coordinator: MagicMock
+    ) -> None:
+        """An online lock with a successful update stays available."""
+        mock_coordinator.is_online = True
+        assert _build_entity(kind, mock_coordinator).available is True
+
+    @pytest.mark.parametrize("kind", ENTITY_KINDS)
+    def test_unavailable_when_update_fails(
+        self, kind: str, mock_coordinator: MagicMock
+    ) -> None:
+        """A failed coordinator update still wins even if the lock is online."""
+        mock_coordinator.is_online = True
+        mock_coordinator.last_update_success = False
+        assert _build_entity(kind, mock_coordinator).available is False
+
+
+class TestLockCommandsWhileOffline:
+    """Lock/unlock refuse to run against an offline lock (issue #127)."""
+
+    @pytest.mark.parametrize(
+        ("action", "api_call", "locked"),
+        [("async_lock", "lock", False), ("async_unlock", "unlock", True)],
+    )
+    async def test_command_rejected_without_api_call(
+        self,
+        lock_module,
+        mock_coordinator: MagicMock,
+        action: str,
+        api_call: str,
+        locked: bool,
+    ) -> None:
+        """An offline lock raises lock_offline and never goes optimistic."""
+        mock_coordinator.is_online = False
+        lock = lock_module.KwiksetLock(mock_coordinator)
+        lock._attr_is_locked = locked
+        lock.hass = MagicMock()
+        lock.async_write_ha_state = MagicMock()
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await getattr(lock, action)()
+
+        assert exc_info.value.translation_domain == DOMAIN
+        assert exc_info.value.translation_key == "lock_offline"
+        getattr(mock_coordinator, api_call).assert_not_awaited()
+        lock.async_write_ha_state.assert_not_called()
+        assert not lock._attr_is_locking
+        assert not lock._attr_is_unlocking
+
+
+# =============================================================================
+# Connectivity Binary Sensor Tests (issue #127)
+# =============================================================================
+
+
+class TestKwiksetConnectivitySensor:
+    """Tests for the connectivity diagnostic binary sensor."""
+
+    @pytest.fixture
+    def binary_sensor_module(self):
+        """Import binary_sensor module lazily."""
+        from custom_components.kwikset import binary_sensor
+
+        return binary_sensor
+
+    def test_description(self, binary_sensor_module) -> None:
+        """Description is a diagnostic connectivity sensor."""
+        from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
+        (description,) = binary_sensor_module.BINARY_SENSOR_DESCRIPTIONS
+        assert description.key == "connectivity"
+        assert description.translation_key == "connectivity"
+        assert description.device_class == BinarySensorDeviceClass.CONNECTIVITY
+        assert description.entity_category == EntityCategory.DIAGNOSTIC
+
+    def test_unique_id(self, binary_sensor_module, mock_coordinator: MagicMock) -> None:
+        """unique_id follows {device_id}_connectivity."""
+        entity = binary_sensor_module.KwiksetBinarySensor(
+            mock_coordinator, binary_sensor_module.BINARY_SENSOR_DESCRIPTIONS[0]
+        )
+        assert entity.unique_id == f"{MOCK_DEVICE_ID}_connectivity"
+
+    @pytest.mark.parametrize("online", [True, False])
+    def test_is_on_reflects_connectivity(
+        self, binary_sensor_module, mock_coordinator: MagicMock, online: bool
+    ) -> None:
+        """The sensor is on when the lock is online and off when offline."""
+        mock_coordinator.is_online = online
+        entity = binary_sensor_module.KwiksetBinarySensor(
+            mock_coordinator, binary_sensor_module.BINARY_SENSOR_DESCRIPTIONS[0]
+        )
+        assert entity.is_on is online
+
+    def test_stays_available_while_offline(
+        self, binary_sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """It must keep reporting 'off' rather than going unavailable."""
+        mock_coordinator.is_online = False
+        entity = binary_sensor_module.KwiksetBinarySensor(
+            mock_coordinator, binary_sensor_module.BINARY_SENSOR_DESCRIPTIONS[0]
+        )
+        assert entity.available is True
+
+    def test_unavailable_when_update_fails(
+        self, binary_sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """A failed cloud update still makes it unavailable."""
+        mock_coordinator.last_update_success = False
+        entity = binary_sensor_module.KwiksetBinarySensor(
+            mock_coordinator, binary_sensor_module.BINARY_SENSOR_DESCRIPTIONS[0]
+        )
+        assert entity.available is False
+
+    def test_parallel_updates(self, binary_sensor_module) -> None:
+        """PARALLEL_UPDATES is 1."""
+        assert binary_sensor_module.PARALLEL_UPDATES == 1
+
+    async def test_setup_adds_entity_per_device_and_new_devices(
+        self, hass, binary_sensor_module, mock_coordinator: MagicMock
+    ) -> None:
+        """Entities are added for known devices and for later discoveries."""
+        other = MagicMock()
+        other.device_id = "device_other"
+        other.device_name = "Other"
+        other.manufacturer = "Kwikset"
+        other.model = "Halo"
+        other.firmware_version = "1"
+        devices = {MOCK_DEVICE_ID: mock_coordinator}
+        entry = MagicMock()
+        entry.runtime_data.devices = devices
+        added: list = []
+
+        await binary_sensor_module.async_setup_entry(hass, entry, added.extend)
+        assert [e.unique_id for e in added] == [f"{MOCK_DEVICE_ID}_connectivity"]
+
+        devices["device_other"] = other
+        hass.bus.async_fire(f"{DOMAIN}_new_device")
+        await hass.async_block_till_done()
+        assert [e.unique_id for e in added][-1] == "device_other_connectivity"
+        assert len(added) == 2

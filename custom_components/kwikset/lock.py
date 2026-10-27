@@ -292,6 +292,14 @@ class KwiksetLock(KwiksetEntity, LockEntity):
         self._reset_optimistic_state(write_state=False)
         await super().async_will_remove_from_hass()
 
+    def _raise_if_offline(self) -> None:
+        """Reject a command up front when the lock reports itself offline."""
+        if not self.coordinator.is_online:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="lock_offline",
+            )
+
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the device.
 
@@ -303,6 +311,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
         Silver tier: action_exceptions with translation_key for i18n.
         """
+        self._raise_if_offline()
         if not self._attr_is_locked:
             # Optimistically signal locking to state machine
             self._attr_is_locking = True
@@ -339,6 +348,7 @@ class KwiksetLock(KwiksetEntity, LockEntity):
 
         Silver tier: action_exceptions with translation_key for i18n.
         """
+        self._raise_if_offline()
         if self._attr_is_locked:
             # Optimistically signal unlocking to state machine
             self._attr_is_unlocking = True

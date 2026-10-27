@@ -1021,6 +1021,216 @@ class TestDataUpdate:
 
 
 # =============================================================================
+# Connectivity Tests
+# =============================================================================
+
+
+def _make_coordinator(
+    hass: HomeAssistant,
+    config_entry: MagicMock,
+    device_info: dict,
+) -> KwiksetDeviceDataUpdateCoordinator:
+    """Build a coordinator whose REST device info is ``device_info``."""
+    api = MagicMock()
+    api.device = MagicMock()
+    api.device.get_device_info = AsyncMock(return_value=device_info)
+    api.device.get_device_history = AsyncMock(
+        return_value={"data": [], "total": 0, "issues": []}
+    )
+    return KwiksetDeviceDataUpdateCoordinator(
+        hass=hass,
+        api_client=api,
+        device_id=MOCK_DEVICE_ID,
+        device_name=MOCK_DEVICE_NAME,
+        update_interval=30,
+        config_entry=config_entry,
+    )
+
+
+class TestConnectivityRest:
+    """Connectivity parsed from the REST device info (issue #127)."""
+
+    async def test_offline_status_marks_lock_offline(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """A device reporting connectivitystatus=offline is not online."""
+        info = {**MOCK_DEVICE_INFO, "connectivitystatus": "Offline"}
+        coordinator = _make_coordinator(hass, mock_config_entry, info)
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.data["online"] is False
+        assert coordinator.is_online is False
+
+    @pytest.mark.parametrize("value", ["Online", "connected", True, None])
+    async def test_online_values_keep_lock_online(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+        value: object,
+    ) -> None:
+        """Recognized online values keep the lock online."""
+        info = {**MOCK_DEVICE_INFO, "connectivitystatus": value}
+        coordinator = _make_coordinator(hass, mock_config_entry, info)
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.data["online"] is True
+
+    async def test_missing_field_fails_open(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+    ) -> None:
+        """No connectivitystatus at all counts as online."""
+        coordinator = _make_coordinator(hass, mock_config_entry, MOCK_DEVICE_INFO)
+
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.is_online is True
+
+    async def test_unrecognized_value_fails_open_and_logs_once(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """An unknown value counts as online and is debug-logged once."""
+        info = {**MOCK_DEVICE_INFO, "connectivitystatus": "banana"}
+        coordinator = _make_coordinator(hass, mock_config_entry, info)
+
+        with caplog.at_level("DEBUG", logger="custom_components.kwikset"):
+            await coordinator.async_config_entry_first_refresh()
+            await coordinator.async_refresh()
+
+        assert coordinator.is_online is True
+        assert caplog.text.count("Unrecognized connectivitystatus") == 1
+
+
+class TestConnectivityRealtime:
+    """Connectivity changes arriving over the websocket (issue #127)."""
+
+    async def _setup(
+        self, hass: HomeAssistant, config_entry: MagicMock
+    ) -> KwiksetDeviceDataUpdateCoordinator:
+        coordinator = _make_coordinator(hass, config_entry, MOCK_DEVICE_INFO)
+        await coordinator.async_config_entry_first_refresh()
+        return coordinator
+
+    async def test_event_marks_lock_offline(
+        self, hass: HomeAssistant, mock_config_entry: MagicMock
+    ) -> None:
+        """An event with connectivitystatus=offline flips the lock offline."""
+        coordinator = await self._setup(hass, mock_config_entry)
+
+        coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+
+        assert coordinator.data["online"] is False
+        assert coordinator.is_online is False
+
+    async def test_event_without_field_keeps_state(
+        self, hass: HomeAssistant, mock_config_entry: MagicMock
+    ) -> None:
+        """Events lacking connectivitystatus (None) leave online untouched."""
+        coordinator = await self._setup(hass, mock_config_entry)
+        coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+
+        coordinator.handle_realtime_event(
+            {"connectivitystatus": None, "batterypercentage": 50}
+        )
+
+        assert coordinator.is_online is False
+        assert coordinator.data["battery_percentage"] == 50
+
+    async def test_transitions_log_once_each(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """One warning going offline, one info coming back, no repeats."""
+        coordinator = await self._setup(hass, mock_config_entry)
+
+        with (
+            caplog.at_level("INFO", logger="custom_components.kwikset"),
+            patch.object(coordinator, "async_request_refresh"),
+        ):
+            coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+            coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+            coordinator.handle_realtime_event({"connectivitystatus": "online"})
+            coordinator.handle_realtime_event({"connectivitystatus": "online"})
+
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        infos = [r for r in caplog.records if "back online" in r.getMessage()]
+        assert len(warnings) == 1
+        assert "offline" in warnings[0].getMessage()
+        assert len(infos) == 1
+
+    async def test_reconnect_requests_refresh(
+        self, hass: HomeAssistant, mock_config_entry: MagicMock
+    ) -> None:
+        """Coming back online schedules a refresh to fetch the real state."""
+        coordinator = await self._setup(hass, mock_config_entry)
+        coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+
+        with patch.object(
+            coordinator, "async_request_refresh", new_callable=AsyncMock
+        ) as refresh:
+            coordinator.handle_realtime_event({"connectivitystatus": "online"})
+            await hass.async_block_till_done()
+
+        refresh.assert_awaited_once()
+
+    async def test_going_offline_does_not_request_refresh(
+        self, hass: HomeAssistant, mock_config_entry: MagicMock
+    ) -> None:
+        """Only a reconnect triggers a refresh."""
+        coordinator = await self._setup(hass, mock_config_entry)
+
+        with patch.object(
+            coordinator, "async_request_refresh", new_callable=AsyncMock
+        ) as refresh:
+            coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+            await hass.async_block_till_done()
+
+        refresh.assert_not_awaited()
+
+
+class TestConnectivityRestAfterRealtime:
+    """A REST poll lacking the field must not undo a websocket offline event."""
+
+    async def test_poll_without_field_keeps_offline(
+        self, hass: HomeAssistant, mock_config_entry: MagicMock
+    ) -> None:
+        """Websocket says offline; the next poll has no connectivitystatus."""
+        coordinator = _make_coordinator(hass, mock_config_entry, MOCK_DEVICE_INFO)
+        await coordinator.async_config_entry_first_refresh()
+        coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+
+        await coordinator.async_refresh()
+
+        assert coordinator.is_online is False
+
+    async def test_poll_with_online_value_recovers(
+        self, hass: HomeAssistant, mock_config_entry: MagicMock
+    ) -> None:
+        """An explicit online value in a poll still clears the offline state."""
+        coordinator = _make_coordinator(hass, mock_config_entry, MOCK_DEVICE_INFO)
+        await coordinator.async_config_entry_first_refresh()
+        coordinator.handle_realtime_event({"connectivitystatus": "offline"})
+        coordinator.api_client.device.get_device_info.return_value = {
+            **MOCK_DEVICE_INFO,
+            "connectivitystatus": "Online",
+        }
+
+        await coordinator.async_refresh()
+
+        assert coordinator.is_online is True
+
+
+# =============================================================================
 # History Property Tests
 # =============================================================================
 
